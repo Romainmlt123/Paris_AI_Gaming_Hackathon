@@ -9,7 +9,7 @@ import { advanceClock, chatterLine, routineStep } from '../shared/routine';
 import { addCatch, BAG_FISH_MAX, FISH, giveFish, rollFish } from '../shared/fishing';
 import { buyItem, islandLevel, ISLAND_LEVELS, lookOf, nextLevel, SHOP_ITEMS, SHOP_OWNER, stockOf, toggleWear, type ShopId } from '../shared/shop';
 import { buildGazette } from '../shared/gazette';
-import { applySimResult, buildSimRequest } from '../shared/simulate';
+import { applySimResult, buildSimRequest, mergeSim, simulateFallback } from '../shared/simulate';
 import { applyOpener, applyTalkResult, buildTalkContext, createInitialState, npcsWithIntent } from '../shared/state';
 import { arrivalFactText, cleanIsland, cleanName, DEFAULT_LOOK, ISLAND_IDEAS } from '../shared/player';
 import { recordFact } from '../shared/rumors';
@@ -146,7 +146,7 @@ async function aiOpener(npc: NpcId, reason: string): Promise<void> {
     await dialogue.say(result.reply, result.emotion);
   } catch (err) {
     aiFailed(npc, err);
-    endTalk();
+    if (dialogue.current() === npc) endTalk();
   } finally {
     busy = false;
     replying = false;
@@ -296,7 +296,7 @@ function runInitiative({ npc, trigger, reason }: Initiative): void {
       result = await line;
     } catch (err) {
       aiFailed(npc, err);
-      endTalk();
+      if (dialogue.current() === npc) endTalk();
       return;
     }
     if (dialogue.current() !== npc) return;
@@ -817,7 +817,8 @@ async function absence(): Promise<void> {
   const before = state;
   let result: SimResult;
   try {
-    result = await simulate(buildSimRequest(before, ABSENCE_HOURS));
+    const ai = await simulate(buildSimRequest(before, ABSENCE_HOURS));
+    result = { ...ai, transfers: mergeSim(ai, simulateFallback(before, ABSENCE_HOURS)).transfers };
   } catch (err) {
     console.warn('[ai] simulate: no AI answer', err);
     hud.setAiStatus('');
