@@ -56,6 +56,8 @@ export type ShopItemId =
   | 'tabouret' | 'tapis' | 'table' | 'lampe' | 'plante' | 'fauteuil' | 'bibliotheque' | 'canape' | 'lustre' | 'piano' | 'trone'
   | 'echarpe' | 'beret' | 'pompon' | 'pull' | 'gala'
   | 'mariniere' | 'bonnet' | 'bouee' | 'cire' | 'aquarium' | 'capitaine' | 'voilier';
+export type FishId = 'sardine' | 'maquereau' | 'bar' | 'rouget' | 'dorade' | 'poulpe' | 'espadon' | 'poulpe_dore' | 'botte';
+
 export type OutfitSlot = 'hat' | 'top' | 'scarf';
 
 export interface GameState {
@@ -71,6 +73,8 @@ export interface GameState {
   /** Furniture and clothes bought in the island shops. */
   owned: ShopItemId[];
   outfit: Record<OutfitSlot, ShopItemId | null>;
+  /** Catches waiting in the bag, to sell to Gaston or offer around. */
+  fish: FishId[];
   npcs: Record<NpcId, NpcState>;
   /** Affinity between NPCs, keyed by `bondKey`. 0..100. */
   bonds: Record<string, number>;

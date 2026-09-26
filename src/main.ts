@@ -4,26 +4,28 @@ import * as THREE from 'three';
 import { CHARACTERS } from '../shared/characters';
 import { buy, CATALOG, haggle, islandValue, placeDeco, SLOTS, startDeal, type Deal } from '../shared/economy';
 import { CONFRONT_SUGGESTIONS, openerLine } from '../shared/opener';
+import { addCatch, BAG_FISH_MAX, FISH, giveFish, rollFish } from '../shared/fishing';
 import { buyItem, islandLevel, ISLAND_LEVELS, lookOf, nextLevel, SHOP_ITEMS, SHOP_OWNER, stockOf, toggleWear, type ShopId } from '../shared/shop';
 import { applySimResult, buildSimRequest } from '../shared/simulate';
 import { applyTalkResult, buildTalkContext, npcsWithIntent } from '../shared/state';
 import { defaultSuggestions } from '../shared/fallback';
-import { clashFor, moodOf, resolveFight, resolveMurder, WEAPONS, type Clash } from '../shared/violence';
-import type { DecoId, GameState, NpcId, RelationChange, SlotId } from '../shared/types';
+import { clashFor, moodOf, resolveFight, resolveMurder, resolveSlap, WEAPONS, type Clash } from '../shared/violence';
+import type { DecoId, FishId, GameState, NpcId, RelationChange, SlotId } from '../shared/types';
 import { NPC_IDS } from '../shared/types';
 import { simulate, talk } from './api';
 import { loadState, resetSave, saveState } from './game/save';
 import { BUILDINGS, type BuildingId } from './game/map';
-import { createWorld, doorTile, HOMES, type PlayerSkin } from './game/world';
+import { createWorld, doorTile, HOMES, type FishSpot, type PlayerSkin } from './game/world';
 import { createInterior } from './interior/interior';
 import type { Action } from './interior/layouts';
 import { drawIcon } from './interior/paint';
+import { fishIconUrl } from './render/fishArt';
 import { portraitDataUrl, SPRITES, drawSheet, type SpriteSpec } from './render/sprites';
 import { createQualityGovernor, createStage, type Quality } from './render/stage';
 import { createDialogue, type Chip } from './ui/dialogue';
 import { el } from './ui/dom';
 import { createHud } from './ui/hud';
-import { bang, flash, sheet, showDeath, showRecap, toast } from './ui/overlays';
+import { bang, flash, sheet, showCatch, showDeath, showRecap, toast } from './ui/overlays';
 import { unlockAudioOnGesture } from './voice';
 
 const ABSENCE_HOURS = 8;
@@ -73,11 +75,13 @@ function showChange(change: RelationChange | null): void {
 function chipsFor(npc: NpcId, suggestions: string[]): Chip[] {
   const chips: Chip[] = suggestions.slice(0, 3).map((s) => ({ label: s, action: () => void onPlayerLine(s) }));
   if (npc === 'gaston') chips.unshift({ label: '💰 Marchander', action: () => openShop() });
+  if (state.fish.length > 0) chips.unshift({ label: npc === 'gaston' ? '🐟 Vendre un poisson' : '🐟 Offrir un poisson', action: () => openFishGift(npc) });
   return chips;
 }
 
 function startTalk(npc: NpcId, initiated = false): void {
   if (busy || dialogue.current() === npc) return;
+  if (fishing) stopFishing();
   dialogue.close();
   deal = null;
   const open = (): void => {
@@ -135,6 +139,15 @@ async function onPlayerLine(text: string): Promise<void> {
     return;
   }
   dialogue.setChips([]);
+  if (clash === 'slap') {
+    const line = dialogue.say(result.reply, 'colere');
+    await new Promise((r) => setTimeout(r, 500));
+    await slap(npc);
+    await line;
+    busy = false;
+    dialogue.setChips(chipsFor(npc, result.suggestions));
+    return;
+  }
   await dialogue.say(result.reply, 'colere');
   await new Promise((r) => setTimeout(r, 900));
   await runClash(npc, clash);
@@ -142,6 +155,7 @@ async function onPlayerLine(text: string): Promise<void> {
 
 // ---------- Fights & murders ----------
 
+const SLAPS = ['PAF !', 'CLAC !', 'BAFFE !', 'TAC !', 'PIF !'];
 const BANGS = ['POW !', 'BAM !', 'KRAK !', 'SBAF !', 'AÏE !', 'BONK !', 'TCHAC !', 'OUILLE !'];
 const AFTER_FIGHT: Record<NpcId, string> = {
   gaston: 'Pfff… T’as une sacrée droite, mon ami. Bon. On est quittes. Pour cette fois.',
@@ -154,7 +168,27 @@ const LAST_WORDS: Record<NpcId, string> = {
   marius: '… La mer reprend toujours ce qu’on lui doit.',
 };
 
+/** Warning shot under 35 %: a quick slap, the conversation goes on. */
+async function slap(npc: NpcId): Promise<void> {
+  const hit = (): void => bang(ui!, SLAPS[state.nextId % SLAPS.length] ?? 'PAF !');
+  if (interior.isOpen()) {
+    hit();
+    interior.root.classList.remove('slapped');
+    void interior.root.offsetWidth;
+    interior.root.classList.add('slapped');
+    await new Promise((r) => setTimeout(r, 450));
+  } else await world.slap(npc, hit);
+  commit(resolveSlap(state, npc));
+  toast(ui!, `🖐️ ${CHARACTERS[npc].name} t’a collé une baffe !`, 'bad');
+}
+
 async function runClash(npc: NpcId, clash: Clash): Promise<void> {
+  if (clash === 'slap') {
+    busy = true;
+    await slap(npc);
+    busy = false;
+    return;
+  }
   busy = true;
   endTalk();
   const inside = interior.current();
@@ -293,6 +327,7 @@ function syncLook(): void {
 
 function enterBuilding(id: BuildingId): void {
   if (busy || interior.isOpen()) return;
+  if (fishing) stopFishing();
   endTalk();
   held.clear();
   interior.enter(id, state);
@@ -425,9 +460,21 @@ function openBag(): void {
         detail: Object.values(state.outfit).includes(id) ? '✔ porté' : 'porter',
         action: () => commit(toggleWear(state, id)),
       })),
+      ...[...fishCounts()].map(([id, n]) => ({
+        label: `${FISH[id].name}${n > 1 ? ` ×${n}` : ''}`,
+        icon: fishIconUrl(id),
+        detail: `${FISH[id].rarity} · à vendre ou offrir`,
+        action: () => undefined,
+      })),
     ],
     'Vide. Gaston vend de quoi embellir l\u2019île… à son prix.',
   );
+}
+
+function fishCounts(): Map<FishId, number> {
+  const counts = new Map<FishId, number>();
+  for (const f of state.fish) counts.set(f, (counts.get(f) ?? 0) + 1);
+  return counts;
 }
 
 function openSlot(slot: SlotId): void {
@@ -448,6 +495,119 @@ function place(slot: SlotId, item: DecoId): void {
   toast(ui!, `★ Valeur de l\u2019île : ${state.islandValue}`, 'good');
   result.reactions.forEach((r, i) => setTimeout(() => toast(ui!, `${CHARACTERS[r.npc].name} : « ${r.line} »`, r.delta < 0 ? 'bad' : 'info'), 900 + i * 1400));
   result.changes.forEach((c, i) => setTimeout(() => showChange(c), 1200 + i * 1400));
+}
+
+// ---------- Fishing ----------
+
+type Fishing = { phase: 'walk' } | { phase: 'wait' | 'bite'; spot: FishSpot; t: number };
+const BITE_WINDOW = 0.9;
+let fishing: Fishing | null = null;
+
+const MARIUS_ON_CATCH: Record<string, string> = {
+  rare: '… Pas mal. La chance du débutant. Moi, j’en ai sorti un deux fois plus gros. En 1987.',
+  légendaire: '… Un poulpe doré ?! … Non. Non non non. C’est MON coin, ça. Depuis trente ans.',
+  déchet: '… Une botte. Au moins, t’as pêché quelque chose.',
+};
+
+function fishHere(): FishSpot | null {
+  return world.fishSpot({ x: Math.round(world.playerPos.x), z: Math.round(world.playerPos.z) }, 1);
+}
+
+function goFish(spot: FishSpot): void {
+  if (busy || interior.isOpen()) return;
+  endTalk();
+  if (state.fish.length >= BAG_FISH_MAX) return toast(ui!, `Ton sac est plein de poissons (${BAG_FISH_MAX}). Va les vendre à Gaston !`, 'info');
+  fishing = { phase: 'walk' };
+  world.walkTo(spot.stand, () => {
+    if (fishing?.phase !== 'walk') return;
+    fishing = { phase: 'wait', spot, t: 1.6 + Math.random() * 3 };
+    world.setFishing(spot.spot);
+    toast(ui!, '🎣 Touche l’écran quand le bouchon plonge !', 'info');
+  });
+}
+
+function stopFishing(): void {
+  fishing = null;
+  world.setFishing(null);
+  fishBtn.classList.remove('bite');
+}
+
+function strike(): void {
+  if (!fishing || fishing.phase === 'walk') return;
+  if (fishing.phase === 'wait') {
+    stopFishing();
+    return toast(ui!, 'Trop tôt ! Le poisson a filé…', 'bad');
+  }
+  stopFishing();
+  const id = rollFish(Math.random());
+  const added = addCatch(state, id);
+  if (!added.ok) return toast(ui!, 'Sac plein !', 'bad');
+  commit(added.state);
+  bang(ui!, 'PLOUF !');
+  void showCatch(ui!, fishIconUrl(id, 96), FISH[id].name, FISH[id].rarity, `Dans ton sac · ${state.fish.length}/${BAG_FISH_MAX}`);
+  const comment = MARIUS_ON_CATCH[FISH[id].rarity === 'légendaire' ? 'légendaire' : FISH[id].rarity === 'rare' ? 'rare' : FISH[id].rarity === 'déchet' ? 'déchet' : ''];
+  if (comment) setTimeout(() => toast(ui!, `Marius : « ${comment} »`, 'info'), 2400);
+}
+
+function updateFishing(dt: number): void {
+  const spot = !busy && !interior.isOpen() && !dialogue.isOpen() && (!fishing || fishing.phase === 'walk') ? fishHere() : null;
+  fishBtn.hidden = !(spot || (fishing && fishing.phase !== 'walk'));
+  fishBtn.textContent = fishing && fishing.phase !== 'walk' ? (fishing.phase === 'bite' ? '❗ Ferrer !' : '🎣 …') : '🎣 Pêcher';
+  if (!fishing || fishing.phase === 'walk') return;
+  fishing.t -= dt;
+  if (fishing.phase === 'wait' && fishing.t <= 0) {
+    fishing = { ...fishing, phase: 'bite', t: BITE_WINDOW };
+    world.setFishing(fishing.spot.spot, true);
+    fishBtn.classList.add('bite');
+    bang(ui!, '!');
+  } else if (fishing.phase === 'bite' && fishing.t <= 0) {
+    stopFishing();
+    toast(ui!, 'Raté… il s’est décroché.', 'bad');
+  }
+}
+
+const fishBtn = el('button', 'action fish-btn', '🎣 Pêcher', { type: 'button' });
+fishBtn.hidden = true;
+fishBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (fishing && fishing.phase !== 'walk') return strike();
+  const spot = fishHere();
+  if (spot) goFish(spot);
+});
+
+function openFishGift(npc: NpcId): void {
+  const counts = fishCounts();
+  sheet(
+    ui!,
+    npc === 'gaston' ? 'Vendre à Gaston' : `Offrir à ${CHARACTERS[npc].name}`,
+    [...counts].map(([id, n]) => ({
+      label: `${FISH[id].name}${n > 1 ? ` ×${n}` : ''}`,
+      icon: fishIconUrl(id),
+      detail: npc === 'gaston' ? `${FISH[id].value} 🪙` : FISH[id].rarity,
+      action: () => void offerFish(npc, id),
+    })),
+    'Aucun poisson. Va pêcher au bord de l’eau !',
+  );
+}
+
+async function offerFish(npc: NpcId, id: FishId): Promise<void> {
+  if (busy) return;
+  const before = state.npcs[npc].relation;
+  const out = giveFish(state, npc, id);
+  if (!out) return;
+  dialogue.playerSaid(npc === 'gaston' ? `Tu m’achètes ce ${FISH[id].name.toLowerCase()} ?` : `Tiens, c’est pour toi : ${FISH[id].name.toLowerCase()}.`);
+  commit(out.state);
+  if (out.coins > 0) toast(ui!, `+${out.coins} 🪙 · ${FISH[id].name}`, 'good');
+  showChange(out.change);
+  const clash = clashFor(before, state.npcs[npc].relation);
+  busy = true;
+  dialogue.setChips([]);
+  const line = dialogue.say(out.line, out.change && out.change.delta < 0 ? 'colere' : 'joie');
+  if (clash === 'slap') await slap(npc);
+  await line;
+  busy = false;
+  if (clash && clash !== 'slap') return runClash(npc, clash);
+  dialogue.setChips(chipsFor(npc, defaultSuggestions(npc)));
 }
 
 // ---------- Absence ----------
@@ -477,6 +637,8 @@ const down = new THREE.Vector2();
 canvas.addEventListener('pointerdown', (e) => down.set(e.clientX, e.clientY));
 canvas.addEventListener('pointerup', (e) => {
   if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > 12 || busy) return;
+  if (fishing && fishing.phase !== 'walk') return strike();
+  fishing = null;
   const ndc = new THREE.Vector2((e.clientX / canvas.clientWidth) * 2 - 1, -(e.clientY / canvas.clientHeight) * 2 + 1);
   const target = world.pick(ndc);
   if (!target) return;
@@ -485,6 +647,9 @@ canvas.addEventListener('pointerup', (e) => {
     endTalk();
     const b = BUILDINGS.find((x) => x.id === target.building);
     if (b) world.walkTo(doorTile(b), () => enterBuilding(b.id));
+  } else if (target.kind === 'water') {
+    const spot = world.fishSpot(target.tile, 3);
+    if (spot) goFish(spot);
   } else if (target.kind === 'slot') {
     endTalk();
     const s = SLOTS.find((x) => x.id === target.slot);
@@ -532,10 +697,13 @@ window.addEventListener('keydown', (e) => {
     e.preventDefault();
     if (dialogue.isOpen()) return dialogue.focusInput();
     if (interior.isOpen()) return interior.interact();
+    if (fishing && fishing.phase !== 'walk') return strike();
     const door = world.doorHere();
     if (door && !world.nearestNpc(1.5)) return enterBuilding(door);
     const near = world.nearestNpc(6);
-    if (near) startTalk(near);
+    if (near) return startTalk(near);
+    const spot = fishHere();
+    if (spot) goFish(spot);
   } else if (e.code === 'KeyI' || e.code === 'KeyB') openBag();
 });
 window.addEventListener('keyup', (e) => held.delete(e.code));
@@ -553,6 +721,7 @@ function keyboardMove(dt: number): void {
   }
   if (busy) dx = dz = 0;
   if (interior.isOpen()) return interior.move(dx, dz, dt);
+  if ((dx || dz) && fishing) stopFishing();
   world.move(dx, dz, dt);
   const door = dz < 0 && dx === 0 ? world.doorHere() : null;
   if (door) enterBuilding(door);
@@ -566,7 +735,7 @@ canvas.addEventListener('pointermove', (e) => {
 });
 
 if (matchMedia('(pointer: fine)').matches) {
-  ui.append(el('div', 'keys-help', 'ZQSD / flèches : marcher · E : parler · Entrée : écrire · I : sac · Échap : fermer · clic : aller / parler'));
+  ui.append(el('div', 'keys-help', 'ZQSD / flèches : marcher · E : parler / pêcher · Entrée : écrire · I : sac · Échap : fermer · clic : aller / parler'));
 }
 
 window.addEventListener('resize', () => stage.resize());
@@ -583,6 +752,7 @@ function frame(): void {
   const dt = Math.min(timer.getDelta(), 0.1);
   const time = timer.getElapsed();
   keyboardMove(dt);
+  updateFishing(dt);
   world.update(dt, time, new Set(npcsWithIntent(state)));
   if (interior.isOpen()) interior.update(dt, time);
   else {
@@ -593,6 +763,7 @@ function frame(): void {
   requestAnimationFrame(frame);
 }
 
+ui.append(fishBtn);
 commit(state);
 stage.resize();
 requestAnimationFrame(frame);
@@ -609,9 +780,11 @@ declare global {
       homes: typeof HOMES;
       enter: (id: BuildingId) => void;
       skin: (skin: PlayerSkin) => void;
+      fish: () => FishSpot | null;
+      strike: () => void;
     };
   }
 }
 /** Hooks for the scripted demo recording (see CLAUDE.md §13). */
-window.ragots = { state: () => state, talk: (npc) => startTalk(npc), say: (text) => onPlayerLine(text), absence, clash: runClash, pos: () => ({ x: world.playerPos.x, z: world.playerPos.z }), homes: HOMES, enter: (id) => enterBuilding(id), skin: (skin) => world.setPlayerSkin(skin) };
+window.ragots = { state: () => state, talk: (npc) => startTalk(npc), say: (text) => onPlayerLine(text), absence, clash: runClash, pos: () => ({ x: world.playerPos.x, z: world.playerPos.z }), homes: HOMES, enter: (id) => enterBuilding(id), skin: (skin) => world.setPlayerSkin(skin), fish: () => { const spot = world.fishSpot({ x: Math.round(world.playerPos.x), z: Math.round(world.playerPos.z) }, 8); if (spot) goFish(spot); return spot; }, strike };
 if (params.get('skin') === 'castaway') world.setPlayerSkin('castaway');

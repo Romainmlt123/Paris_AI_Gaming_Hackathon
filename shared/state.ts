@@ -23,6 +23,7 @@ export function createInitialState(): GameState {
     decor: { placette: null, falaise: null, ponton: null, mairie: null, boulangerie: null },
     owned: [],
     outfit: { hat: null, top: null, scarf: null },
+    fish: [],
     npcs: { gaston: freshNpc(0), josette: freshNpc(10), marius: freshNpc(5) },
     bonds: {
       [bondKey('josette', 'marius')]: 85,

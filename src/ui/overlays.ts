@@ -106,3 +106,20 @@ export function showDeath(host: HTMLElement, killer: string, weapon: string, las
     host.append(back);
   });
 }
+
+/** Big reveal card for a fresh catch; closes on tap or after a moment. */
+export function showCatch(host: HTMLElement, icon: string, name: string, rarity: string, detail: string): Promise<void> {
+  return new Promise((resolve) => {
+    const back = el('div', 'catch-back');
+    const card = el('div', `catch rarity-${rarity.replace(/\s|é/g, (c) => (c === 'é' ? 'e' : '-'))}`);
+    card.append(el('div', 'catch-rays'), el('img', 'catch-icon', '', { src: icon, alt: '' }), el('div', 'catch-title', `Tu as pêché : ${name} !`), el('div', 'catch-rarity', rarity), el('div', 'catch-detail', detail));
+    back.append(card);
+    host.append(back);
+    const close = (): void => {
+      back.remove();
+      resolve();
+    };
+    back.addEventListener('pointerdown', close);
+    setTimeout(close, 2600);
+  });
+}

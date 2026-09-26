@@ -80,6 +80,25 @@ function signMesh(icon: NonNullable<Style['sign']>): THREE.Mesh {
   return m;
 }
 
+const CHIMNEY: readonly BuildingId[] = ['boulangerie', 'cabane', 'maison'];
+
+/** Chimney position in building-local space (smoke comes out of its top). */
+function chimneySpot(b: Building): THREE.Vector3 {
+  const style = STYLES[b.id];
+  const w = b.w - 0.2;
+  const d = b.d - 0.25;
+  return new THREE.Vector3(w / 2 - 0.35, style.height + d * 0.45 * 0.5 + 0.3, -d / 4);
+}
+
+function buildingOrigin(b: Building, groundY: number): THREE.Vector3 {
+  return new THREE.Vector3(b.x + (b.w - 1) / 2, groundY, b.z + (b.d - 1) / 2);
+}
+
+/** World positions of chimney tops, for the smoke puffs. */
+export function chimneyTops(map: TileMap): THREE.Vector3[] {
+  return map.buildings.filter((b) => CHIMNEY.includes(b.id)).map((b) => chimneySpot(b).add(buildingOrigin(b, surfaceHeight(kindAt(map, b.x, b.z)))));
+}
+
 function buildingMesh(b: Building, groundY: number): THREE.Group {
   const style = STYLES[b.id];
   const g = new THREE.Group();
@@ -117,7 +136,17 @@ function buildingMesh(b: Building, groundY: number): THREE.Group {
     g.add(s);
   }
   if (b.id === 'mairie') g.add(flagPole(w, style.height));
-  g.position.set(b.x + (b.w - 1) / 2, groundY, b.z + (b.d - 1) / 2);
+  if (CHIMNEY.includes(b.id)) {
+    const top = chimneySpot(b);
+    const h = 0.75;
+    const c = new THREE.Mesh(new THREE.BoxGeometry(0.24, h, 0.24), new THREE.MeshLambertMaterial({ map: stoneWall() }));
+    c.position.set(top.x, top.y - h / 2, top.z);
+    c.castShadow = true;
+    const cap = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.06, 0.3), new THREE.MeshLambertMaterial({ color: P.plankDark }));
+    cap.position.set(top.x, top.y, top.z);
+    g.add(c, cap);
+  }
+  g.position.copy(buildingOrigin(b, groundY));
   g.userData['building'] = b.id;
   return g;
 }

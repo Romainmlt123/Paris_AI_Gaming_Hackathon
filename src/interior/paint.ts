@@ -4,11 +4,13 @@ export const INK = '#2b2233';
 export type Ctx = CanvasRenderingContext2D;
 
 export function shade(hex: string, k: number): string {
+  const rgb = hex.startsWith('rgb') ? (hex.match(/\d+/g) ?? []).map(Number) : [];
   const n = parseInt(hex.slice(1), 16);
+  const [r0 = (n >> 16) & 255, g0 = (n >> 8) & 255, b0 = n & 255] = rgb;
   const mix = (c: number): number => Math.round(k < 0 ? c * (1 + k) : c + (255 - c) * k);
-  const r = mix((n >> 16) & 255);
-  const g = mix((n >> 8) & 255);
-  const b = mix(n & 255);
+  const r = mix(r0);
+  const g = mix(g0);
+  const b = mix(b0);
   return `rgb(${r},${g},${b})`;
 }
 

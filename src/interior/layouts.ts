@@ -44,6 +44,26 @@ export interface Layout {
 // ---------- Room shells ----------
 
 type FloorStyle = 'diamond' | 'checker' | 'planks' | 'parquet' | 'stone';
+export type Paper = 'stripes' | 'flowers' | 'dots' | 'planks' | 'stone';
+
+/** Deterministic 0..1 hash for per-tile variation. */
+function hash(x: number, z: number, k = 0): number {
+  const v = Math.sin(x * 127.1 + z * 311.7 + k * 74.7) * 43758.5453;
+  return v - Math.floor(v);
+}
+
+function grain(ctx: Ctx, x: number, y: number, w: number, h: number, c: string, seed: number): void {
+  for (let i = 0; i < 3; i++) {
+    const gy = y + 3 + Math.floor(hash(seed, i) * (h - 6));
+    const gx = x + Math.floor(hash(seed, i, 1) * w * 0.5);
+    rect(ctx, gx, gy, Math.min(w - (gx - x), 6 + hash(seed, i, 2) * 14), 1, c);
+  }
+}
+
+function tileSheen(ctx: Ctx, px: number, py: number, size: number): void {
+  rect(ctx, px + 3, py + 3, size * 0.35, 2, 'rgba(255,255,255,0.45)');
+  rect(ctx, px + 3, py + 3, 2, size * 0.25, 'rgba(255,255,255,0.45)');
+}
 
 function floor(ctx: Ctx, style: FloorStyle, a: string, b: string): void {
   const y0 = WALL_ROWS * T;
@@ -52,55 +72,205 @@ function floor(ctx: Ctx, style: FloorStyle, a: string, b: string): void {
     for (let x = 0; x < COLS; x++) {
       const px = x * T;
       const py = z * T;
+      const n = hash(x, z);
       if (style === 'diamond') {
-        ctx.fillStyle = b;
+        rect(ctx, px, py, T, T, shade(a, (n - 0.5) * 0.06));
+        ctx.fillStyle = shade(b, (hash(x, z, 3) - 0.5) * 0.08);
         ctx.beginPath();
         ctx.moveTo(px + T / 2, py + 3);
         ctx.lineTo(px + T - 3, py + T / 2);
         ctx.lineTo(px + T / 2, py + T - 3);
         ctx.lineTo(px + 3, py + T / 2);
         ctx.fill();
-        rect(ctx, px, py, T, 1, shade(a, 0.4));
-        rect(ctx, px, py, 1, T, shade(a, 0.4));
+        rect(ctx, px + T / 2 - 1, py + T / 2 - 1, 2, 2, shade(b, -0.2));
+        rect(ctx, px, py, T, 1, shade(a, -0.12));
+        rect(ctx, px, py, 1, T, shade(a, -0.12));
+        rect(ctx, px + 1, py + 1, T - 2, 1, shade(a, 0.4));
       } else if (style === 'checker') {
-        if ((x + z) % 2) rect(ctx, px, py, T, T, b);
-        rect(ctx, px, py, T, 1, shade(a, -0.08));
+        rect(ctx, px, py, T, T, shade((x + z) % 2 ? b : a, (n - 0.5) * 0.05));
+        rect(ctx, px, py, T, 1, shade(b, -0.18));
+        rect(ctx, px, py, 1, T, shade(b, -0.18));
+        tileSheen(ctx, px, py, T);
+        if (n > 0.85) rect(ctx, px + 10, py + 18, 6, 1, shade(b, -0.12));
       } else if (style === 'planks') {
-        rect(ctx, px, py + T - 2, T, 2, b);
-        if ((x + z * 3) % 4 === 0) rect(ctx, px + T - 2, py, 2, T, b);
-        if ((x * 7 + z) % 5 === 0) rect(ctx, px + 8, py + 12, 3, 2, b);
+        for (let r = 0; r < 2; r++) {
+          const by = py + r * (T / 2);
+          const off = ((z * 2 + r) % 3) * 11;
+          const tone = shade(a, (hash(x, z * 2 + r) - 0.5) * 0.18);
+          rect(ctx, px, by, T, T / 2, tone);
+          rect(ctx, px, by, T, 1, shade(a, 0.18));
+          rect(ctx, px, by + T / 2 - 1, T, 1, b);
+          grain(ctx, px, by, T, T / 2, shade(tone, -0.12), x * 31 + z * 7 + r);
+          const jx = (px + off) % T === 0 ? px + 6 : px + (off % T);
+          if ((x + z + r) % 2 === 0) {
+            rect(ctx, jx, by, 1, T / 2, b);
+            rect(ctx, jx - 3, by + 3, 1, 1, shade(b, -0.3));
+            rect(ctx, jx + 3, by + 3, 1, 1, shade(b, -0.3));
+          }
+          if (hash(x, z, r + 5) > 0.88) {
+            ctx.fillStyle = shade(tone, -0.25);
+            ctx.beginPath();
+            ctx.ellipse(px + 16, by + 8, 3, 2, 0, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
       } else if (style === 'parquet') {
         const vertical = (x + z) % 2 === 0;
         for (let i = 0; i < 4; i++) {
-          if (vertical) rect(ctx, px + i * 8, py, 1, T, b);
-          else rect(ctx, px, py + i * 8, T, 1, b);
+          const tone = shade(i % 2 ? a : b, (hash(x, z, i) - 0.5) * 0.12);
+          if (vertical) {
+            rect(ctx, px + i * 8, py, 8, T, tone);
+            rect(ctx, px + i * 8, py, 1, T, shade(b, -0.25));
+            rect(ctx, px + i * 8 + 3, py + 4 + hash(x, z, i + 9) * 10, 1, 10, shade(tone, -0.1));
+          } else {
+            rect(ctx, px, py + i * 8, T, 8, tone);
+            rect(ctx, px, py + i * 8, T, 1, shade(b, -0.25));
+            rect(ctx, px + 4 + hash(x, z, i + 9) * 10, py + i * 8 + 3, 10, 1, shade(tone, -0.1));
+          }
         }
+        rect(ctx, px, py, T, 1, 'rgba(255,255,255,0.12)');
       } else {
-        rect(ctx, px + 1, py + 1, T - 2, T - 2, (x * 5 + z * 3) % 3 ? a : b);
-        rect(ctx, px, py, T, 1, shade(a, -0.2));
-        rect(ctx, px, py, 1, T, shade(a, -0.2));
+        rect(ctx, px, py, T, T, shade(a, -0.28));
+        const split = n > 0.5;
+        const stones: [number, number, number, number][] = split
+          ? [[1, 1, T - 2, T / 2 - 2], [1, T / 2, T / 2 - 1, T / 2 - 1], [T / 2 + 1, T / 2, T / 2 - 2, T / 2 - 1]]
+          : [[1, 1, T - 2, T - 2]];
+        stones.forEach(([sx, sy, sw, sh], i) => {
+          const tone = shade(hash(x, z, i) > 0.5 ? a : b, (hash(x, z, i + 4) - 0.5) * 0.12);
+          rect(ctx, px + sx, py + sy, sw, sh, tone);
+          rect(ctx, px + sx, py + sy, sw, 1, shade(tone, 0.25));
+          rect(ctx, px + sx, py + sy + sh - 1, sw, 1, shade(tone, -0.15));
+        });
+        if (hash(x, z, 7) > 0.8) {
+          rect(ctx, px + 8, py + 12, 5, 1, shade(a, -0.35));
+          rect(ctx, px + 13, py + 13, 4, 1, shade(a, -0.35));
+        }
       }
     }
   }
-  const shadowGrad = ctx.createLinearGradient(0, y0, 0, y0 + 18);
-  shadowGrad.addColorStop(0, 'rgba(43,34,51,0.28)');
+  const shadowGrad = ctx.createLinearGradient(0, y0, 0, y0 + 22);
+  shadowGrad.addColorStop(0, 'rgba(43,34,51,0.32)');
   shadowGrad.addColorStop(1, 'rgba(43,34,51,0)');
   ctx.fillStyle = shadowGrad;
-  ctx.fillRect(0, y0, COLS * T, 18);
+  ctx.fillRect(0, y0, COLS * T, 22);
+  for (const side of [0, 1]) {
+    const g = ctx.createLinearGradient(side ? COLS * T : 0, 0, side ? COLS * T - 16 : 16, 0);
+    g.addColorStop(0, 'rgba(43,34,51,0.22)');
+    g.addColorStop(1, 'rgba(43,34,51,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(side ? COLS * T - 16 : 0, y0, 16, (ROWS - WALL_ROWS) * T);
+  }
 }
 
-function wall(ctx: Ctx, color: string, stripe: string, windows: number[]): void {
-  const h = WALL_ROWS * T;
-  rect(ctx, 0, 0, COLS * T, h, color);
-  rect(ctx, 0, 0, COLS * T, 6, shade(color, -0.3));
-  rect(ctx, 0, h - 22, COLS * T, 8, stripe);
-  rect(ctx, 0, h - 6, COLS * T, 6, shade(color, -0.25));
-  for (let x = 0; x < COLS * T; x += 16) rect(ctx, x, 8, 1, h - 30, shade(color, -0.05));
+/** Warm light patches cast on the floor by the back windows. */
+function sunlight(ctx: Ctx, windows: number[]): void {
+  const y0 = WALL_ROWS * T;
+  ctx.save();
+  ctx.globalCompositeOperation = 'soft-light';
   for (const wx of windows) {
-    frame(ctx, wx * T + 6, 12, T * 1.5, 26, '#9fd8ef');
-    rect(ctx, wx * T + 6, 12, T * 1.5, 8, '#c9ecf8');
-    rect(ctx, wx * T + 6 + T * 0.75 - 1, 12, 2, 26, '#fbf8f0');
-    rect(ctx, wx * T + 2, 38, T * 1.5 + 8, 4, '#fbf8f0');
+    const x = wx * T + 6;
+    ctx.fillStyle = 'rgba(255,236,170,0.9)';
+    ctx.beginPath();
+    ctx.moveTo(x, y0);
+    ctx.lineTo(x + T * 1.5, y0);
+    ctx.lineTo(x + T * 1.5 + 34, y0 + 70);
+    ctx.lineTo(x + 34, y0 + 70);
+    ctx.fill();
+  }
+  ctx.restore();
+  for (const wx of windows) {
+    rect(ctx, wx * T + 6 + T * 0.75 + 10, y0 + 6, 2, 50, 'rgba(255,248,220,0.08)');
+  }
+}
+
+function wallpaper(ctx: Ctx, paper: Paper, color: string, accent: string, top: number, h: number): void {
+  const W = COLS * T;
+  if (paper === 'planks') {
+    for (let x = 0; x < W; x += 16) {
+      const tone = shade(color, (hash(x, 1) - 0.5) * 0.16);
+      rect(ctx, x, top, 16, h, tone);
+      rect(ctx, x, top, 1, h, shade(color, -0.3));
+      rect(ctx, x + 1, top, 1, h, shade(tone, 0.12));
+      grain(ctx, x + 2, top, 13, h, shade(tone, -0.12), x);
+      rect(ctx, x + 7, top + 3, 2, 2, shade(color, -0.4));
+      rect(ctx, x + 7, top + h - 6, 2, 2, shade(color, -0.4));
+    }
+    return;
+  }
+  if (paper === 'stone') {
+    for (let r = 0; r * 12 < h; r++) {
+      for (let x = -(r % 2) * 12; x < W; x += 24) {
+        const tone = shade(color, (hash(x, r) - 0.5) * 0.1);
+        rect(ctx, x + 1, top + r * 12 + 1, 22, 10, tone);
+        rect(ctx, x + 1, top + r * 12 + 1, 22, 1, shade(tone, 0.3));
+      }
+    }
+    return;
+  }
+  rect(ctx, 0, top, W, h, color);
+  if (paper === 'stripes') {
+    for (let x = 0; x < W; x += 16) {
+      rect(ctx, x, top, 6, h, shade(accent, 0.72));
+      rect(ctx, x + 7, top, 1, h, shade(accent, 0.55));
+    }
+  } else if (paper === 'flowers') {
+    for (let y = top + 4, row = 0; y < top + h - 4; y += 12, row++) {
+      for (let x = (row % 2) * 10 + 4; x < W; x += 20) {
+        rect(ctx, x, y, 3, 3, shade(accent, 0.45));
+        rect(ctx, x - 2, y + 1, 1, 1, shade(accent, 0.6));
+        rect(ctx, x + 4, y + 1, 1, 1, shade(accent, 0.6));
+        rect(ctx, x + 1, y + 4, 1, 2, '#9cc58a');
+      }
+    }
+  } else {
+    for (let y = top + 3, row = 0; y < top + h - 2; y += 8, row++) for (let x = (row % 2) * 6 + 2; x < W; x += 12) rect(ctx, x, y, 2, 2, shade(accent, 0.6));
+  }
+}
+
+function wall(ctx: Ctx, color: string, stripe: string, windows: number[], paper: Paper = 'stripes'): void {
+  const W = COLS * T;
+  const h = WALL_ROWS * T;
+  const wainTop = h - 24;
+  rect(ctx, 0, 0, W, h, color);
+  wallpaper(ctx, paper, color, stripe, 6, wainTop - 6);
+  rect(ctx, 0, 0, W, 6, shade(color, -0.35));
+  rect(ctx, 0, 5, W, 2, shade(color, 0.3));
+  if (paper !== 'planks' && paper !== 'stone') {
+    rect(ctx, 0, wainTop, W, h - wainTop, shade(stripe, 0.55));
+    for (let x = 4; x < W - 20; x += 32) {
+      rect(ctx, x, wainTop + 5, 26, 10, shade(stripe, 0.4));
+      rect(ctx, x, wainTop + 5, 26, 1, shade(stripe, 0.2));
+      rect(ctx, x, wainTop + 14, 26, 1, shade(stripe, 0.75));
+    }
+  }
+  rect(ctx, 0, wainTop - 3, W, 4, stripe);
+  rect(ctx, 0, wainTop - 3, W, 1, shade(stripe, 0.35));
+  rect(ctx, 0, h - 6, W, 6, shade(color, -0.3));
+  rect(ctx, 0, h - 6, W, 1, shade(color, 0.2));
+  for (const wx of windows) {
+    const x = wx * T + 6;
+    const w = T * 1.5;
+    frame(ctx, x, 10, w, 28, '#9fd8ef');
+    const sky = ctx.createLinearGradient(0, 10, 0, 38);
+    sky.addColorStop(0, '#c9ecf8');
+    sky.addColorStop(1, '#8fcbe6');
+    ctx.fillStyle = sky;
+    ctx.fillRect(x, 10, w, 28);
+    rect(ctx, x + 4, 30, 14, 3, '#fbfbf8');
+    rect(ctx, x + 20, 32, 10, 2, '#fbfbf8');
+    rect(ctx, x + w - 12, 16, 8, 2, 'rgba(255,255,255,0.6)');
+    rect(ctx, x + w / 2 - 1, 10, 2, 28, '#fbf8f0');
+    rect(ctx, x, 23, w, 2, '#fbf8f0');
+    rect(ctx, x + 3, 12, 3, 8, 'rgba(255,255,255,0.5)');
+    rect(ctx, x - 7, 8, 7, 34, shade(stripe, 0.1));
+    rect(ctx, x + w, 8, 7, 34, shade(stripe, 0.1));
+    for (let i = 0; i < 3; i++) {
+      rect(ctx, x - 6 + i * 2, 8, 1, 34, shade(stripe, -0.15));
+      rect(ctx, x + w + 1 + i * 2, 8, 1, 34, shade(stripe, -0.15));
+    }
+    rect(ctx, x - 9, 6, w + 18, 3, shade(stripe, -0.3));
+    rect(ctx, x - 4, 40, w + 8, 4, '#fbf8f0');
+    rect(ctx, x - 4, 43, w + 8, 1, shade('#fbf8f0', -0.25));
   }
 }
 
@@ -309,8 +479,9 @@ export function layoutFor(id: BuildingId, state: GameState): Layout {
         title: 'L’échoppe de Gaston',
         subtitle: 'Meubles, bibelots & bonnes affaires',
         room: (ctx) => {
-          wall(ctx, '#fbfbf8', '#6cc3e0', [5]);
+          wall(ctx, '#fbfbf8', '#6cc3e0', [5], 'stripes');
           floor(ctx, 'diamond', '#cfeef6', '#b3e1ee');
+          sunlight(ctx, [5]);
           doorMat(ctx, '#4f7fc9');
         },
         owner: { npc: 'gaston', x: 6, z: 3 },
@@ -341,8 +512,9 @@ export function layoutFor(id: BuildingId, state: GameState): Layout {
         title: 'Boulangerie & Tricots',
         subtitle: 'Croissants chauds et laine douce',
         room: (ctx) => {
-          wall(ctx, cream, '#e98aa6', [1, 9]);
+          wall(ctx, cream, '#e98aa6', [1, 9], 'flowers');
           floor(ctx, 'checker', '#fdf3f5', '#f6d3dc');
+          sunlight(ctx, [1, 9]);
           doorMat(ctx, '#e98aa6');
         },
         owner: { npc: 'josette', x: 6, z: 3 },
@@ -369,10 +541,11 @@ export function layoutFor(id: BuildingId, state: GameState): Layout {
         title: 'La cabane de Marius',
         subtitle: 'Tout ce que la mer a rapporté',
         room: (ctx) => {
-          wall(ctx, '#b8845a', '#2f5f8f', [2]);
+          wall(ctx, '#b8845a', '#2f5f8f', [2], 'planks');
           for (let i = 0; i < 6; i++) rect(ctx, 200 + i * 22, 8, 1, 40, '#e6d3ae');
           for (let i = 0; i < 3; i++) rect(ctx, 200, 14 + i * 14, 112, 1, '#e6d3ae');
           floor(ctx, 'planks', '#c79a5b', '#9a6a44');
+          sunlight(ctx, [2]);
           doorMat(ctx, '#2f5f8f');
         },
         owner: { npc: 'marius', x: 5, z: 3 },
@@ -392,8 +565,9 @@ export function layoutFor(id: BuildingId, state: GameState): Layout {
         title: 'Mairie',
         subtitle: `Île niveau ${lvl} · ${islandLevel(state.islandValue).name}`,
         room: (ctx) => {
-          wall(ctx, '#efe6d2', '#c8453c', [1, 9]);
+          wall(ctx, '#efe6d2', '#c8453c', [1, 9], 'stone');
           floor(ctx, 'stone', '#d8d2c4', '#cbc3b2');
+          sunlight(ctx, [1, 9]);
           rect(ctx, 5 * T, 5 * T, 2 * T, 6 * T, '#c8453c');
           rect(ctx, 5 * T + 4, 5 * T, 2, 6 * T, '#f2c14e');
           rect(ctx, 7 * T - 6, 5 * T, 2, 6 * T, '#f2c14e');
@@ -413,8 +587,9 @@ export function layoutFor(id: BuildingId, state: GameState): Layout {
         title: 'Chez toi',
         subtitle: 'Chaque meuble acheté trouve sa place ici',
         room: (ctx) => {
-          wall(ctx, '#f6e7c8', '#5fa37a', [9]);
+          wall(ctx, '#f6e7c8', '#5fa37a', [9], 'dots');
           floor(ctx, 'parquet', '#c99a66', '#b38454');
+          sunlight(ctx, [9]);
           doorMat(ctx, '#5fa37a');
         },
         pieces: [
