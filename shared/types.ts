@@ -96,6 +96,8 @@ export interface GameState {
   facts: Fact[];
   rumors: Rumor[];
   changes: RelationChange[];
+  /** Last day each `npc:trigger` initiative fired (NPCs don't repeat themselves the same day). */
+  initiatives: Record<string, number>;
 }
 
 export interface TalkEvent {
@@ -140,6 +142,8 @@ export interface TalkRequest {
   npc: NpcId;
   message: string;
   context: TalkContext;
+  /** Set when the NPC comes to the player on its own: why it came. `message` is then empty. */
+  initiative?: string;
 }
 
 export interface SimConversation {
@@ -160,6 +164,11 @@ export interface SimIntent {
   text: string;
 }
 
+export interface SimThought {
+  npc: NpcId;
+  text: string;
+}
+
 export interface SimBondChange {
   a: NpcId;
   b: NpcId;
@@ -172,6 +181,7 @@ export interface SimResult {
   transfers: SimTransfer[];
   intents: SimIntent[];
   bondChanges: SimBondChange[];
+  thoughts?: SimThought[];
   source: 'ai' | 'fallback';
 }
 
@@ -199,7 +209,7 @@ export interface SimRequest {
   islandName: string;
 }
 
-export type RecapKind = 'talk' | 'rumor' | 'relation' | 'intent';
+export type RecapKind = 'talk' | 'rumor' | 'relation' | 'intent' | 'thought';
 
 export interface RecapEntry {
   kind: RecapKind;

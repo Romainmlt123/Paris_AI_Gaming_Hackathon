@@ -94,6 +94,13 @@ export function parseSimResult(raw: unknown): SimResult | null {
     const text = str(item.text, 140);
     if (npc && text) result.intents.push({ npc, text });
   }
+  result.thoughts = [];
+  for (const item of list(raw.thoughts).slice(0, 3)) {
+    if (!isRecord(item)) continue;
+    const npc = asNpcId(item.npc);
+    const text = str(item.text, 160);
+    if (npc && text) result.thoughts.push({ npc, text });
+  }
   for (const item of list(raw.bondChanges).slice(0, 3)) {
     if (!isRecord(item)) continue;
     const pair = parsePair(item);

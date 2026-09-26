@@ -32,6 +32,17 @@ export async function talk(npc: NpcId, message: string, context: TalkContext): P
   return fallbackTalk(npc, message, context);
 }
 
+/** Line an NPC opens with when it walks up by itself. Never throws: falls back to the scripted line. */
+export async function initiativeLine(npc: NpcId, context: TalkContext, reason: string, fallback: TalkResult): Promise<TalkResult> {
+  try {
+    const parsed = parseTalkResult(await post('/api/talk', { npc, message: '', context, initiative: reason }, CLIENT_TIMEOUT_MS));
+    if (parsed?.source === 'ai') return { ...parsed, suggestions: parsed.suggestions.length ? parsed.suggestions : fallback.suggestions };
+  } catch (err) {
+    console.warn(`[api] initiative failed, using scripted line — ${describe(err)}`);
+  }
+  return fallback;
+}
+
 export async function simulate(state: GameState, req: SimRequest): Promise<SimResult> {
   const rules = simulateFallback(state, req.hours);
   try {

@@ -11,8 +11,10 @@ export function loadState(): GameState {
   try {
     const parsed: unknown = JSON.parse(raw);
     if (typeof parsed === 'object' && parsed !== null && 'version' in parsed && parsed.version === 1 && 'decor' in parsed) {
-      const state = { ...createInitialState(), ...(parsed as GameState) };
-      return { ...state, playerName: cleanName(state.playerName), islandName: cleanIsland(state.islandName), look: cleanLook(state.look) };
+      const save = parsed as Partial<GameState>;
+      const fresh = createInitialState();
+      const outfit = typeof save.outfit === 'object' && save.outfit !== null ? save.outfit : fresh.outfit;
+      return { ...fresh, ...save, outfit, initiatives: save.initiatives ?? {}, playerName: cleanName(save.playerName), islandName: cleanIsland(save.islandName), look: cleanLook(save.look) };
     }
     console.warn('[save] incompatible save, starting fresh');
   } catch (err) {

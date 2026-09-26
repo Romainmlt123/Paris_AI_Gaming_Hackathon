@@ -131,9 +131,21 @@ function popularityArticle(list: Mood[], recap: RecapEntry[]): GazetteArticle {
   return { rubric: 'Cote de popularité', title: 'Ta cote à la criée', body: `${lines.join(' · ')}.${detail}` };
 }
 
+function voicesArticle(recap: RecapEntry[]): GazetteArticle | null {
+  const quotes = recap
+    .filter((e): e is RecapEntry & { npc: NpcId } => e.kind === 'thought' && e.npc !== null)
+    .map((e) => `${name(e.npc)}, sous couvert d\u2019anonymat : « ${e.text.replace(/^[«"\s]+|[»"\s]+$/g, '')} »`);
+  if (quotes.length === 0) return null;
+  return { rubric: 'Micro-trottoir', title: 'Ce qu\u2019ils pensent de toi', body: `${quotes.join(' ')} Propos recueillis derrière une haie.` };
+}
+
 function adsArticle(after: GameState, wanting: NpcId[]): GazetteArticle | null {
   if (wanting.length === 0) return null;
-  const ads = wanting.map((npc, i) => `${name(npc).toUpperCase()} cherche le joueur. ${pick(AD_TAILS, after.day + i)}`);
+  const ads = wanting.map((npc, i) => {
+    const intent = after.npcs[npc].intent;
+    const what = intent ? ` Motif : « ${intent.replace(/\.$/, '')} ».` : '';
+    return `${name(npc).toUpperCase()} cherche le joueur.${what} ${pick(AD_TAILS, after.day + i)}`;
+  });
   return { rubric: 'Petites annonces', title: 'On te demande', body: ads.join(' ') };
 }
 
@@ -155,7 +167,7 @@ export function buildGazette(before: GameState, after: GameState, recap: RecapEn
     (npc) => after.npcs[npc].intent !== before.npcs[npc].intent && recap.some((e) => e.kind === 'intent' && e.npc === npc),
   );
   const [headline, subhead] = headlineFor(sorted[0], sorted[sorted.length - 1], rumors, wanting, seed);
-  const articles = [rumorArticle(rumors), societyArticle(recap), popularityArticle(list, recap), adsArticle(after, wanting), economyArticle(after)];
+  const articles = [rumorArticle(rumors), voicesArticle(recap), societyArticle(recap), popularityArticle(list, recap), adsArticle(after, wanting), economyArticle(after)];
   return {
     issue: `Jour ${after.day} · N° ${after.day * 7 + 3} · 2 clochettes`,
     weather: pick(WEATHER, seed >>> 3),
