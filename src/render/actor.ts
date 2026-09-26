@@ -44,20 +44,15 @@ function bubbleSprite(): THREE.Sprite {
   return s;
 }
 
-const MOSAIC = ['#e9b896', '#d99a7a', '#c9856a', '#f0c7a6', '#b8735e', '#e0a98c', '#f4a3a3', '#a8604f'];
-const CLOUD_W = 14;
-const CLOUD_H = 10;
-const PUFFS: [number, number, number][] = [[3.6, 5.6, 3.2], [7, 4.2, 4], [10.4, 5.6, 3.2], [5.3, 6.6, 3], [8.7, 6.6, 3]];
+const MOSAIC_COLS = 6;
+const MOSAIC_ROWS = 4;
+const MOSAIC_SHADE = new THREE.Color('#7a4c3e');
 
-function inCloud(x: number, y: number): boolean {
-  return PUFFS.some(([cx, cy, r]) => (x + 0.5 - cx) ** 2 + (y + 0.5 - cy) ** 2 <= r * r);
-}
-
-/** Puffy, flickering pixel-mosaic censor cloud worn by the naked castaway. */
-function censorMosaic(): { mesh: THREE.Mesh; update(time: number): void } {
+/** Discreet square-block censor mosaic in muted skin tones, slowly shuffling. */
+function censorMosaic(skin: string): { mesh: THREE.Mesh; update(time: number): void; setSkin(skin: string): void } {
   const c = document.createElement('canvas');
-  c.width = CLOUD_W;
-  c.height = CLOUD_H;
+  c.width = MOSAIC_COLS;
+  c.height = MOSAIC_ROWS;
   const ctx = c.getContext('2d');
   if (!ctx) throw new Error('2D canvas unavailable');
   const tex = new THREE.CanvasTexture(c);
@@ -65,38 +60,33 @@ function censorMosaic(): { mesh: THREE.Mesh; update(time: number): void } {
   tex.minFilter = THREE.NearestFilter;
   tex.generateMipmaps = false;
   tex.colorSpace = THREE.SRGBColorSpace;
+  let base = new THREE.Color(skin);
   const draw = (): void => {
-    ctx.clearRect(0, 0, c.width, c.height);
-    for (let y = 0; y < CLOUD_H; y += 2) for (let x = 0; x < CLOUD_W; x += 2) {
-      ctx.fillStyle = MOSAIC[Math.floor(Math.random() * MOSAIC.length)] ?? '#f0c7a6';
-      for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) {
-        if (inCloud(x + dx, y + dy)) ctx.fillRect(x + dx, y + dy, 1, 1);
-      }
-    }
-    ctx.fillStyle = '#2b2233';
-    for (let y = 0; y < CLOUD_H; y++) for (let x = 0; x < CLOUD_W; x++) {
-      if (inCloud(x, y) && (!inCloud(x - 1, y) || !inCloud(x + 1, y) || !inCloud(x, y - 1) || !inCloud(x, y + 1))) ctx.fillRect(x, y, 1, 1);
+    for (let y = 0; y < MOSAIC_ROWS; y++) for (let x = 0; x < MOSAIC_COLS; x++) {
+      ctx.fillStyle = base.clone().lerp(MOSAIC_SHADE, 0.1 + Math.random() * 0.38).getStyle();
+      ctx.fillRect(x, y, 1, 1);
     }
     tex.needsUpdate = true;
   };
-  const w = 0.66;
-  const h = (w * c.height) / c.width;
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.5 }));
-  mesh.position.set(0, 0.36, 0.04);
-  mesh.renderOrder = 5;
+  draw();
+  const w = 0.38;
+  const h = (w * MOSAIC_ROWS) / MOSAIC_COLS;
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshLambertMaterial({ map: tex }));
+  mesh.position.set(0, 0.36, 0.02);
   mesh.visible = false;
   let tick = -1;
   return {
     mesh,
     update(time) {
-      const t = Math.floor(time * 9);
+      const t = Math.floor(time * 3);
       if (t !== tick) {
         tick = t;
         draw();
       }
-      const pulse = 1 + Math.sin(time * 14) * 0.05;
-      mesh.scale.set(pulse, 2 - pulse, 1);
-      mesh.rotation.z = Math.sin(time * 5) * 0.06;
+    },
+    setSkin(next) {
+      base = new THREE.Color(next);
+      draw();
     },
   };
 }
@@ -118,7 +108,7 @@ export function createActorView(spec: SpriteSpec, name: string): ActorView {
   const bubble = bubbleSprite();
   root.add(bubble);
   setFrame(tex, 0, 'down');
-  const censor = censorMosaic();
+  const censor = censorMosaic(spec.skin);
   root.add(censor.mesh);
   let naked = spec.naked === true;
   let down = false;
@@ -163,6 +153,7 @@ export function createActorView(spec: SpriteSpec, name: string): ActorView {
       ctx.drawImage(drawSheet(next), 0, 0);
       tex.needsUpdate = true;
       naked = next.naked === true;
+      censor.setSkin(next.skin);
     },
     setDown(isDown) {
       down = isDown;
