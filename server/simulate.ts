@@ -1,10 +1,10 @@
 import { CHARACTERS } from '../shared/characters.js';
 import { cleanIsland, cleanName } from '../shared/player.js';
 import { parseSimResult } from '../shared/validate.js';
-import type { SimRequest, SimResult } from '../shared/types.js';
+import type { SimRequest } from '../shared/types.js';
 import { GeminiError, generateJson, json } from './gemini.js';
 
-const SIM_TIMEOUT_MS = 9000;
+const SIM_TIMEOUT_MS = 20000;
 
 const SYSTEM = `You are the hidden narrator of the island in the game "RAGOTS". The player has been away; you simulate what the islanders did among themselves.
 Islanders:
@@ -52,18 +52,11 @@ export async function handleSimulate(req: Request): Promise<Response> {
   if (!Array.isArray(body.facts) || !Array.isArray(body.rumors) || typeof body.hours !== 'number') {
     return json({ error: 'invalid simulate request' }, 400);
   }
-  return json(await simulateWithAi(body));
-}
-
-/** Returns an AI proposal, or `{ source: 'fallback' }` so the client runs the code-only simulation. */
-async function simulateWithAi(req: SimRequest): Promise<SimResult | { source: 'fallback' }> {
   try {
-    const parsed = parseSimResult(await generateJson(SYSTEM, userPrompt(req), SIM_TIMEOUT_MS));
-    if (parsed) return parsed;
-    console.warn('[simulate] AI output rejected by validation');
+    return json(await generateJson(SYSTEM, userPrompt(body), SIM_TIMEOUT_MS, parseSimResult));
   } catch (err) {
     if (!(err instanceof GeminiError)) throw err;
-    console.warn(`[simulate] Gemini failed, client will use fallback — ${err.message}`);
+    console.warn(`[simulate] Gemini failed — ${err.message}`);
+    return json({ error: `AI unavailable: ${err.message.slice(0, 120)}` }, 503);
   }
-  return { source: 'fallback' };
 }

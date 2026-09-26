@@ -1,9 +1,9 @@
-import { fallbackTalk } from '../shared/fallback';
-import { mergeSim, simulateFallback } from '../shared/simulate';
 import { parseSimResult, parseTalkResult } from '../shared/validate';
-import type { GameState, NpcId, SimRequest, SimResult, TalkContext, TalkResult } from '../shared/types';
+import type { NpcId, SimRequest, SimResult, TalkContext, TalkResult } from '../shared/types';
 
-const CLIENT_TIMEOUT_MS = 11000;
+const TALK_TIMEOUT_MS = 16000;
+const SIM_TIMEOUT_MS = 24000;
+const ATTEMPTS = 2;
 
 async function post(path: string, body: unknown, timeoutMs: number): Promise<unknown> {
   const res = await fetch(path, {
@@ -20,37 +20,31 @@ function describe(err: unknown): string {
   return err instanceof Error ? `${err.name}: ${err.message}` : String(err);
 }
 
-/** Never throws: any network/API problem falls back to a scripted reply. */
-export async function talk(npc: NpcId, message: string, context: TalkContext): Promise<TalkResult> {
-  try {
-    const parsed = parseTalkResult(await post('/api/talk', { npc, message, context }, CLIENT_TIMEOUT_MS));
-    if (parsed) return parsed;
-    console.warn('[api] talk: invalid response, using fallback');
-  } catch (err) {
-    console.warn(`[api] talk failed, using fallback — ${describe(err)}`);
+/** Calls an AI route until it returns a valid result. Throws when the AI stays unavailable. */
+async function callAi<T>(path: string, body: unknown, timeoutMs: number, parse: (raw: unknown) => T | null): Promise<T> {
+  let last: unknown = null;
+  for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
+    try {
+      const parsed = parse(await post(path, body, timeoutMs));
+      if (parsed) return parsed;
+      last = new Error(`${path} → invalid response`);
+    } catch (err) {
+      last = err;
+    }
+    console.warn(`[api] ${path} attempt ${attempt} failed — ${describe(last)}`);
   }
-  return fallbackTalk(npc, message, context);
+  throw last instanceof Error ? last : new Error(String(last));
 }
 
-/** Line an NPC opens with when it walks up by itself. Never throws: falls back to the scripted line. */
-export async function initiativeLine(npc: NpcId, context: TalkContext, reason: string, fallback: TalkResult): Promise<TalkResult> {
-  try {
-    const parsed = parseTalkResult(await post('/api/talk', { npc, message: '', context, initiative: reason }, CLIENT_TIMEOUT_MS));
-    if (parsed?.source === 'ai') return { ...parsed, suggestions: parsed.suggestions.length ? parsed.suggestions : fallback.suggestions };
-  } catch (err) {
-    console.warn(`[api] initiative failed, using scripted line — ${describe(err)}`);
-  }
-  return fallback;
+export function talk(npc: NpcId, message: string, context: TalkContext): Promise<TalkResult> {
+  return callAi('/api/talk', { npc, message, context }, TALK_TIMEOUT_MS, parseTalkResult);
 }
 
-export async function simulate(state: GameState, req: SimRequest): Promise<SimResult> {
-  const rules = simulateFallback(state, req.hours);
-  try {
-    const parsed = parseSimResult(await post('/api/simulate', req, CLIENT_TIMEOUT_MS + 2000));
-    if (parsed) return mergeSim(parsed, rules);
-    console.warn('[api] simulate: AI unavailable or invalid, using code-only simulation');
-  } catch (err) {
-    console.warn(`[api] simulate failed, using fallback — ${describe(err)}`);
-  }
-  return rules;
+/** Line an NPC opens a conversation with, generated from `reason`. */
+export function initiativeLine(npc: NpcId, context: TalkContext, reason: string): Promise<TalkResult> {
+  return callAi('/api/talk', { npc, message: '', context, initiative: reason }, TALK_TIMEOUT_MS, parseTalkResult);
+}
+
+export function simulate(req: SimRequest): Promise<SimResult> {
+  return callAi('/api/simulate', req, SIM_TIMEOUT_MS, parseSimResult);
 }

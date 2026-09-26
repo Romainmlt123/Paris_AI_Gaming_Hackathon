@@ -6,7 +6,6 @@ import { CHARACTERS } from '../shared/characters';
 import { buy, buyClothes, CATALOG, CLOTHES_PRICE, haggle, isNaked, islandValue, placeDeco, SLOTS, startDeal, type Deal } from '../shared/economy';
 import { comingToast, markInitiative, pickInitiative, type Initiative } from '../shared/initiative';
 import { advanceClock, chatterLine, routineStep } from '../shared/routine';
-import { CONFRONT_SUGGESTIONS, openerLine } from '../shared/opener';
 import { addCatch, BAG_FISH_MAX, FISH, giveFish, rollFish } from '../shared/fishing';
 import { buyItem, islandLevel, ISLAND_LEVELS, lookOf, nextLevel, SHOP_ITEMS, SHOP_OWNER, stockOf, toggleWear, type ShopId } from '../shared/shop';
 import { buildGazette } from '../shared/gazette';
@@ -16,7 +15,7 @@ import { arrivalFactText, cleanIsland, cleanName, DEFAULT_LOOK, ISLAND_IDEAS } f
 import { recordFact } from '../shared/rumors';
 import { defaultSuggestions } from '../shared/fallback';
 import { clashFor, moodOf, resolveFight, resolveMurder, resolveSlap, WEAPONS, type Clash } from '../shared/violence';
-import type { DecoId, FishId, GameState, NpcId, RelationChange, SlotId } from '../shared/types';
+import type { DecoId, FishId, GameState, NpcId, RelationChange, SimResult, SlotId, TalkResult } from '../shared/types';
 import { NPC_IDS } from '../shared/types';
 import { initiativeLine, simulate, talk } from './api';
 import { loadState, resetSave, saveState } from './game/save';
@@ -116,9 +115,7 @@ function startTalk(npc: NpcId, initiated = false): void {
     const confront = state.npcs[npc].intent !== null;
     if (confront) music('tension');
     else if (currentMusic() === 'tension') ambient();
-    const line = confront ? openerLine(state, npc) : greeting(npc);
-    void dialogue.say(line, confront ? 'mefiance' : state.npcs[npc].emotion);
-    dialogue.setChips(chipsFor(npc, confront ? CONFRONT_SUGGESTIONS : defaultSuggestions(npc)));
+    void aiOpener(npc, confront ? CONFRONT_REASON : GREET_REASON);
   };
   if (interior.isOpen()) {
     const here = interior.current();
@@ -129,14 +126,37 @@ function startTalk(npc: NpcId, initiated = false): void {
   else world.approachNpc(npc, open);
 }
 
-function greeting(npc: NpcId): string {
-  const r = state.npcs[npc].relation;
-  const lines: Record<NpcId, [string, string]> = {
-    gaston: ['My friend! Perfect timing, I\u2019ve got golden deals. Well, gold-plated.', 'Oh, it’s you. Prices went up. Just for you.'],
-    josette: ['Hiya sweetie! So, what’s new? Tell me, tell me!', 'Oh… it\u2019s you. Hello anyway.'],
-    marius: ['… Ah. There you are. The sea is calm tonight. Like me.', '… Come to mock me again? The sea never mocks.'],
-  };
-  return lines[npc][r < -15 ? 1 : 0];
+const GREET_REASON =
+  'The player just walked up to you to chat. Greet them in your own style and open with something fresh: a piece of gossip, an opinion, a question, based on what you know.';
+const CONFRONT_REASON = 'You are upset and want to confront the player about what you heard (see your intention and what you know).';
+
+async function aiOpener(npc: NpcId, reason: string): Promise<void> {
+  busy = true;
+  replying = true;
+  dialogue.setChips([]);
+  dialogue.thinking(true);
+  try {
+    const result = await initiativeLine(npc, buildTalkContext(state, npc), reason);
+    if (dialogue.current() !== npc) return;
+    commit(applyOpener(state, npc, result));
+    dialogue.thinking(false);
+    busy = false;
+    replying = false;
+    dialogue.setChips(chipsFor(npc, result.suggestions));
+    await dialogue.say(result.reply, result.emotion);
+  } catch (err) {
+    aiFailed(npc, err);
+    endTalk();
+  } finally {
+    busy = false;
+    replying = false;
+  }
+}
+
+function aiFailed(npc: NpcId, err: unknown): void {
+  console.warn(`[ai] ${npc}: no AI answer`, err);
+  if (dialogue.current() === npc) dialogue.thinking(false);
+  toast(ui!, `${CHARACTERS[npc].name} didn’t answer (AI unreachable). Try again.`, 'bad');
 }
 
 function pin(npc: NpcId): void {
@@ -161,11 +181,18 @@ async function onPlayerLine(text: string): Promise<void> {
   busy = true;
   replying = true;
   dialogue.thinking(true);
-  const result = await talk(npc, text, buildTalkContext(state, npc));
+  let result: TalkResult;
+  try {
+    result = await talk(npc, text, buildTalkContext(state, npc));
+  } catch (err) {
+    busy = false;
+    replying = false;
+    aiFailed(npc, err);
+    return;
+  }
   const before = state.npcs[npc].relation;
   const applied = applyTalkResult(state, npc, text, result);
   commit(applied.state);
-  hud.setAiStatus(result.source === 'ai' ? '' : 'AI offline · backup lines');
   dialogue.thinking(false);
   replying = false;
   showChange(applied.change);
@@ -248,9 +275,10 @@ function tickInitiative(now: number): void {
   runInitiative(initiative);
 }
 
-function runInitiative({ npc, trigger, reason, fallback }: Initiative): void {
+function runInitiative({ npc, trigger, reason }: Initiative): void {
   seeking = npc;
-  const line = initiativeLine(npc, buildTalkContext(state, npc), reason, fallback);
+  const line = initiativeLine(npc, buildTalkContext(state, npc), reason);
+  line.catch(() => undefined);
   toast(ui!, comingToast(npc), 'info');
   world.npcSeekPlayer(npc, () => void arrive());
   async function arrive(): Promise<void> {
@@ -263,11 +291,17 @@ function runInitiative({ npc, trigger, reason, fallback }: Initiative): void {
     dialogue.open(npc, state.npcs[npc].relation);
     pin(npc);
     dialogue.thinking(true);
-    const result = await line;
+    let result: TalkResult;
+    try {
+      result = await line;
+    } catch (err) {
+      aiFailed(npc, err);
+      endTalk();
+      return;
+    }
     if (dialogue.current() !== npc) return;
     dialogue.thinking(false);
     commit(applyOpener(state, npc, result));
-    hud.setAiStatus(result.source === 'ai' ? '' : 'AI offline · backup lines');
     dialogue.setChips(chipsFor(npc, result.suggestions));
     await dialogue.say(result.reply, result.emotion);
   }
@@ -781,7 +815,18 @@ async function absence(): Promise<void> {
   music('night');
   hud.setAiStatus('Time passes on the island…');
   const before = state;
-  const result = await simulate(before, buildSimRequest(before, ABSENCE_HOURS));
+  let result: SimResult;
+  try {
+    result = await simulate(buildSimRequest(before, ABSENCE_HOURS));
+  } catch (err) {
+    console.warn('[ai] simulate: no AI answer', err);
+    hud.setAiStatus('');
+    document.body.classList.remove('night');
+    ambient();
+    busy = false;
+    toast(ui!, 'The island is quiet… the AI didn’t answer. Try again.', 'bad');
+    return;
+  }
   const { state: next, recap } = applySimResult(before, result, ABSENCE_HOURS);
   commit(next);
   world.teleportPlayer({ x: 12, z: 20 });

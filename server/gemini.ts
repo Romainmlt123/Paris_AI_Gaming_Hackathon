@@ -20,13 +20,39 @@ interface GeminiPart {
 }
 
 interface GeminiResponse {
-  candidates?: { content?: { parts?: GeminiPart[] } }[];
+  candidates?: { content?: { parts?: GeminiPart[] }; finishReason?: string }[];
 }
 
-/** Calls Gemini in JSON mode and returns the parsed JSON. Throws GeminiError on any failure. */
-export async function generateJson(system: string, user: string, timeoutMs: number): Promise<unknown> {
+const MAX_ATTEMPTS = 3;
+const ATTEMPT_TIMEOUT_MS = 7000;
+
+/**
+ * Calls Gemini in JSON mode and returns the value accepted by `accept`.
+ * Retries empty, malformed or rejected outputs and transient HTTP errors, all within `timeoutMs`.
+ */
+export async function generateJson<T>(system: string, user: string, timeoutMs: number, accept: (raw: unknown) => T | null): Promise<T> {
   const key = geminiKey();
   if (!key) throw new GeminiError('missing GEMINI_API_KEY');
+  const deadline = Date.now() + timeoutMs;
+  let last = new GeminiError('no attempt');
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const left = deadline - Date.now();
+    if (left < 500) break;
+    try {
+      const value = accept(await callOnce(key, system, user, Math.min(left, ATTEMPT_TIMEOUT_MS)));
+      if (value !== null) return value;
+      last = new GeminiError('output rejected by validation');
+    } catch (err) {
+      if (!(err instanceof GeminiError)) throw err;
+      last = err;
+      if (/^HTTP (400|401|403|404)/.test(err.message)) break;
+    }
+    console.warn(`[gemini] attempt ${attempt} failed — ${last.message}`);
+  }
+  throw last;
+}
+
+async function callOnce(key: string, system: string, user: string, timeoutMs: number): Promise<unknown> {
   const model = process.env.GEMINI_MODEL || DEFAULT_MODEL;
   let response: Response;
   try {
@@ -51,11 +77,12 @@ export async function generateJson(system: string, user: string, timeoutMs: numb
   }
   if (!response.ok) throw new GeminiError(`HTTP ${response.status}: ${(await response.text()).slice(0, 200)}`);
   const data = (await response.json()) as GeminiResponse;
-  const text = data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? '';
+  const candidate = data.candidates?.[0];
+  const text = candidate?.content?.parts?.map((p) => p.text ?? '').join('') ?? '';
   try {
-    return JSON.parse(text);
+    return JSON.parse(text.replace(/^\s*```(?:json)?\s*|\s*```\s*$/g, ''));
   } catch {
-    throw new GeminiError(`invalid JSON: ${text.slice(0, 120)}`);
+    throw new GeminiError(`invalid JSON (finishReason ${candidate?.finishReason ?? 'none'}): ${text.slice(0, 120)}`);
   }
 }
 
