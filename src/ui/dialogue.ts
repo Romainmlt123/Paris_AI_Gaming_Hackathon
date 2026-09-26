@@ -4,7 +4,7 @@ import type { Emotion, NpcId } from '../../shared/types';
 import { button, el, typewrite } from './dom';
 import { gaugeFill } from './hud';
 import { percentOf } from '../../shared/violence';
-import { micSupported, speak, startRecording, stopSpeaking, transcribe, type Recording } from '../voice';
+import { micSupported, speak, startRecording, stopSpeaking, type Recording } from '../voice';
 
 export interface Chip {
   label: string;
@@ -87,6 +87,7 @@ export function createDialogue(portraits: Record<NpcId, string>, onSend: (text: 
     input.placeholder = mode === 'rec' ? 'Je t\u2019écoute… (touche ■ pour finir)' : mode === 'wait' ? 'Transcription…' : 'Écris ta réplique…';
   };
   const cancelRecording = (): void => {
+    if (recording || mic.dataset['mode'] === 'rec') input.value = '';
     micSession++;
     recording?.cancel();
     recording = null;
@@ -98,9 +99,10 @@ export function createDialogue(portraits: Record<NpcId, string>, onSend: (text: 
     const session = micSession;
     recording = null;
     setMic('wait');
-    const heard = await transcribe(await rec.stop());
+    const heard = await rec.stop();
     if (session !== micSession || npc === null) return;
     setMic('idle');
+    input.value = '';
     const text = heard?.trim().slice(0, MAX_LINE) ?? null;
     if (!text) {
       input.placeholder = text === null ? 'Micro indisponible, écris ta réplique…' : 'Rien entendu… réessaie ?';
@@ -116,9 +118,15 @@ export function createDialogue(portraits: Record<NpcId, string>, onSend: (text: 
   const beginRecording = (): void => {
     const session = ++micSession;
     setMic('rec');
-    startRecording(() => {
-      if (session === micSession) void finishRecording();
-    })
+    input.value = '';
+    startRecording(
+      () => {
+        if (session === micSession) void finishRecording();
+      },
+      (live) => {
+        if (session === micSession) input.value = live.slice(0, MAX_LINE);
+      },
+    )
       .then((rec) => {
         if (session !== micSession || npc === null) return rec.cancel();
         recording = rec;

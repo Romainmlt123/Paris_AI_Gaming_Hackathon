@@ -1,7 +1,7 @@
 import { defineConfig, loadEnv, type Plugin, type ViteDevServer } from 'vite';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
-const API_ROUTES = ['talk', 'simulate', 'tts', 'stt'] as const;
+const API_ROUTES = ['talk', 'simulate', 'tts', 'stt', 'stt-token'] as const;
 
 type RouteHandler = (req: Request) => Promise<Response>;
 
