@@ -1,8 +1,9 @@
 import { createInitialState } from '../../shared/state';
-import { cleanName } from '../../shared/player';
+import { cleanIsland, cleanLook, cleanName } from '../../shared/player';
 import type { GameState } from '../../shared/types';
 
 const KEY = 'ragots.save.v1';
+export const TIPS_KEY = 'ragots.tips';
 
 export function loadState(): GameState {
   const raw = localStorage.getItem(KEY);
@@ -11,7 +12,7 @@ export function loadState(): GameState {
     const parsed: unknown = JSON.parse(raw);
     if (typeof parsed === 'object' && parsed !== null && 'version' in parsed && parsed.version === 1 && 'decor' in parsed) {
       const state = parsed as GameState;
-      return { ...state, playerName: cleanName(state.playerName) };
+      return { ...state, playerName: cleanName(state.playerName), islandName: cleanIsland(state.islandName), look: cleanLook(state.look) };
     }
     console.warn('[save] incompatible save, starting fresh');
   } catch (err) {
@@ -26,4 +27,5 @@ export function saveState(state: GameState): void {
 
 export function resetSave(): void {
   localStorage.removeItem(KEY);
+  localStorage.removeItem(TIPS_KEY);
 }

@@ -52,6 +52,15 @@ export interface RelationChange {
 export type DecoId = 'parterre' | 'banc' | 'lampadaire' | 'fontaine' | 'statue';
 export type SlotId = 'placette' | 'falaise' | 'ponton' | 'mairie' | 'boulangerie';
 
+export type HairStyle = 'short' | 'bun' | 'cap' | 'beanie';
+
+export interface PlayerLook {
+  skin: string;
+  hair: string;
+  hairStyle: HairStyle;
+  shirt: string;
+}
+
 export interface GameState {
   version: 1;
   nextId: number;
@@ -60,6 +69,10 @@ export interface GameState {
   clock: number;
   /** First name typed on the welcome screen; '' until chosen. */
   playerName: string;
+  /** Island name chosen during onboarding; '' until chosen. */
+  islandName: string;
+  /** Appearance picked in the character creator; null = default sprite. */
+  look: PlayerLook | null;
   coins: number;
   islandValue: number;
   inventory: DecoId[];
@@ -107,6 +120,7 @@ export interface TalkContext {
   day: number;
   islandValue: number;
   playerName: string;
+  islandName: string;
 }
 
 export interface TalkRequest {
@@ -169,6 +183,7 @@ export interface SimRequest {
   bonds: Record<string, number>;
   relations: Record<NpcId, number>;
   playerName: string;
+  islandName: string;
 }
 
 export type RecapKind = 'talk' | 'rumor' | 'relation' | 'intent';

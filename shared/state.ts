@@ -3,7 +3,7 @@ import { applyRelationDelta, bondKey, tierOf } from './relations';
 import { playerLabel } from './player';
 import { factById, recordFact } from './rumors';
 import { NPC_IDS } from './types';
-import type { GameState, KnownRumor, NpcId, NpcState, RelationChange, TalkContext, TalkResult } from './types';
+import type { GameState, KnownRumor, PlayerLook, NpcId, NpcState, RelationChange, TalkContext, TalkResult } from './types';
 
 const MEMORY_LIMIT = 8;
 const HISTORY_LIMIT = 10;
@@ -12,13 +12,15 @@ function freshNpc(relation: number): NpcState {
   return { relation, emotion: 'neutre', memories: [], intent: null, history: [] };
 }
 
-export function createInitialState(playerName = ''): GameState {
+export function createInitialState(playerName = '', islandName = '', look: PlayerLook | null = null): GameState {
   return {
     version: 1,
     nextId: 1,
     day: 1,
     clock: 17 * 60 + 40,
     playerName,
+    islandName,
+    look,
     coins: 1200,
     islandValue: 0,
     inventory: [],
@@ -62,6 +64,7 @@ export function buildTalkContext(state: GameState, npc: NpcId): TalkContext {
     day: state.day,
     islandValue: state.islandValue,
     playerName: state.playerName,
+    islandName: state.islandName,
   };
 }
 

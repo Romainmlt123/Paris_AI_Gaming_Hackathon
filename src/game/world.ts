@@ -9,7 +9,7 @@ import { createBuildings } from '../render/buildings';
 import { createDeco, slotMarker } from '../render/decor';
 import { createBushes, createFlowers, createRocks, createTrees, type Swaying } from '../render/props';
 import { createGrass } from '../render/grass';
-import { SPRITES } from '../render/sprites';
+import { SPRITES, type SpriteSpec } from '../render/sprites';
 import type { Stage } from '../render/stage';
 import { createTerrain, type Terrain } from '../render/terrain';
 import { createWater, type Water } from '../render/water';
@@ -69,6 +69,14 @@ export interface World {
   murder(id: NpcId, onHit: () => void): Promise<void>;
   revive(): void;
   setPlayerSkin(skin: PlayerSkin): void;
+  setPlayerSpec(spec: SpriteSpec): void;
+  /** Cutscene mode: NPCs stop wandering and only move when scripted. */
+  setScripted(on: boolean): void;
+  placeNpc(id: NpcId, tile: Tile): void;
+  /** Scripted walk; resolves on arrival (or immediately if unreachable). */
+  walk(who: 'player' | NpcId, tile: Tile, speed?: number): Promise<void>;
+  face(who: 'player' | NpcId, facing: 'down' | 'up', flip?: boolean): void;
+  setPlayerDown(down: boolean): void;
 }
 
 export type PlayerSkin = 'player' | 'castaway';
@@ -158,6 +166,8 @@ export function createWorld(stage: Stage): World {
   const ghost = ghostSprite();
   stage.scene.add(ghost);
   let cine: ((t: number) => boolean) | null = null;
+  let scripted = false;
+  let playerSpec: SpriteSpec = SPRITES.player;
   let cineT = 0;
 
   function play(step: (t: number) => boolean): Promise<void> {
@@ -209,7 +219,7 @@ export function createWorld(stage: Stage): World {
   }
 
   function wander(n: Npc, dt: number): void {
-    if (n.path.length > 0 || frozen === n.id) return;
+    if (n.path.length > 0 || frozen === n.id || scripted) return;
     n.idle -= dt;
     if (n.idle > 0) return;
     n.idle = 2 + Math.random() * 4;
@@ -223,7 +233,41 @@ export function createWorld(stage: Stage): World {
     map,
     playerPos: player.pos,
     npcView: (id) => npc(id).view,
-    setPlayerSkin: (skin) => player.view.setSkin(SPRITES[skin]),
+    setPlayerSkin(skin) {
+      player.view.setSkin(SPRITES[skin]);
+    },
+    setPlayerSpec(spec) {
+      playerSpec = spec;
+      player.view.setSkin(spec);
+    },
+    setScripted(on) {
+      scripted = on;
+      for (const n of npcs.values()) {
+        n.speed = NPC_SPEED;
+        if (on) n.path = [];
+      }
+      player.speed = SPEED;
+    },
+    placeNpc(id, tile) {
+      const n = npc(id);
+      n.path = [];
+      n.pos.set(tile.x, tileY(map, tile.x, tile.z), tile.z);
+    },
+    walk(who, tile, speed) {
+      const actor = who === 'player' ? player : npc(who);
+      if (speed) actor.speed = speed;
+      return new Promise((resolve) => {
+        if (!route(actor, tile, resolve)) resolve();
+      });
+    },
+    face(who, facing, flip = false) {
+      const actor = who === 'player' ? player : npc(who);
+      actor.facing = facing;
+      actor.flip = flip;
+    },
+    setPlayerDown(down) {
+      player.view.setDown(down);
+    },
     pick(ndc) {
       raycaster.setFromCamera(ndc, stage.camera);
       const sprites = [...npcs.values()].map((n) => n.view.sprite);
@@ -364,7 +408,7 @@ export function createWorld(stage: Stage): World {
       frozen = id;
       player.path = [];
       n.path = [];
-      const cloud = brawlCloud(SPRITES.player.skin, SPRITES[id].skin);
+      const cloud = brawlCloud(playerSpec.skin, SPRITES[id].skin);
       const mid = player.pos.clone().lerp(n.pos, 0.5);
       cloud.sprite.visible = true;
       stage.scene.add(cloud.sprite);

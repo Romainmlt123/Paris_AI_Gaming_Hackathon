@@ -18,6 +18,7 @@ export function buildSimRequest(state: GameState, hours: number): SimRequest {
     bonds: state.bonds,
     relations: { gaston: state.npcs.gaston.relation, josette: state.npcs.josette.relation, marius: state.npcs.marius.relation },
     playerName: state.playerName,
+    islandName: state.islandName,
   };
 }
 

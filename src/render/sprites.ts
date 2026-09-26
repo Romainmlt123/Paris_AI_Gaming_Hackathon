@@ -2,7 +2,9 @@ import * as THREE from 'three';
 import { P } from './textures';
 
 export type Facing = 'down' | 'up';
-export type HairStyle = 'short' | 'bun' | 'cap' | 'beanie';
+import type { HairStyle, PlayerLook } from '../../shared/types';
+
+export type { HairStyle };
 
 export interface SpriteSpec {
   skin: string;
@@ -295,3 +297,10 @@ export const SPRITES: Record<'player' | 'castaway' | 'gaston' | 'josette' | 'mar
   josette: { skin: '#f6d0b5', hair: '#c46b3d', hairStyle: 'bun', shirt: '#e98aa6', pants: '#7a4b6b', shoes: '#5a3a3a', apron: '#fffaf0' },
   marius: { skin: '#dba27c', hair: '#b7b3ad', hairStyle: 'beanie', hat: '#2f5f8f', shirt: '#e5d9b6', pants: '#3e5a6e', shoes: '#3a2e26', beard: true },
 };
+
+/** Player sprite built from the character-creator choices (clothed, or castaway for the intro). */
+export function lookSpec(look: PlayerLook, naked = false): SpriteSpec {
+  if (naked) return { skin: look.skin, hair: look.hair, hairStyle: look.hairStyle === 'bun' ? 'bun' : 'short', shirt: look.skin, pants: look.skin, shoes: look.skin, naked: true };
+  const hat = look.hairStyle === 'cap' || look.hairStyle === 'beanie' ? tone(look.shirt, -0.25) : undefined;
+  return { skin: look.skin, hair: look.hair, hairStyle: look.hairStyle, ...(hat ? { hat } : {}), shirt: look.shirt, pants: '#34466b', shoes: '#4a3328', scarf: tone(look.shirt, 0.35) };
+}
