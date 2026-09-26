@@ -82,6 +82,8 @@ function renderHud(): void {
 store.subscribe((s) => {
   world.sync(s);
   renderHud();
+  const v = ui.querySelector('.island-value');
+  if (v) v.textContent = `✨ Valeur de l’île : ${islandValue(s)}`;
 });
 renderHud();
 
@@ -676,10 +678,11 @@ function openDecorMode(): void {
   world.setDecorMode(true);
   busy = true;
   bar.style.display = 'none';
+  const value = h('b', { class: 'island-value' }, `✨ Valeur de l’île : ${islandValue(store.state)}`);
   const el = h('div', { class: 'sheet', style: 'z-index:3' },
     h('h2', { class: 'title' }, '🪑 Décorer l’île'),
     h('div', { class: 'muted' }, 'Touche un emplacement doré pour y poser un objet.'),
-    h('div', { class: 'row', style: 'margin-top:10px;justify-content:space-between' }, h('b', {}, `✨ Valeur de l’île : ${islandValue(store.state)}`), btn('Terminé', 'btn', () => exit())),
+    h('div', { class: 'row', style: 'margin-top:10px;justify-content:space-between' }, value, btn('Terminé', 'btn', () => exit())),
   );
   const exit = (): void => {
     el.remove();
