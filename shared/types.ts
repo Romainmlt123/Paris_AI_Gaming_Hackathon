@@ -52,7 +52,13 @@ export interface RelationChange {
 export type DecoId = 'parterre' | 'banc' | 'lampadaire' | 'fontaine' | 'statue';
 export type SlotId = 'placette' | 'falaise' | 'ponton' | 'mairie' | 'boulangerie';
 
-export type Outfit = 'nu' | 'habille';
+export type ShopItemId =
+  | 'tabouret' | 'tapis' | 'table' | 'lampe' | 'plante' | 'fauteuil' | 'bibliotheque' | 'canape' | 'lustre' | 'piano' | 'trone'
+  | 'echarpe' | 'beret' | 'pompon' | 'pull' | 'gala'
+  | 'mariniere' | 'bonnet' | 'bouee' | 'cire' | 'aquarium' | 'capitaine' | 'voilier';
+export type FishId = 'sardine' | 'maquereau' | 'bar' | 'rouget' | 'dorade' | 'poulpe' | 'espadon' | 'poulpe_dore' | 'botte';
+
+export type OutfitSlot = 'hat' | 'top' | 'scarf';
 
 export type HairStyle = 'short' | 'bun' | 'cap' | 'beanie';
 
@@ -79,14 +85,17 @@ export interface GameState {
   islandValue: number;
   inventory: DecoId[];
   decor: Record<SlotId, DecoId | null>;
+  /** Furniture and clothes bought in the island shops. */
+  owned: ShopItemId[];
+  outfit: Record<OutfitSlot, ShopItemId | null>;
+  /** Catches waiting in the bag, to sell to Gaston or offer around. */
+  fish: FishId[];
   npcs: Record<NpcId, NpcState>;
   /** Affinity between NPCs, keyed by `bondKey`. 0..100. */
   bonds: Record<string, number>;
   facts: Fact[];
   rumors: Rumor[];
   changes: RelationChange[];
-  /** 'nu' for the castaway who just washed ashore. */
-  outfit: Outfit;
   /** Last day each `npc:trigger` initiative fired (NPCs don't repeat themselves the same day). */
   initiatives: Record<string, number>;
 }

@@ -1,4 +1,5 @@
 import { CHARACTERS } from './characters';
+import { isNaked } from './economy';
 import { CONFRONT_SUGGESTIONS, openerLine } from './opener';
 import { hashString, pick } from './rng';
 import type { Emotion, GameState, NpcId, TalkResult } from './types';
@@ -40,7 +41,7 @@ const NAKED_SUGGESTIONS = ['J\u2019ai fait naufrage…', 'Arrête de regarder !'
 const RULES: readonly Rule[] = [
   {
     trigger: 'nu', npc: 'josette', priority: 100, emotion: 'surprise',
-    when: (s) => s.outfit === 'nu',
+    when: (s) => isNaked(s),
     reason: () => 'Un inconnu vient d\u2019échouer sur l\u2019île, COMPLÈTEMENT NU. Tu accours, choquée et ravie : c\u2019est le ragot du siècle. Tu poses mille questions.',
     lines: () => [
       'Mon chou ! Attends attends attends… T\u2019es TOUT NU ?! Ch\u2019est pas vrai ! Tu sors d\u2019où comme ça, hein ?',
@@ -50,7 +51,7 @@ const RULES: readonly Rule[] = [
   },
   {
     trigger: 'nu', npc: 'gaston', priority: 90, emotion: 'joie',
-    when: (s) => s.outfit === 'nu',
+    when: (s) => isNaked(s),
     reason: () => 'Le nouveau venu se promène tout nu. Tu flaires l\u2019affaire : tu veux lui vendre des habits hors de prix (il peut t\u2019en acheter en te parlant).',
     lines: () => [
       'Oh fada ! Tout nu sur MON île ? Mon ami, j\u2019ai exactement ce qu\u2019il te faut : un pantalon presque neuf. Presque.',
@@ -60,7 +61,7 @@ const RULES: readonly Rule[] = [
   },
   {
     trigger: 'nu', npc: 'marius', priority: 60, emotion: 'amuse',
-    when: (s, idle) => s.outfit === 'nu' && idle >= 10,
+    when: (s, idle) => isNaked(s) && idle >= 10,
     reason: () => 'Le naufragé se balade toujours tout nu. Tu viens lui parler calmement, avec une métaphore marine sur la nudité, un peu moqueur.',
     lines: () => ['… Boudu. La mer non plus ne porte rien. Mais elle, elle a de la tenue, pitchoun.', '… Pfff… Même les poulpes ont plus de pudeur que toi. Et pourtant ils ont huit bras.'],
     suggestions: NAKED_SUGGESTIONS,

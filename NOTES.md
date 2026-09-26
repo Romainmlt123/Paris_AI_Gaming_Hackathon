@@ -44,8 +44,8 @@ Mémoire du projet : fait, reste, décisions, pièges.
 - Piège : un serveur Vite lancé depuis une autre branche renvoyait 404 sur /api/talk → toutes les répliques passaient par le secours. Relancer `npm run dev` après un changement de branche.
 
 ## Bagarres & meurtres (shared/violence.ts)
-- Jauge d'amitié affichée en % : `(relation + 100) / 2`. 10 % = relation -80, 0 % = -100.
-- Franchir 10 % vers le bas → bagarre nuage (3,4 s, onomatopées DOM, secousse caméra), puis +15 et rumeur « se sont battus ».
+- Jauge d'amitié affichée en % : `(relation + 100) / 2`. 20 % = relation -80, 0 % = -100.
+- Franchir 20 % vers le bas → bagarre nuage (3,4 s, onomatopées DOM, secousse caméra), puis +15 et rumeur « se sont battus ».
 - Atteindre 0 % → le PNJ tue le joueur avec son arme (caisse / rouleau / espadon), fantôme, carte de décès, réveil le lendemain 8h00, pièces /2, relation du tueur remise à -40, les deux autres viennent parler du meurtre.
 - Humeurs au-dessus des PNJ : cœur ≥ 75 %, orage ≤ 25 %, crâne ≤ 18 % (jauge HUD qui clignote).
 - Hook démo : `ragots.clash('marius', 'fight' | 'murder')`.
@@ -77,10 +77,26 @@ Mémoire du projet : fait, reste, décisions, pièges.
 - Bouton 🔊/🔇 dans le HUD (localStorage `ragots.sound`).
 
 ## Initiatives & vie des PNJ (shared/initiative.ts, shared/routine.ts)
-- `GameState.outfit` : `'nu'` en nouvelle partie (skin castaway), `'habille'` pour les anciennes sauvegardes. Gaston vend des habits (chip 👕, `CLOTHES_PRICE`).
+- Nu = aucun haut porté (`isNaked` : `outfit.top === null`). Gaston vend une marinière au naufragé (chip 👕, `CLOTHES_PRICE`), qui est aussi achetable à la cabane.
 - `pickInitiative(state, idleSec, blocked)` : règles déterministes par PNJ et priorité (nu, rumeur/intent, colère ≤25 %, ami ≥75 %, fauché, riche, île célèbre, immobile 45 s, nuit). Une fois par jour et par couple PNJ/déclencheur (`state.initiatives`).
 - Boucle client (src/main.ts `tickLife`) : horloge 1 s réelle = 1 min de jeu, 30 s entre deux initiatives, 90 s par PNJ, jamais pendant un dialogue/cinématique/fenêtre. Le joueur reste libre : le PNJ le suit en accélérant (`npcSeekPlayer`, nouvel itinéraire toutes les 0,4 s, abandon après 60 s), le dialogue s’ouvre seulement à côté de lui et reste ouvert si le joueur marche (le PNJ l’accompagne, `setEscort`) — idem pour toute conversation, même pendant l’attente de la réponse IA (`replying`), Gemini écrit la première réplique (`/api/talk` avec `initiative`), réplique écrite en secours.
 - Emploi du temps horaire par PNJ (`routineStep`), visites aux amis (lien ≥40) ; deux PNJ proches et le joueur à ≤7 cases → bavardage affiché + voix.
+
+## Intérieurs & boutiques (src/interior/, shared/shop.ts)
+- Tap sur un bâtiment (ou flèche haut / E devant la porte) → marche jusqu'à la porte puis intérieur 2D vue de dessus (canvas 384×352, grille 12×11, pixel-art procédural, pas d'asset).
+- Sortie : bouton 🚪 ou revenir sur le paillasson. Tap sol = BFS local, tap meuble/rayon = s'approche + interagit.
+- Échoppe (Gaston) : meubles. Boulangerie (Josette) : tricots/vêtements + cabine. Cabane (Marius) : marin & nautique. Mairie : tableau de progression. Maison : lit (dormir), armoire (garde-robe), meubles achetés posés sur des emplacements fixes.
+- Niveaux d'île par valeur ★ : Hameau 0, Village 150, Port de plaisance 450. Les rayons verrouillés affichent « Niv.N » sur fond hachuré.
+- Prix × relation au propriétaire (Ennemi 1,5 → Confident 0,8). Meuble = prestige ajouté à `islandValue` (via `homePrestige`). Vêtement porté immédiatement (slots hat/top/scarf), sprite joueur redessiné (`setSpec`).
+- Sauvegarde : `owned`, `outfit` ; les vieilles sauvegardes sont complétées par `createInitialState()`.
+- Hook démo : `ragots.enter('echoppe' | 'boulangerie' | 'cabane' | 'mairie' | 'maison')`.
+
+## Vie de l'île, pêche, baffes (features/bleu)
+- Baffes sous 35 % d'amitié (chaque baisse), bagarre au passage de 20 %, meurtre à 0 %. `ragots.clash('marius','slap')`.
+- Vie : poules, chat, crabes, papillons, mouettes, fumée de cheminée (`src/render/life.ts`), billboards pixel art avec ombres.
+- Pêche : tap sur l'eau (ou bouton 🎣 près du rivage / E) → bouchon, tap quand il plonge (0,9 s). 9 prises (`shared/fishing.ts`), 12 max dans le sac. En dialogue : « Vendre un poisson » (Gaston, pièces) ou « Offrir » (jauge). Botte = vexe. Hooks `ragots.fish()` / `ragots.strike()`.
+- Intérieurs : grain de bois, joints, papiers peints, lambris, rideaux, lumière de fenêtre.
+- Piège : `shade()` doit accepter des couleurs `rgb(...)` (chaînage).
 
 ## Gazette des Ragots (branche gazette)
 - Le récap d'absence est une une de journal façon NYT : `buildGazette(before, after, recap)` (shared/gazette.ts, pur, testé) + `showGazette` (src/ui/overlays.ts).

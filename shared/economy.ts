@@ -1,7 +1,8 @@
 import { classifyMessage } from './fallback';
 import { applyRelationDelta, clamp, tierOf } from './relations';
 import { pick, hashString } from './rng';
-import type { DecoId, GameState, NpcId, RelationChange, SlotId } from './types';
+import { homePrestige } from './shop';
+import type { DecoId, GameState, NpcId, RelationChange, ShopItemId, SlotId } from './types';
 
 export interface Deco {
   id: DecoId;
@@ -31,7 +32,7 @@ export const SLOTS: readonly { id: SlotId; name: string; x: number; z: number }[
 export function islandValue(state: GameState): number {
   let total = 0;
   for (const deco of Object.values(state.decor)) if (deco) total += CATALOG[deco].prestige;
-  return total;
+  return total + homePrestige(state);
 }
 
 // ---------- Haggling with Gaston ----------
@@ -122,10 +123,18 @@ export function buy(state: GameState, item: DecoId, price: number): GameState | 
 
 export const CLOTHES_PRICE = 150;
 
+const CASTAWAY_TOP: ShopItemId = 'mariniere';
+
+/** No top on: the castaway who just washed ashore. */
+export function isNaked(state: GameState): boolean {
+  return state.outfit.top === null;
+}
+
 /** Gaston sells the castaway some clothes. Null if the player can't pay or is already dressed. */
 export function buyClothes(state: GameState, price: number): GameState | null {
-  if (state.outfit !== 'nu' || state.coins < price) return null;
-  return { ...state, coins: state.coins - price, outfit: 'habille' };
+  if (!isNaked(state) || state.coins < price) return null;
+  const owned = state.owned.includes(CASTAWAY_TOP) ? state.owned : [...state.owned, CASTAWAY_TOP];
+  return { ...state, coins: state.coins - price, owned, outfit: { ...state.outfit, top: CASTAWAY_TOP } };
 }
 
 // ---------- Placing decorations ----------

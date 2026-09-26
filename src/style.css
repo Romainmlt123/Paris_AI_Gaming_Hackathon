@@ -172,6 +172,40 @@ body.night #scene { filter: brightness(0.35) saturate(0.6) hue-rotate(-20deg); t
 .dialogue:not([hidden]) ~ .keys-help { display: none; }
 @media (max-width: 720px) { .keys-help { display: none; } }
 
+/* Interiors: top-down 2D rooms drawn on a canvas */
+.interior { position: absolute; inset: 0; background: radial-gradient(circle at 50% 45%, #3d3350, #1c1628 75%); display: flex; align-items: center; justify-content: center; padding: calc(100px + var(--safe-top)) 8px calc(70px + var(--safe-bottom)); }
+.interior[hidden] { display: none; }
+.interior.enter .interior-room { animation: pop 0.35s ease-out; }
+.interior.enter { animation: fade 0.3s; }
+.interior-room { max-width: 100%; max-height: 100%; aspect-ratio: 384 / 352; width: min(100%, calc((100vh - 170px) * 384 / 352)); image-rendering: pixelated; border: 4px solid var(--ink); border-radius: 6px; box-shadow: 0 6px 0 rgba(0,0,0,.4); touch-action: none; cursor: pointer; }
+.interior-bar { position: absolute; left: 8px; right: 8px; bottom: calc(8px + var(--safe-bottom)); display: flex; gap: 8px; align-items: stretch; }
+.interior-title { flex: 1; min-width: 0; background: var(--paper); border: 3px solid var(--ink); border-radius: 6px; padding: 5px 10px; box-shadow: 0 3px 0 rgba(43,34,51,.55); }
+.interior-name { font-weight: 700; font-size: 16px; }
+.interior-sub { font-size: 12px; opacity: 0.7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.interior-exit { padding: 0 14px; font-size: 15px; font-weight: 700; background: var(--accent); color: var(--paper); border: 3px solid var(--ink); border-radius: 6px; box-shadow: 0 3px 0 rgba(43,34,51,.55); }
+.interior-prompt { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(72px + var(--safe-bottom)); padding: 8px 14px; font-size: 15px; font-weight: 700; background: #fff0b8; border: 3px solid var(--ink); border-radius: 20px; box-shadow: 0 3px 0 rgba(43,34,51,.55); animation: pop 0.25s ease-out; white-space: nowrap; }
+.interior-prompt[hidden] { display: none; }
+body.indoors .dialogue:not([hidden]) ~ .interior-prompt { display: none; }
+body.indoors .action, body.indoors .ai-status { display: none; }
+.sheet-icon { width: 36px; height: 36px; image-rendering: pixelated; margin-right: 8px; flex: none; }
+.sheet-item .sheet-label { flex: 1; }
+.slapped { animation: slapped 0.45s ease-out; }
+@keyframes slapped { 0%, 100% { transform: none; } 20% { transform: translateX(-10px) rotate(-1deg); } 45% { transform: translateX(8px); } 70% { transform: translateX(-4px); } }
+.fish-btn { position: absolute; left: 50%; bottom: calc(70px + var(--safe-bottom)); transform: translateX(-50%); pointer-events: auto; z-index: 3; }
+.fish-btn.bite { background: #ffd25e; animation: wants 0.25s infinite; }
+.catch-back { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: auto; z-index: 30; background: rgba(20, 30, 50, 0.25); animation: fade 0.2s; }
+.catch { position: relative; width: min(280px, 80vw); padding: 18px 16px 16px; text-align: center; background: var(--paper, #fbf8f0); border: 3px solid var(--ink); border-radius: 14px; box-shadow: 0 6px 0 var(--ink); animation: pop 0.35s cubic-bezier(.2,1.6,.4,1); overflow: hidden; }
+.catch-rays { position: absolute; left: 50%; top: 64px; width: 260px; height: 260px; margin: -130px 0 0 -130px; background: repeating-conic-gradient(rgba(255, 210, 94, 0.35) 0 12deg, transparent 12deg 24deg); animation: spin 8s linear infinite; pointer-events: none; }
+.catch-icon { position: relative; width: 96px; height: 96px; image-rendering: pixelated; animation: flop 0.6s ease-in-out infinite alternate; }
+.catch-title { position: relative; font-weight: 700; font-size: 18px; margin-top: 6px; }
+.catch-rarity { position: relative; display: inline-block; margin-top: 6px; padding: 2px 10px; border: 2px solid var(--ink); border-radius: 99px; font-size: 13px; background: #e8f3d4; text-transform: capitalize; }
+.catch.rarity-rare .catch-rarity { background: #cfe3ff; }
+.catch.rarity-legendaire .catch-rarity { background: #ffd25e; }
+.catch.rarity-dechet .catch-rarity { background: #d9cdb8; }
+.catch-detail { position: relative; margin-top: 8px; font-size: 13px; opacity: 0.75; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes flop { from { transform: rotate(-8deg) translateY(2px); } to { transform: rotate(8deg) translateY(-3px); } }
+
 /* Onboarding: opaque full-screen tropical title */
 .onb-back { position: absolute; inset: 0; z-index: 30; overflow: hidden auto; display: flex; align-items: center; justify-content: center; padding: calc(16px + var(--safe-top)) 14px calc(16px + var(--safe-bottom)); background: #6a3f8f; animation: fade 0.4s; }
 .onb-backdrop { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; pointer-events: none; }

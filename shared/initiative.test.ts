@@ -30,7 +30,8 @@ describe('initiatives', () => {
   });
 
   it('reacts to other states once dressed', () => {
-    let s = { ...createInitialState(), outfit: 'habille' as const };
+    const fresh = createInitialState();
+    let s = { ...fresh, outfit: { ...fresh.outfit, top: 'mariniere' as const } };
     expect(pickInitiative(s, 0, none)).toBeNull();
     expect(pickInitiative(s, IDLE_TRIGGER_SEC, none)?.npc).toBe('marius');
     s = { ...s, coins: 20 };
@@ -42,7 +43,7 @@ describe('initiatives', () => {
   it('Gaston sells clothes only to a naked player who can pay', () => {
     const s = createInitialState();
     const dressed = buyClothes(s, CLOTHES_PRICE);
-    expect(dressed?.outfit).toBe('habille');
+    expect(dressed?.outfit.top).toBe('mariniere');
     expect(dressed?.coins).toBe(s.coins - CLOTHES_PRICE);
     expect(dressed && buyClothes(dressed, CLOTHES_PRICE)).toBeNull();
     expect(buyClothes({ ...s, coins: 10 }, CLOTHES_PRICE)).toBeNull();
