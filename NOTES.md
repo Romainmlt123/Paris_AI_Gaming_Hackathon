@@ -101,4 +101,4 @@ Mémoire du projet : fait, reste, décisions, pièges.
 ## Gazette des Ragots (branche gazette)
 - Le récap d'absence est une une de journal façon NYT : `buildGazette(before, after, recap)` (shared/gazette.ts, pur, testé) + `showGazette` (src/ui/overlays.ts).
 - Gros titre choisi par le code : pire chute de relation (≤ -5) > ragots transmis > habitant qui veut parler > plus grosse hausse > titre calme.
-- Rubriques : Ragots, Carnet mondain, Cote de popularité, Petites annonces, Bourse. Titre en UnifrakturMaguntia (@fontsource), corps en serif.
+- Rubriques : Ragots, Micro-trottoir (pensée secrète de chaque habitant, proposée par l IA via `thoughts`, sinon repli par palier), Carnet mondain, Cote de popularité, Petites annonces (avec le motif), Bourse. Titre en UnifrakturMaguntia (@fontsource), corps en serif.

@@ -18,7 +18,8 @@ Règles :
 - Les rumeurs se déforment un peu à chaque transmission (exagération, détail inventé, changement de ton), mais restent reconnaissables.
 - Josette est le hub des ragots : elle répète tout. Marius raconte tout à Josette. Gaston répète ce qui l'arrange.
 - Tu PROPOSES, le jeu vérifie et décide des conséquences. Renvoie uniquement ce JSON :
-{"conversations": [{"a": id, "b": id, "summary": string}], "transfers": [{"from": id, "to": id, "factId": string, "text": version racontée de la rumeur}], "intents": [{"npc": id, "text": ce que cet habitant veut dire/demander au joueur à son retour}], "bondChanges": [{"a": id, "b": id, "delta": entier -15..15}]}
+{"conversations": [{"a": id, "b": id, "summary": string}], "transfers": [{"from": id, "to": id, "factId": string, "text": version racontée de la rumeur}], "intents": [{"npc": id, "text": ce que cet habitant veut dire/demander au joueur à son retour}], "bondChanges": [{"a": id, "b": id, "delta": entier -15..15}], "thoughts": [{"npc": id, "text": ce que cet habitant pense en secret du joueur ce matin, une phrase à la première personne, drôle et mesquine, dans sa voix}]}
+Une pensée par habitant (3 au total).
 2 à 4 conversations, dans l'ordre chronologique.`;
 
 function userPrompt(req: SimRequest): string {

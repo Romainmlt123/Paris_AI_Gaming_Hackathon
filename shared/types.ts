@@ -164,6 +164,11 @@ export interface SimIntent {
   text: string;
 }
 
+export interface SimThought {
+  npc: NpcId;
+  text: string;
+}
+
 export interface SimBondChange {
   a: NpcId;
   b: NpcId;
@@ -176,6 +181,7 @@ export interface SimResult {
   transfers: SimTransfer[];
   intents: SimIntent[];
   bondChanges: SimBondChange[];
+  thoughts?: SimThought[];
   source: 'ai' | 'fallback';
 }
 
@@ -203,7 +209,7 @@ export interface SimRequest {
   islandName: string;
 }
 
-export type RecapKind = 'talk' | 'rumor' | 'relation' | 'intent';
+export type RecapKind = 'talk' | 'rumor' | 'relation' | 'intent' | 'thought';
 
 export interface RecapEntry {
   kind: RecapKind;
