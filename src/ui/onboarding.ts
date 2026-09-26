@@ -2,6 +2,7 @@ import { cleanIsland, cleanName, ISLAND_IDEAS, ISLAND_MAX, LOOK_OPTIONS, NAME_ID
 import type { HairStyle, PlayerLook } from '../../shared/types';
 import { drawSheet, FRAME_H, FRAME_W, lookSpec, SPRITES, tone, type SpriteSpec } from '../render/sprites';
 import { button, el } from './dom';
+import { tropicalBackdrop } from './tropical';
 
 export interface Profile {
   name: string;
@@ -90,6 +91,7 @@ function ideaChips(ideas: readonly string[], onPick: (idea: string) => void): HT
 export function runOnboarding(host: HTMLElement, opts: OnboardingOptions): Promise<OnboardingResult> {
   return new Promise((resolve) => {
     const back = el('div', 'onb-back');
+    const backdrop = tropicalBackdrop();
     host.append(back);
     let look: PlayerLook = opts.preset.look ?? randomLook();
     let name = opts.preset.name ?? '';
@@ -101,7 +103,7 @@ export function runOnboarding(host: HTMLElement, opts: OnboardingOptions): Promi
       resolve(result);
     };
     const show = (card: HTMLElement, focus?: HTMLElement): void => {
-      back.replaceChildren(card);
+      back.replaceChildren(backdrop, card);
       focus?.focus();
     };
 
@@ -118,12 +120,12 @@ export function runOnboarding(host: HTMLElement, opts: OnboardingOptions): Promi
       actions.append(play);
       if (opts.canContinue) actions.append(button('onb-ghost', opts.continueLabel, () => finish({ kind: 'continue' })));
       card.append(
-        el('div', 'onb-season', 'SAISON 1 · L\u2019ARRIVÉE'),
+        el('div', 'onb-season', '~ ALOHA ~'),
         el('h1', 'onb-logo', 'RAGOTS'),
         el('p', 'onb-tag', 'Chaque mot compte. Chaque ragot circule.'),
         squad,
         actions,
-        el('p', 'onb-foot', 'IA Gemini · voix Gradium · Paris AI Gaming Hackathon'),
+        el('p', 'onb-foot', 'Paris AI Gaming Hackathon'),
       );
       show(card);
       play.focus();
