@@ -32,7 +32,7 @@ describe('scénario de démo', () => {
     expect(report.transfers.some((t) => t.from === 'marius' && t.to === 'josette')).toBe(true);
     expect(s.npcs.josette.relation).toBeLessThan(before - 10);
     expect(s.npcs.josette.intent?.kind).toBe('confront');
-    expect(s.day).toBe(2);
+    expect(s.hour).toBe(17);
     expect(s.pendingRecap?.lines.length).toBeGreaterThan(0);
 
     const ctx = buildContext(s, 'josette');

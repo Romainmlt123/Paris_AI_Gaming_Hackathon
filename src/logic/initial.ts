@@ -14,7 +14,7 @@ export function createInitialState(seed = 7, playerName = 'Le nouveau'): GameSta
     version: 2,
     seed,
     day: 1,
-    hour: 17,
+    hour: 9,
     lastSavedAt: 0,
     player: { name: playerName, bells: 1200, inventory: [{ itemId: 'canne', qty: 1 }, { itemId: 'pomme', qty: 2 }], x: start.x, z: start.z, stungUntilDay: null },
     npcs: { gaston: npc('gaston', 10), josette: npc('josette', 25), marius: npc('marius', 15) },
