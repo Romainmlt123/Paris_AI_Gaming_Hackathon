@@ -16,6 +16,7 @@ import { createWorld, HOMES } from './game/world';
 import { portraitDataUrl, SPRITES, drawSheet } from './render/sprites';
 import { createQualityGovernor, createStage, type Quality } from './render/stage';
 import { createDialogue, type Chip } from './ui/dialogue';
+import { el } from './ui/dom';
 import { createHud } from './ui/hud';
 import { bang, flash, sheet, showDeath, showRecap, toast } from './ui/overlays';
 
@@ -313,6 +314,73 @@ canvas.addEventListener('pointerup', (e) => {
   }
 });
 
+const MOVE_KEYS: Record<string, [number, number]> = {
+  ArrowUp: [0, -1], KeyW: [0, -1],
+  ArrowDown: [0, 1], KeyS: [0, 1],
+  ArrowLeft: [-1, 0], KeyA: [-1, 0],
+  ArrowRight: [1, 0], KeyD: [1, 0],
+};
+const held = new Set<string>();
+
+function typing(e: KeyboardEvent): boolean {
+  return e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
+}
+
+function closeTopOverlay(): boolean {
+  const top = ui!.querySelector<HTMLElement>('.sheet-back');
+  if (!top) return false;
+  top.remove();
+  return true;
+}
+
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    if (typing(e) && e.target instanceof HTMLElement) e.target.blur();
+    if (!closeTopOverlay() && dialogue.isOpen() && !busy) endTalk();
+    return;
+  }
+  if (typing(e)) return;
+  if (e.code in MOVE_KEYS) {
+    held.add(e.code);
+    e.preventDefault();
+    if (dialogue.isOpen() && !busy) endTalk();
+    return;
+  }
+  if (busy || e.repeat) return;
+  if (e.code === 'KeyE' || e.code === 'Space' || e.code === 'Enter') {
+    e.preventDefault();
+    if (dialogue.isOpen()) return dialogue.focusInput();
+    const near = world.nearestNpc(6);
+    if (near) startTalk(near);
+  } else if (e.code === 'KeyI' || e.code === 'KeyB') openBag();
+});
+window.addEventListener('keyup', (e) => held.delete(e.code));
+window.addEventListener('blur', () => held.clear());
+
+function keyboardMove(dt: number): void {
+  let dx = 0;
+  let dz = 0;
+  for (const code of held) {
+    const v = MOVE_KEYS[code];
+    if (v) {
+      dx += v[0];
+      dz += v[1];
+    }
+  }
+  world.move(busy ? 0 : dx, busy ? 0 : dz, dt);
+}
+
+canvas.addEventListener('pointermove', (e) => {
+  if (e.pointerType !== 'mouse') return;
+  const ndc = new THREE.Vector2((e.clientX / canvas.clientWidth) * 2 - 1, -(e.clientY / canvas.clientHeight) * 2 + 1);
+  const target = world.pick(ndc);
+  canvas.style.cursor = target && target.kind !== 'ground' ? 'pointer' : 'default';
+});
+
+if (matchMedia('(pointer: fine)').matches) {
+  ui.append(el('div', 'keys-help', 'ZQSD / flèches : marcher · E : parler · Entrée : écrire · I : sac · Échap : fermer · clic : aller / parler'));
+}
+
 window.addEventListener('resize', () => stage.resize());
 window.visualViewport?.addEventListener('resize', () => {
   const vv = window.visualViewport;
@@ -326,6 +394,7 @@ function frame(): void {
   timer.update();
   const dt = Math.min(timer.getDelta(), 0.1);
   const time = timer.getElapsed();
+  keyboardMove(dt);
   world.update(dt, time, new Set(npcsWithIntent(state)));
   stage.follow(world.playerPos, dt);
   stage.render();
@@ -345,9 +414,10 @@ declare global {
       say: (text: string) => Promise<void>;
       absence: () => Promise<void>;
       clash: (npc: NpcId, kind: Clash) => Promise<void>;
+      pos: () => { x: number; z: number };
       homes: typeof HOMES;
     };
   }
 }
 /** Hooks for the scripted demo recording (see CLAUDE.md §13). */
-window.ragots = { state: () => state, talk: (npc) => startTalk(npc), say: (text) => onPlayerLine(text), absence, clash: runClash, homes: HOMES };
+window.ragots = { state: () => state, talk: (npc) => startTalk(npc), say: (text) => onPlayerLine(text), absence, clash: runClash, pos: () => ({ x: world.playerPos.x, z: world.playerPos.z }), homes: HOMES };

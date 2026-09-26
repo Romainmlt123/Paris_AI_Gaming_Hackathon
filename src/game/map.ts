@@ -207,7 +207,7 @@ function nearPath(map: TileMap, x: number, z: number): boolean {
   return false;
 }
 
-function canStep(map: TileMap, from: Tile, to: Tile): boolean {
+export function canStep(map: TileMap, from: Tile, to: Tile): boolean {
   if (!isWalkable(map, to.x, to.z)) return false;
   return Math.abs(levelOf(kindAt(map, from.x, from.z)) - levelOf(kindAt(map, to.x, to.z))) <= 1;
 }

@@ -13,7 +13,7 @@ import { SPRITES } from '../render/sprites';
 import type { Stage } from '../render/stage';
 import { createTerrain, type Terrain } from '../render/terrain';
 import { createWater, type Water } from '../render/water';
-import { findPath, generateMap, kindAt, nearestWalkable, surfaceHeight, type Tile, type TileMap } from './map';
+import { canStep, findPath, generateMap, kindAt, nearestWalkable, surfaceHeight, type Tile, type TileMap } from './map';
 
 const SPEED = 3.2;
 const NPC_SPEED = 1.4;
@@ -26,6 +26,7 @@ interface Actor {
   flip: boolean;
   speed: number;
   onArrive: (() => void) | null;
+  manual: boolean;
 }
 
 interface Npc extends Actor {
@@ -57,6 +58,10 @@ export interface World {
   syncDecor(state: GameState): void;
   update(dt: number, time: number, intents: Set<NpcId>): void;
   teleportPlayer(tile: Tile): void;
+  /** Direct (keyboard) movement; (0, 0) stops. Ignored during cutscenes. */
+  move(dx: number, dz: number, dt: number): void;
+  /** Closest NPC within `range` tiles of the player. */
+  nearestNpc(range: number): NpcId | null;
   setMoods(moods: Record<NpcId, Mood>): void;
   /** Cartoon dust-cloud brawl between the player and an NPC. */
   fight(id: NpcId): Promise<void>;
@@ -70,7 +75,7 @@ function tileY(map: TileMap, x: number, z: number): number {
 }
 
 function makeActor(view: ActorView, tile: Tile, map: TileMap, speed: number): Actor {
-  return { view, pos: new THREE.Vector3(tile.x, tileY(map, tile.x, tile.z), tile.z), path: [], facing: 'down', flip: false, speed, onArrive: null };
+  return { view, pos: new THREE.Vector3(tile.x, tileY(map, tile.x, tile.z), tile.z), path: [], facing: 'down', flip: false, speed, onArrive: null, manual: false };
 }
 
 function stepActor(actor: Actor, map: TileMap, dt: number, time: number): void {
@@ -100,7 +105,7 @@ function stepActor(actor: Actor, map: TileMap, dt: number, time: number): void {
   const targetY = tileY(map, actor.pos.x, actor.pos.z);
   actor.pos.y += (targetY - actor.pos.y) * Math.min(1, dt * 12);
   actor.view.root.position.copy(actor.pos);
-  actor.view.setPose(actor.path.length > 0, actor.facing, actor.flip, time);
+  actor.view.setPose(actor.path.length > 0 || actor.manual, actor.facing, actor.flip, time);
 }
 
 function roundTile(v: THREE.Vector3): Tile {
@@ -313,6 +318,39 @@ export function createWorld(stage: Stage): World {
     teleportPlayer(tile) {
       player.path = [];
       player.pos.set(tile.x, tileY(map, tile.x, tile.z), tile.z);
+    },
+    move(dx, dz, dt) {
+      player.manual = (dx !== 0 || dz !== 0) && !cine;
+      if (!player.manual) return;
+      player.path = [];
+      player.onArrive = null;
+      const len = Math.hypot(dx, dz);
+      const step = (SPEED * dt) / len;
+      const from = roundTile(player.pos);
+      const tryAxis = (nx: number, nz: number): void => {
+        const to = { x: Math.round(nx), z: Math.round(nz) };
+        const same = to.x === from.x && to.z === from.z;
+        if (same || canStep(map, from, to)) {
+          player.pos.x = nx;
+          player.pos.z = nz;
+        }
+      };
+      tryAxis(player.pos.x + dx * step, player.pos.z);
+      tryAxis(player.pos.x, player.pos.z + dz * step);
+      if (Math.abs(dz) > 0.01) player.facing = dz < 0 ? 'up' : 'down';
+      if (Math.abs(dx) > 0.01) player.flip = dx < 0;
+    },
+    nearestNpc(range) {
+      let best: NpcId | null = null;
+      let bestD = range;
+      for (const n of npcs.values()) {
+        const d = Math.hypot(n.pos.x - player.pos.x, n.pos.z - player.pos.z);
+        if (d <= bestD) {
+          bestD = d;
+          best = n.id;
+        }
+      }
+      return best;
     },
     setMoods(next) {
       moods = next;

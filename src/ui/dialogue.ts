@@ -15,6 +15,7 @@ export interface Dialogue {
   isOpen(): boolean;
   current(): NpcId | null;
   open(npc: NpcId, relation: number): void;
+  focusInput(): void;
   close(): void;
   say(text: string, emotion: Emotion): Promise<void>;
   playerSaid(text: string): void;
@@ -94,6 +95,9 @@ export function createDialogue(portraits: Record<NpcId, string>, onSend: (text: 
       you.textContent = '';
       text.textContent = '';
       setRelation(relation);
+    },
+    focusInput() {
+      input.focus();
     },
     close() {
       skipTyping();

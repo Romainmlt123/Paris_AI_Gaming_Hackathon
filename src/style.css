@@ -126,3 +126,13 @@ body.night #scene { filter: brightness(0.35) saturate(0.6) hue-rotate(-20deg); t
 @keyframes bang { 0% { transform: translate(-50%, -50%) rotate(var(--rot)) scale(0.2); opacity: 0; } 25% { transform: translate(-50%, -50%) rotate(var(--rot)) scale(1.25); opacity: 1; } 100% { transform: translate(-50%, -80%) rotate(var(--rot)) scale(1); opacity: 0; } }
 @keyframes flash { 0% { opacity: 0.95; background: #fff; } 40% { background: #d9453b; opacity: 0.6; } 100% { opacity: 0; } }
 @keyframes danger { 50% { background: #ffc9c1; border-color: var(--bad); } }
+
+/* Desktop */
+.keys-help { position: absolute; bottom: calc(18px + var(--safe-bottom)); left: 50%; transform: translateX(-50%); font-size: 13px; color: var(--paper); background: rgba(43, 34, 51, 0.72); padding: 6px 12px; border-radius: 8px; white-space: nowrap; pointer-events: none; }
+@media (min-width: 721px) {
+  .gauges { left: 50%; right: auto; width: 620px; transform: translateX(-50%); }
+  .dialogue, .sheet { max-width: 620px; margin: 0 auto; }
+  .sheet-back { justify-content: center; }
+}
+.dialogue:not([hidden]) ~ .keys-help { display: none; }
+@media (max-width: 720px) { .keys-help { display: none; } }

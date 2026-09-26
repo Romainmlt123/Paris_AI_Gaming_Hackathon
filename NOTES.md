@@ -49,3 +49,14 @@ Mémoire du projet : fait, reste, décisions, pièges.
 - Atteindre 0 % → le PNJ tue le joueur avec son arme (caisse / rouleau / espadon), fantôme, carte de décès, réveil le lendemain 8h00, pièces /2, relation du tueur remise à -40, les deux autres viennent parler du meurtre.
 - Humeurs au-dessus des PNJ : cœur ≥ 75 %, orage ≤ 25 %, crâne ≤ 18 % (jauge HUD qui clignote).
 - Hook démo : `ragots.clash('marius', 'fight' | 'murder')`.
+
+## Clavier / souris (src/main.ts, world.move)
+- ZQSD + WASD + flèches : déplacement libre, bloqué par `canStep` (murs, buissons, marches > 1). Annule le chemin tap-to-move.
+- E / Espace / Entrée : parle à l'habitant le plus proche (≤ 6 cases, on marche jusqu'à lui) ; si le dialogue est ouvert, focus du champ.
+- Échap : quitte le champ, ferme la feuille du dessus, puis le dialogue. I / B : sac.
+- Souris : clic = tap existant, curseur main au survol des habitants/slots. Aide clavier affichée ≥ 721 px ; HUD/dialogue plafonnés à 620 px sur desktop.
+- `ragots.pos()` expose la position joueur pour les scripts de démo.
+
+## Eau & sable
+- Eau : bandes de profondeur, caustiques cellulaires fines (masquées par bruit), rides, reflets, écume de rivage, sable mouillé.
+- Sable : damier 2×2 multi-tons, rides décalées aléatoirement, galets et coquillages.

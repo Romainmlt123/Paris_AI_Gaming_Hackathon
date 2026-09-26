@@ -116,18 +116,34 @@ export const pathTop = (): THREE.CanvasTexture =>
 
 export const sandTex = (): THREE.CanvasTexture =>
   pixelTexture(TILE, (ctx, rng, s) => {
-    fill(ctx, P.sand, 0, 0, s, s);
-    for (let y = 0; y < s; y += 8) for (let x = 0; x < s; x++) {
-      const yy = y + Math.round(Math.sin((x / s) * Math.PI * 4 + y) * 2);
-      wrap(ctx, s, shade(P.sand, -0.05), x, yy, 1, 1);
-      wrap(ctx, s, shade(P.sand, 0.12), x, yy - 1, 1, 1);
+    const tones = [P.sand, shade(P.sand, -0.04), shade(P.sand, 0.06), shade(P.sandDark, 0.25)];
+    for (let y = 0; y < s; y += 2) for (let x = 0; x < s; x += 2) fill(ctx, pick(rng, tones), x, y, 2, 2);
+    for (let row = 0; row < s; row += 8) {
+      const phase = rng() * Math.PI * 2;
+      for (let x = 0; x < s; x++) {
+        const y = row + Math.round(Math.sin((x / s) * Math.PI * 4 + phase) * 1.5);
+        wrap(ctx, s, shade(P.sand, 0.16), x, y - 1, 1, 1);
+        wrap(ctx, s, shade(P.sandDark, -0.04), x, y, 1, 1);
+      }
     }
-    speckle(ctx, rng, s, [P.sandDark, '#f9eed6', shade(P.sand, -0.12)], 0.06);
-    for (let i = 0; i < 3; i++) {
+    speckle(ctx, rng, s, [P.sandDark, '#fff6e2', shade(P.sand, -0.14), '#c9b184'], 0.035);
+    for (let i = 0; i < 4; i++) {
       const x = Math.floor(rng() * s);
       const y = Math.floor(rng() * s);
-      wrap(ctx, s, '#fff3e6', x, y, 2, 1);
-      wrap(ctx, s, '#e9b7a4', x, y + 1, 2, 1);
+      const c = pick(rng, ['#b9a98f', '#9d8f7c', '#d8cbb2']);
+      wrap(ctx, s, shade(c, -0.25), x, y + 2, 3, 1);
+      wrap(ctx, s, c, x, y, 3, 2);
+      wrap(ctx, s, shade(c, 0.3), x, y, 1, 1);
+    }
+    for (let i = 0; i < 2; i++) {
+      const x = Math.floor(rng() * s);
+      const y = Math.floor(rng() * s);
+      const c = pick(rng, ['#f7c9b8', '#fff1e0', '#f3d9a4']);
+      wrap(ctx, s, '#8c6a55', x, y + 3, 5, 1);
+      wrap(ctx, s, c, x + 1, y, 3, 1);
+      wrap(ctx, s, c, x, y + 1, 5, 2);
+      wrap(ctx, s, shade(c, -0.2), x + 1, y + 1, 1, 2);
+      wrap(ctx, s, shade(c, -0.2), x + 3, y + 1, 1, 2);
     }
   }, 13);
 
