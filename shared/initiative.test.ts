@@ -36,7 +36,7 @@ describe('initiatives', () => {
     expect(pickInitiative(s, IDLE_TRIGGER_SEC, none)?.npc).toBe('marius');
     s = { ...s, coins: 20 };
     expect(pickInitiative(s, 0, none)?.trigger).toBe('fauche');
-    s = { ...s, npcs: { ...s.npcs, josette: { ...s.npcs.josette, intent: 'Te parler de la statue' } } };
+    s = { ...s, npcs: { ...s.npcs, josette: { ...s.npcs.josette, intent: 'Talk to you about the statue' } } };
     expect(pickInitiative(s, 0, none)).toMatchObject({ npc: 'josette', trigger: 'rumeur' });
   });
 
@@ -53,8 +53,8 @@ describe('initiatives', () => {
 describe('routines', () => {
   it('follows the clock and visits friends', () => {
     const s = createInitialState();
-    expect(routineStep({ ...s, clock: 8 * 60 }, 'josette').label).toBe('sort les fournées');
-    expect(routineStep({ ...s, clock: 6 * 60 }, 'marius').label).toBe('pêche au bout du ponton');
+    expect(routineStep({ ...s, clock: 8 * 60 }, 'josette').label).toBe('pulls loaves from the oven');
+    expect(routineStep({ ...s, clock: 6 * 60 }, 'marius').label).toBe('fishes at the end of the pier');
     const visit = routineStep({ ...s, clock: 14 * 60 }, 'josette');
     expect(visit.visiting).toBe('marius');
     expect(routineStep({ ...s, clock: 3 * 60 }, 'gaston').visiting).toBeNull();

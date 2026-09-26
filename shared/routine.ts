@@ -31,23 +31,23 @@ const HOME: Record<NpcId, Spot> = { gaston: { x: 17, z: 18 }, josette: { x: 5, z
 /** Hourly routine; any hour not covered is spent at home. */
 const SCHEDULE: Record<NpcId, readonly Slot[]> = {
   gaston: [
-    { from: 7, to: 12, activity: { at: ECHOPPE, label: 'tient son échoppe' } },
-    { from: 12, to: 14, activity: { at: PLACETTE, label: 'démarche les passants' } },
-    { from: 14, to: 18, activity: { at: ECHOPPE, label: 'compte sa caisse' } },
-    { from: 18, to: 20, activity: { at: MAIRIE, label: 'fait du lobbying à la mairie' } },
+    { from: 7, to: 12, activity: { at: ECHOPPE, label: 'minds his stall' } },
+    { from: 12, to: 14, activity: { at: PLACETTE, label: 'hustles passers-by' } },
+    { from: 14, to: 18, activity: { at: ECHOPPE, label: 'counts his till' } },
+    { from: 18, to: 20, activity: { at: MAIRIE, label: 'lobbies at the town hall' } },
     { from: 20, to: 22, activity: { visit: true } },
   ],
   josette: [
-    { from: 6, to: 11, activity: { at: BOULANGERIE, label: 'sort les fournées' } },
-    { from: 11, to: 13, activity: { at: PLACETTE, label: 'récolte les ragots' } },
+    { from: 6, to: 11, activity: { at: BOULANGERIE, label: 'pulls loaves from the oven' } },
+    { from: 11, to: 13, activity: { at: PLACETTE, label: 'collects gossip' } },
     { from: 13, to: 17, activity: { visit: true } },
-    { from: 17, to: 21, activity: { at: BOULANGERIE, label: 'écrit dans son carnet' } },
+    { from: 17, to: 21, activity: { at: BOULANGERIE, label: 'writes in her notebook' } },
   ],
   marius: [
-    { from: 5, to: 10, activity: { at: PONTON, label: 'pêche au bout du ponton' } },
-    { from: 10, to: 14, activity: { at: CABANE, label: 'répare ses filets' } },
+    { from: 5, to: 10, activity: { at: PONTON, label: 'fishes at the end of the pier' } },
+    { from: 10, to: 14, activity: { at: CABANE, label: 'mends his nets' } },
     { from: 14, to: 17, activity: { visit: true } },
-    { from: 17, to: 23, activity: { at: PONTON, label: 'regarde le coucher de soleil' } },
+    { from: 17, to: 23, activity: { at: PONTON, label: 'watches the sunset' } },
   ],
 };
 
@@ -65,7 +65,7 @@ function slotAt(npc: NpcId, clock: number): Slot | undefined {
 function ownStep(npc: NpcId, clock: number): RoutineStep {
   const act = slotAt(npc, clock)?.activity;
   if (act && 'at' in act) return { spot: act.at, label: act.label, visiting: null };
-  return { spot: HOME[npc], label: 'est chez ' + (npc === 'josette' ? 'elle' : 'lui'), visiting: null };
+  return { spot: HOME[npc], label: 'is at home', visiting: null };
 }
 
 /** Closest friend to visit, if the bond is strong enough. */
@@ -80,9 +80,9 @@ export function routineStep(state: GameState, npc: NpcId): RoutineStep {
   const act = slotAt(npc, state.clock)?.activity;
   if (!act || 'at' in act) return ownStep(npc, state.clock);
   const friend = friendOf(state, npc);
-  if (!friend) return { spot: PLACETTE, label: 'flâne sur la placette', visiting: null };
+  if (!friend) return { spot: PLACETTE, label: 'strolls around the square', visiting: null };
   const there = ownStep(friend, state.clock).spot;
-  return { spot: { x: there.x - 1, z: there.z }, label: 'rend visite', visiting: friend };
+  return { spot: { x: there.x - 1, z: there.z }, label: 'pays a visit', visiting: friend };
 }
 
 export function advanceClock(state: GameState, minutes: number): GameState {
@@ -93,17 +93,17 @@ export function advanceClock(state: GameState, minutes: number): GameState {
 const CHATTER: Record<NpcId, Record<NpcId, readonly string[]>> = {
   gaston: {
     gaston: [],
-    josette: ['Josette, ma belle, ta baguette à 2 pièces, je te la revends 5. Association ?', 'Entre nous, tu sais combien il a dans les poches, le nouveau ?'],
-    marius: ['Marius, ton poisson, je te le prends à moitié prix. Il sent déjà, vé.', 'Oh fada, t\u2019as encore rien pêché ? Je te vends une canne, prix d\u2019ami.'],
+    josette: ['Josette, darling, your 2-coin loaf, I resell it for 5. Partners?', 'Between us, any idea how much the new one has in their pockets?'],
+    marius: ['Marius, your fish, I\u2019ll take it at half price. It already smells, see.', 'Still caught nothing? I\u2019ll sell you a rod, friends-and-family price.'],
   },
   josette: {
-    gaston: ['Gaston ! On m\u2019a dit que tes balances étaient truquées. Ch\u2019est vrai, hein ?', 'Toi, t\u2019as encore arnaqué quelqu\u2019un, je le vois dans tes yeux !'],
+    gaston: ['Gaston! I heard your scales are rigged. Is it true, hmm?', 'You swindled someone again, I can see it in your eyes!'],
     josette: [],
-    marius: ['Mon Marius ! Tu manges assez, hein ? Tiens, un croissant. Et raconte-moi tout !', 'Attends attends… le nouveau t\u2019a parlé ? Il t\u2019a dit quoi ? TOUT !'],
+    marius: ['My Marius! Are you eating enough? Here, a croissant. Now tell me everything!', 'Wait wait… the new one talked to you? What did they say? EVERYTHING!'],
   },
   marius: {
-    gaston: ['… Gaston. Ton sourire, c\u2019est comme un requin. Plein de dents, rien derrière.', '… Mes poissons valent plus que tes pièces, té.'],
-    josette: ['… Josette. Le poulpe doré, je l\u2019ai presque eu ce matin. Presque.', '… Tu parles trop vite, ma belle. Les vagues, elles, prennent leur temps.'],
+    gaston: ['… Gaston. Your smile is like a shark\u2019s. All teeth, nothing behind it.', '… My fish are worth more than your coins, mind you.'],
+    josette: ['… Josette. The golden octopus, I nearly had it this morning. Nearly.', '… You talk too fast, love. The waves take their time.'],
     marius: [],
   },
 };

@@ -336,8 +336,8 @@ function locked(x: number, z: number, w: number, d: number, level: number): Piec
     ctx.fillStyle = '#fbf8f0';
     ctx.font = 'bold 10px "Pixelify Sans", monospace';
     ctx.textAlign = 'center';
-    ctx.fillText(`Niv.${level}`, px + pw / 2, py + ph / 2 + 7);
-  }, { layer: 'floor', label: `Bientôt · niveau ${level}`, action: { kind: 'locked', level } });
+    ctx.fillText(`Lv.${level}`, px + pw / 2, py + ph / 2 + 7);
+  }, { layer: 'floor', label: `Coming soon · level ${level}`, action: { kind: 'locked', level } });
 }
 
 const rug = (x: number, z: number, w: number, d: number, color: string, trim: string): Piece =>
@@ -404,7 +404,7 @@ function board(x: number, z: number, w: number, state: GameState): Piece {
     rect(ctx, px + 12, py + 2, pw - 24, 3, '#c8453c');
     rect(ctx, px + 12, py - 44 + ph, 3, 16, INK);
     rect(ctx, px + pw - 15, py - 44 + ph, 3, 16, INK);
-  }, { label: 'Plan d’aménagement', action: { kind: 'board' } });
+  }, { label: 'Floor plan', action: { kind: 'board' } });
 }
 
 function glow(ctx: Ctx, x: number, y: number, r: number): void {
@@ -453,7 +453,7 @@ function furniture(s: Spot, owned: boolean): Piece {
       ctx.lineWidth = 2;
       ctx.strokeRect(px + 4, py + 4, pw - 8, ph - 8);
       ctx.setLineDash([]);
-    }, { solid: false, layer: 'floor', label: `Place libre : ${it.name}`, action: { kind: 'say', text: `Ici irait bien : ${it.name}. ${shopHint(it.shop)}` } });
+    }, { solid: false, layer: 'floor', label: `Free spot: ${it.name}`, action: { kind: 'say', text: `A ${it.name} would fit here. ${shopHint(it.shop)}` } });
   }
   const tall = it.icon === 'bookcase' || it.icon === 'lamp' || it.icon === 'plant' || it.icon === 'throne' ? 30 : 16;
   return deco(s.x, s.z, s.w, s.d, (ctx, px, py, pw, ph) => {
@@ -465,7 +465,7 @@ function furniture(s: Spot, owned: boolean): Piece {
 }
 
 function shopHint(shop: ShopId): string {
-  return shop === 'echoppe' ? 'Gaston en vend à l’échoppe.' : shop === 'cabane' ? 'Marius en a dans sa cabane.' : 'Josette en tricote à la boulangerie.';
+  return shop === 'echoppe' ? 'Gaston sells them at his stall.' : shop === 'cabane' ? 'Marius has some in his shack.' : 'Josette knits them at the bakery.';
 }
 
 // ---------- Layouts ----------
@@ -476,8 +476,8 @@ export function layoutFor(id: BuildingId, state: GameState): Layout {
   switch (id) {
     case 'echoppe':
       return {
-        title: 'L’échoppe de Gaston',
-        subtitle: 'Meubles, bibelots & bonnes affaires',
+        title: 'Gaston’s Stall',
+        subtitle: 'Furniture, trinkets & bargains',
         room: (ctx) => {
           wall(ctx, '#fbfbf8', '#6cc3e0', [5], 'stripes');
           floor(ctx, 'diamond', '#cfeef6', '#b3e1ee');
@@ -486,15 +486,15 @@ export function layoutFor(id: BuildingId, state: GameState): Layout {
         },
         owner: { npc: 'gaston', x: 6, z: 3 },
         pieces: [
-          shelf(1, 2, 3, 'echoppe', [1], 'Petit mobilier', state),
-          lvl >= 2 ? shelf(8, 2, 3, 'echoppe', [2], 'Rayon confort', state) : locked(8, 2, 3, 1, 2),
+          shelf(1, 2, 3, 'echoppe', [1], 'Small furniture', state),
+          lvl >= 2 ? shelf(8, 2, 3, 'echoppe', [2], 'Comfort aisle', state) : locked(8, 2, 3, 1, 2),
           counter(4, 4, 4, '#fbfbf8', '#9fd8ef', register),
-          lvl >= 3 ? shelf(1, 7, 2, 'echoppe', [3], 'Vitrine luxe', state, '#f2e3b3') : locked(1, 7, 2, 2, 3),
+          lvl >= 3 ? shelf(1, 7, 2, 'echoppe', [3], 'Luxury display', state, '#f2e3b3') : locked(1, 7, 2, 2, 3),
           deco(9, 7, 2, 1, (ctx, px, py, pw) => {
             box(ctx, px + 2, py + 6, pw - 4, 22, 14, '#c79a5b');
             drawIcon(ctx, 'lamp', '#f5d9a8', px + 4, py - 22, 22, 26);
             drawIcon(ctx, 'buoy', '#e0564a', px + 32, py - 14, 22, 22);
-          }, { label: 'Déco d’extérieur', action: { kind: 'deco' } }),
+          }, { label: 'Outdoor decor', action: { kind: 'deco' } }),
           plant(0, 9, '#e98aa6'),
           plant(11, 9, '#e98aa6'),
           plant(11, 4, '#f2c14e'),
@@ -509,8 +509,8 @@ export function layoutFor(id: BuildingId, state: GameState): Layout {
       };
     case 'boulangerie':
       return {
-        title: 'Boulangerie & Tricots',
-        subtitle: 'Croissants chauds et laine douce',
+        title: 'Bakery & Knits',
+        subtitle: 'Warm croissants and soft wool',
         room: (ctx) => {
           wall(ctx, cream, '#e98aa6', [1, 9], 'flowers');
           floor(ctx, 'checker', '#fdf3f5', '#f6d3dc');
@@ -523,23 +523,23 @@ export function layoutFor(id: BuildingId, state: GameState): Layout {
           deco(0, 2, 3, 1, (ctx, px, py, pw, ph) => {
             box(ctx, px + 2, py + 4, pw - 4, ph - 4, 30, '#bfe8f2', '#e6d3ae');
             breads(ctx, px - 6, py - 30);
-          }, { label: 'Vitrine à pains', action: { kind: 'say', text: 'Ça sent le croissant chaud. Josette jure qu’elle y met « un ingrédient secret : les ragots ».' } }),
-          shelf(8, 2, 3, 'boulangerie', [1], 'Tricots de Josette', state, '#f4d9b8'),
-          lvl >= 2 ? shelf(9, 6, 2, 'boulangerie', [2], 'Collection hiver', state, '#f4d9b8') : locked(9, 6, 2, 1, 2),
+          }, { label: 'Bread display', action: { kind: 'say', text: 'Smells like warm croissants. Josette swears she adds "a secret ingredient: gossip".' } }),
+          shelf(8, 2, 3, 'boulangerie', [1], 'Josette’s knits', state, '#f4d9b8'),
+          lvl >= 2 ? shelf(9, 6, 2, 'boulangerie', [2], 'Winter collection', state, '#f4d9b8') : locked(9, 6, 2, 1, 2),
           lvl >= 3 ? shelf(1, 6, 2, 'boulangerie', [3], 'Haute couture', state, '#e6d0f2') : locked(1, 6, 2, 1, 3),
           deco(0, 8, 1, 2, (ctx, px, py, pw, ph) => {
             frame(ctx, px + 2, py - 20, pw - 4, ph + 16, '#c8453c');
             rect(ctx, px + 6, py - 16, pw - 12, ph + 8, '#bfe8f2');
             rect(ctx, px + 8, py - 12, 4, ph, '#fbf8f0');
-          }, { label: 'Cabine d’essayage', action: { kind: 'wardrobe' } }),
+          }, { label: 'Fitting room', action: { kind: 'wardrobe' } }),
           deco(7, 8, 1, 1, (c, x, y, w, h) => drawIcon(c, 'table', '#fbf8f0', x - 2, y - 8, w + 4, h + 4)),
           plant(11, 9, '#fbf8f0'),
         ],
       };
     case 'cabane':
       return {
-        title: 'La cabane de Marius',
-        subtitle: 'Tout ce que la mer a rapporté',
+        title: 'Marius’s Shack',
+        subtitle: 'Everything the sea brought back',
         room: (ctx) => {
           wall(ctx, '#b8845a', '#2f5f8f', [2], 'planks');
           for (let i = 0; i < 6; i++) rect(ctx, 200 + i * 22, 8, 1, 40, '#e6d3ae');
@@ -551,19 +551,19 @@ export function layoutFor(id: BuildingId, state: GameState): Layout {
         owner: { npc: 'marius', x: 5, z: 3 },
         pieces: [
           counter(4, 4, 3, '#9a6a44', '#6e4a30', crates),
-          shelf(8, 2, 3, 'cabane', [1], 'Étal du pêcheur', state, '#9a6a44'),
-          lvl >= 2 ? shelf(1, 2, 2, 'cabane', [2], 'Arrivage du large', state, '#9a6a44') : locked(1, 2, 2, 1, 2),
-          lvl >= 3 ? shelf(9, 6, 2, 'cabane', [3], 'Coin du capitaine', state, '#2f5f8f') : locked(9, 6, 2, 2, 3),
+          shelf(8, 2, 3, 'cabane', [1], 'Fisherman’s stall', state, '#9a6a44'),
+          lvl >= 2 ? shelf(1, 2, 2, 'cabane', [2], 'Fresh from the deep', state, '#9a6a44') : locked(1, 2, 2, 1, 2),
+          lvl >= 3 ? shelf(9, 6, 2, 'cabane', [3], 'Captain’s corner', state, '#2f5f8f') : locked(9, 6, 2, 2, 3),
           barrel(0, 8),
           barrel(11, 8),
           barrel(0, 5),
-          deco(3, 8, 1, 1, (c, x, y, w, h) => drawIcon(c, 'buoy', '#e0564a', x, y - 6, w, h), { label: 'Vieille bouée', action: { kind: 'say', text: '« … Elle m’a sauvé la vie en 1987. Elle n’est pas à vendre. »' } }),
+          deco(3, 8, 1, 1, (c, x, y, w, h) => drawIcon(c, 'buoy', '#e0564a', x, y - 6, w, h), { label: 'Old buoy', action: { kind: 'say', text: '"… She saved my life in 1987. She’s not for sale."' } }),
         ],
       };
     case 'mairie':
       return {
-        title: 'Mairie',
-        subtitle: `Île niveau ${lvl} · ${islandLevel(state.islandValue).name}`,
+        title: 'Town Hall',
+        subtitle: `Island level ${lvl} · ${islandLevel(state.islandValue).name}`,
         room: (ctx) => {
           wall(ctx, '#efe6d2', '#c8453c', [1, 9], 'stone');
           floor(ctx, 'stone', '#d8d2c4', '#cbc3b2');
@@ -575,7 +575,7 @@ export function layoutFor(id: BuildingId, state: GameState): Layout {
         },
         pieces: [
           board(4, 2, 4, state),
-          deco(4, 4, 4, 1, (ctx, px, py, pw, ph) => box(ctx, px + 2, py + 6, pw - 4, ph - 8, 18, '#8a5a3c'), { label: 'Bureau du maire (absent)', action: { kind: 'say', text: 'Le bureau du maire est vide. On raconte qu’il est parti après une rumeur de Josette.' } }),
+          deco(4, 4, 4, 1, (ctx, px, py, pw, ph) => box(ctx, px + 2, py + 6, pw - 4, ph - 8, 18, '#8a5a3c'), { label: 'Mayor’s desk (away)', action: { kind: 'say', text: 'The mayor’s desk is empty. Word is he left after one of Josette’s rumors.' } }),
           plant(0, 2, '#c8453c'),
           plant(11, 2, '#c8453c'),
           deco(1, 7, 2, 1, (c, x, y, w, h) => drawIcon(c, 'sofa', '#8a5a3c', x, y - 10, w, h + 10)),
@@ -584,8 +584,8 @@ export function layoutFor(id: BuildingId, state: GameState): Layout {
       };
     case 'maison':
       return {
-        title: 'Chez toi',
-        subtitle: 'Chaque meuble acheté trouve sa place ici',
+        title: 'Your home',
+        subtitle: 'Every piece of furniture you buy finds its place here',
         room: (ctx) => {
           wall(ctx, '#f6e7c8', '#5fa37a', [9], 'dots');
           floor(ctx, 'parquet', '#c99a66', '#b38454');
@@ -598,13 +598,13 @@ export function layoutFor(id: BuildingId, state: GameState): Layout {
             rect(ctx, px + 8, py - 2, pw - 16, 18, '#fbf8f0');
             rect(ctx, px + 8, py + 18, pw - 16, ph - 28, '#4f7fc9');
             rect(ctx, px + 8, py + 18, pw - 16, 4, '#8fb3e8');
-          }, { label: 'Lit (dormir)', action: { kind: 'bed' } }),
+          }, { label: 'Bed (sleep)', action: { kind: 'bed' } }),
           deco(10, 2, 2, 1, (ctx, px, py, pw, ph) => {
             box(ctx, px + 2, py + 4, pw - 4, ph - 4, 40, '#a8744a');
             rect(ctx, px + pw / 2 - 1, py - 34, 2, 36, INK);
             rect(ctx, px + pw / 2 - 6, py - 14, 3, 6, '#f2c14e');
             rect(ctx, px + pw / 2 + 3, py - 14, 3, 6, '#f2c14e');
-          }, { label: 'Armoire', action: { kind: 'wardrobe' } }),
+          }, { label: 'Wardrobe', action: { kind: 'wardrobe' } }),
           ...HOME_SPOTS.map((s) => furniture(s, state.owned.includes(s.id))),
         ],
       };

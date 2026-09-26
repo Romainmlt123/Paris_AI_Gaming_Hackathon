@@ -15,22 +15,22 @@ describe('relations', () => {
     expect(s.npcs.marius.relation).toBe(5);
   });
   it('names tiers', () => {
-    expect(tierOf(-80).label).toBe('Ennemi juré');
-    expect(tierOf(0).label).toBe('Voisin');
-    expect(tierOf(60).label).toBe('Confident');
+    expect(tierOf(-80).label).toBe('Sworn enemy');
+    expect(tierOf(0).label).toBe('Neighbor');
+    expect(tierOf(60).label).toBe('Confidant');
   });
 });
 
 describe('rumors', () => {
   it('only transfers rumors the speaker knows', () => {
     let s = createInitialState();
-    s = recordFact(s, { actor: 'player', text: 'Le joueur a insulté Marius', severity: -2, witnesses: ['marius'] }).state;
+    s = recordFact(s, { actor: 'player', text: 'The player insulted Marius', severity: -2, witnesses: ['marius'] }).state;
     const factId = s.facts[0]!.id;
     expect(transferRumor(s, 'gaston', 'josette', factId, 'x').rumor).toBeNull();
-    const moved = transferRumor(s, 'marius', 'josette', factId, 'Il paraît que…');
+    const moved = transferRumor(s, 'marius', 'josette', factId, 'Word is…');
     expect(moved.rumor?.distortion).toBe(1);
     expect(rumorOf(moved.state, 'josette', factId)?.source).toBe('marius');
-    expect(rumorOf(moved.state, 'marius', factId)?.text).toBe('Le joueur a insulté Marius');
+    expect(rumorOf(moved.state, 'marius', factId)?.text).toBe('The player insulted Marius');
   });
 });
 
@@ -52,14 +52,14 @@ describe('validation', () => {
 
 describe('fallback talk', () => {
   it('classifies intents', () => {
-    expect(classifyMessage('T\u2019es un vieil idiot, Marius')).toBe('insult');
-    expect(classifyMessage("C'est faux, j'ai rien dit !")).toBe('denial');
-    expect(classifyMessage('Tes croissants sont délicieux')).toBe('compliment');
+    expect(classifyMessage('You\u2019re an old idiot, Marius')).toBe('insult');
+    expect(classifyMessage("That's not true, I didn't say anything!")).toBe('denial');
+    expect(classifyMessage('Your croissants are delicious')).toBe('compliment');
   });
   it('catches a lie when the npc knows the rumor', () => {
     let s = createInitialState();
-    s = recordFact(s, { actor: 'player', text: 'Le joueur a insulté Marius', severity: -2, witnesses: ['josette'] }).state;
-    const r = fallbackTalk('josette', "C'est pas vrai, j'ai jamais dit ça", buildTalkContext(s, 'josette'));
+    s = recordFact(s, { actor: 'player', text: 'The player insulted Marius', severity: -2, witnesses: ['josette'] }).state;
+    const r = fallbackTalk('josette', "That's a lie, I never said that", buildTalkContext(s, 'josette'));
     expect(r.relationDelta).toBe(-15);
     expect(r.emotion).toBe('mefiance');
   });

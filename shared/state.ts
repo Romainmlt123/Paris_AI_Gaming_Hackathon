@@ -75,7 +75,7 @@ export function buildTalkContext(state: GameState, npc: NpcId): TalkContext {
 function summarize(message: string, result: TalkResult, playerName: string): string {
   const firstEvent = result.events[0];
   if (firstEvent) return firstEvent.text;
-  return `${playerLabel(playerName)} a dit « ${message.trim().slice(0, 70)} »`;
+  return `${playerLabel(playerName)} said "${message.trim().slice(0, 70)}"`;
 }
 
 /** Applies a validated talk result. The AI proposed it; this function decides what becomes true. */
@@ -97,8 +97,8 @@ export function applyTalkResult(
     { who: 'player' as const, text: message },
     { who: npc, text: result.reply },
   ].slice(-HISTORY_LIMIT);
-  npcState.memories = [...npcState.memories, `Jour ${next.day} : ${summarize(message, result, next.playerName)}`].slice(-MEMORY_LIMIT);
-  const reason = result.reason || `${CHARACTERS[npc].name} a apprécié l\u2019échange`;
+  npcState.memories = [...npcState.memories, `Day ${next.day}: ${summarize(message, result, next.playerName)}`].slice(-MEMORY_LIMIT);
+  const reason = result.reason || `${CHARACTERS[npc].name} enjoyed the chat`;
   return applyRelationDelta(next, npc, result.relationDelta, reason);
 }
 

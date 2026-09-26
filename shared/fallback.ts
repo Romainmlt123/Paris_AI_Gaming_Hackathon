@@ -7,13 +7,13 @@ export type Intent = 'insult' | 'denial' | 'compliment' | 'apology' | 'greeting'
 
 const PATTERNS: Record<Exclude<Intent, 'neutral'>, RegExp> = {
   insult:
-    /\b(idiot|imbecile|con|conne|cretin|abruti|debile|stupide|nul|nulle|moche|pue|puant|minable|naze|bouffon|radin|escroc|voleur|vieux croulant|feignant|grosse|gros lard|ta gueule|degage|tocard|loser|pauvre type|incapable)\b/,
+    /\b(idiot|imbecile|moron|dumb|stupid|jerk|loser|ugly|stinks?|smelly|stinky|pathetic|useless|clown|cheapskate|cheap|crook|thief|old fart|lazy|fatso|shut up|get lost|piss off|scum|fool|dork|creep|incompetent|slowpoke|slow)\b/,
   denial:
-    /(c'?est faux|pas vrai|jamais dit|j'?ai rien (dit|fait)|n'?importe quoi|mensonge|c'?est pas moi|pas moi|jamais de la vie|il ment|elle ment|invente|j'?ai jamais)/,
-  apology: /\b(pardon|desole|desolee|excuse|excuses|regrette)\b/,
+    /(that'?s not true|not true|never said|i didn'?t (say|do)|nonsense|a lie|lies|lying|wasn'?t me|not me|no way|he'?s lying|she'?s lying|made (it|that) up|i never)/,
+  apology: /\b(sorry|apologi[sz]e|apologies|forgive me|my bad|regret)\b/,
   compliment:
-    /\b(merci|genial|super|magnifique|beau|belle|bravo|adore|delicieux|delicieuse|gentil|gentille|incroyable|meilleur|meilleure|parfait|sympa|talent|malin|genie|doue|classe|flair)\b|l.(œ|oe)il/,
-  greeting: /\b(salut|bonjour|coucou|hello|bonsoir|yo|hey)\b/,
+    /\b(thanks|thank you|great|awesome|amazing|beautiful|lovely|bravo|love|delicious|kind|nice|incredible|best|perfect|cool|talent(ed)?|clever|smart|genius|gifted|classy|brilliant|divine|eye for)\b/,
+  greeting: /\b(hi|hello|hey|howdy|good morning|good evening|yo|hiya|greetings)\b/,
 };
 
 export function normalize(text: string): string {
@@ -37,74 +37,74 @@ type LineSet = Record<Intent | 'caught', readonly string[]>;
 const LINES: Record<NpcId, LineSet> = {
   gaston: {
     insult: [
-      'Pardon ?! Répète un peu pour voir… Non, ne répète pas. Tes prix viennent de doubler, mon ami.',
-      'Oh là. Tu sais combien ça coûte, une insulte, chez Gaston ? Très cher. Très très cher.',
+      'Excuse me?! Say that again… No, don\u2019t. Your prices just doubled, my friend.',
+      'Whoa there. You know what an insult costs at Gaston\u2019s? A lot. A whole lot.',
     ],
-    denial: ['Hé hé. Le bluff, c\u2019est mon métier, mon ami. Toi t\u2019es amateur.'],
-    caught: ['On me la fait pas, à moi. J\u2019ai des oreilles partout. Surtout du côté de la boulangerie.'],
-    apology: ['Des excuses ? C\u2019est gratuit, ça. Moi je préfère ce qui se paie. Mais bon… j\u2019accepte.'],
+    denial: ['Heh heh. Bluffing is my job, my friend. You\u2019re an amateur.'],
+    caught: ['You can\u2019t fool me. I\u2019ve got ears everywhere. Especially over at the bakery.'],
+    apology: ['An apology? That\u2019s free. I prefer things that cost money. But fine… accepted.'],
     compliment: [
-      'Hé hé… flatteur, va. Ça marche pas sur moi. Bon, un peu. Deux pour cent de remise, pas un de plus.',
-      'Enfin quelqu\u2019un qui reconnaît le talent ! Entre nous, t\u2019as l\u2019œil, toi.',
+      'Heh heh… flatterer. Doesn\u2019t work on me. Okay, a little. Two percent off, not a coin more.',
+      'Finally someone who recognizes talent! Between you and me, you\u2019ve got a good eye.',
     ],
     greeting: [
-      'Ah, un client ! Ou un curieux… J\u2019espère pour toi que t\u2019es un client.',
-      'Bienvenue, bienvenue ! Tout est à vendre, même le sourire. Surtout le sourire.',
+      'Ah, a customer! Or a browser… I hope for your sake you\u2019re a customer.',
+      'Welcome, welcome! Everything\u2019s for sale, even the smile. Especially the smile.',
     ],
     neutral: [
-      'Tout a un prix, mon ami. Même les conseils. Surtout les conseils.',
-      'Hmm hmm. Et sinon, tu achètes quelque chose ou tu fais du tourisme ?',
-      'Écoute, entre nous… j\u2019ai une affaire en or pour toi. Enfin, en plaqué.',
+      'Everything has a price, my friend. Even advice. Especially advice.',
+      'Mm-hmm. So, are you buying something or just sightseeing?',
+      'Listen, between us… I\u2019ve got a golden deal for you. Well, gold-plated.',
     ],
   },
   josette: {
     insult: [
-      'Oh ! Eh ben… je m\u2019attendais pas à ça de toi, mon chou. Tout le monde va être ravi de l\u2019apprendre, tiens.',
-      'Pardon ?! Attends attends attends… tu m\u2019as dit QUOI, là ?',
+      'Oh! Well… I didn\u2019t expect that from you, sweetie. Everyone will be thrilled to hear about it, mark my words.',
+      'Excuse me?! Wait wait wait… you said WHAT to me?',
     ],
-    denial: ['Hmm. Tu me le dirais, hein, si tu avais fait une bêtise ? Hein ?'],
+    denial: ['Hmm. You\u2019d tell me if you\u2019d done something silly, right? Right?'],
     caught: [
-      'Ah non non non, pas à moi ! Marius m\u2019a TOUT raconté. Et en plus tu me mens en face ? Bravo, vraiment bravo.',
-      'Mon chou… je sais tout. TOUT. Alors les « c\u2019est pas moi », tu les gardes pour Gaston.',
+      'Oh no no no, not with me! Marius told me EVERYTHING. And now you lie to my face? Bravo, really, bravo.',
+      'Sweetie… I know everything. EVERYTHING. So save your "it wasn\u2019t me" for Gaston.',
     ],
-    apology: ['Bon… Des excuses, c\u2019est déjà ça. Mais tu iras voir Marius, hein ? Promis ?'],
+    apology: ['Well… an apology is a start. But you\u2019ll go and see Marius, won\u2019t you? Promise?'],
     compliment: [
-      'Oh arrête, tu vas me faire rougir ! Tiens, garde ça pour toi, mais… Gaston triche sur ses balances.',
-      'Oh que t\u2019es mignon ! Je le dirai à tout le monde. En bien, hein ! Pour une fois.',
+      'Oh stop, you\u2019ll make me blush! Here, keep this to yourself, but… Gaston rigs his scales.',
+      'Oh aren\u2019t you a sweetheart! I\u2019ll tell everyone. Nice things, I mean! For once.',
     ],
     greeting: [
-      'Oh coucou mon chou ! Alors, quoi de neuf ? Raconte, raconte !',
-      'Te voilà ! Viens viens, j\u2019ai des croissants tout chauds et des nouvelles encore plus chaudes.',
+      'Oh hello sweetie! So, what\u2019s new? Tell me, tell me!',
+      'There you are! Come come, I\u2019ve got warm croissants and even hotter news.',
     ],
     neutral: [
-      'Hmm hmm. Et sinon, t\u2019as entendu la dernière ? Non ? Moi non plus, c\u2019est pour ça que je demande !',
-      'Ah oui ? Intéressant… très intéressant. Je note. Dans ma tête, hein. Pas dans un carnet.',
+      'Mm-hmm. So, have you heard the latest? No? Me neither, that\u2019s why I\u2019m asking!',
+      'Oh really? Interesting… very interesting. Noted. In my head, of course. Not in a notebook.',
     ],
   },
   marius: {
     insult: [
-      '… Ah. D\u2019accord. Je vais aller en parler aux poissons. Et à Josette.',
-      '… Tu sais, petit, la mer n\u2019oublie rien. Moi non plus.',
+      '… Ah. Right. I\u2019ll go tell the fish about that. And Josette.',
+      '… You know, lad, the sea forgets nothing. Neither do I.',
     ],
-    denial: ['… Hmm. Le poisson qui nie l\u2019hameçon finit quand même dans le seau.'],
-    caught: ['… Je sais ce que j\u2019ai entendu. La vague ne ment pas, elle.'],
-    apology: ['… Mmh. La marée remonte toujours. Bon. On verra.'],
+    denial: ['… Hmm. The fish that denies the hook still ends up in the bucket.'],
+    caught: ['… I know what I heard. The waves don\u2019t lie.'],
+    apology: ['… Mmh. The tide always comes back in. Fine. We\u2019ll see.'],
     compliment: [
-      '… Mmh. Gentil. Le poisson aussi, il aime qu\u2019on lui parle doucement.',
-      '… Merci. Ça fait comme un rayon de soleil sur l\u2019eau.',
+      '… Mmh. Kind of you. Fish like being spoken to gently, too.',
+      '… Thanks. Feels like a ray of sun on the water.',
     ],
-    greeting: ['… Salut. La mer est calme. Comme moi. Enfin, en général.', '… Oh. Toi. Assieds-toi, si tu veux. Parle pas trop fort.'],
+    greeting: ['… Hello. The sea is calm. Like me. Usually.', '… Oh. You. Sit down if you like. Don\u2019t talk too loud.'],
     neutral: [
-      '… Tu sais, la patience, c\u2019est comme une ligne : trop tendue, elle casse.',
-      '… Hmm. Faut appâter à la mie de pain, à marée basse. Crois-moi. Ou pas.',
+      '… You know, patience is like a fishing line: pull it too tight, it snaps.',
+      '… Hmm. Bait with breadcrumbs at low tide. Trust me. Or don\u2019t.',
     ],
   },
 };
 
 const SUGGESTIONS: Record<NpcId, readonly string[]> = {
-  gaston: ['Tu me fais un prix ?', 'T\u2019as l\u2019œil pour les affaires !', 'C\u2019est du vol, tes prix !'],
-  josette: ['Quoi de neuf sur l\u2019île ?', 'Tes croissants sont divins !', 'Tu sais garder un secret ?'],
-  marius: ['Un conseil de pêche ?', 'Belle journée, hein ?', 'T\u2019es un peu lent, non ?'],
+  gaston: ['Got a deal for me?', 'You\u2019ve got a nose for business!', 'Your prices are daylight robbery!'],
+  josette: ['What\u2019s new on the island?', 'Your croissants are divine!', 'Can you keep a secret?'],
+  marius: ['Any fishing tips?', 'Lovely day, huh?', 'Bit slow, aren\u2019t you?'],
 };
 
 export function defaultSuggestions(npc: NpcId): string[] {
@@ -122,17 +122,17 @@ interface Outcome {
 function outcomeFor(intent: Intent, knowsMisdeed: boolean, name: string): Outcome {
   switch (intent) {
     case 'insult':
-      return { line: 'insult', emotion: 'colere', delta: -12, reason: `Tu as insulté ${name}`, severity: -2 };
+      return { line: 'insult', emotion: 'colere', delta: -12, reason: `You insulted ${name}`, severity: -2 };
     case 'denial':
       return knowsMisdeed
-        ? { line: 'caught', emotion: 'mefiance', delta: -15, reason: 'Tu as menti alors qu\u2019on sait tout', severity: -1 }
-        : { line: 'denial', emotion: 'mefiance', delta: -1, reason: 'Réponse évasive', severity: null };
+        ? { line: 'caught', emotion: 'mefiance', delta: -15, reason: 'You lied when everyone knows the truth', severity: -1 }
+        : { line: 'denial', emotion: 'mefiance', delta: -1, reason: 'Evasive answer', severity: null };
     case 'apology':
-      return { line: 'apology', emotion: 'neutre', delta: knowsMisdeed ? 4 : 1, reason: 'Tu t\u2019es excusé', severity: null };
+      return { line: 'apology', emotion: 'neutre', delta: knowsMisdeed ? 4 : 1, reason: 'You apologized', severity: null };
     case 'compliment':
-      return { line: 'compliment', emotion: 'joie', delta: 4, reason: 'Un compliment qui fait plaisir', severity: null };
+      return { line: 'compliment', emotion: 'joie', delta: 4, reason: 'A compliment that landed well', severity: null };
     case 'greeting':
-      return { line: 'greeting', emotion: 'joie', delta: 1, reason: 'Un bonjour poli', severity: null };
+      return { line: 'greeting', emotion: 'joie', delta: 1, reason: 'A polite hello', severity: null };
     case 'neutral':
       return { line: 'neutral', emotion: 'neutre', delta: 0, reason: '', severity: null };
   }
@@ -151,15 +151,15 @@ export function fallbackTalk(npc: NpcId, message: string, context: TalkContext):
           {
             text:
               outcome.line === 'caught'
-                ? `${playerLabel(context.playerName)} a menti effrontément à ${sheet.name}`
-                : `${playerLabel(context.playerName)} a insulté ${sheet.name} : « ${quote} »`,
+                ? `${playerLabel(context.playerName)} shamelessly lied to ${sheet.name}`
+                : `${playerLabel(context.playerName)} insulted ${sheet.name}: "${quote}"`,
             severity: outcome.severity,
           },
         ];
   const line = pick(LINES[npc][outcome.line], hashString(message));
   const name = cleanName(context.playerName);
   return {
-    reply: name && (outcome.line === 'greeting' || outcome.line === 'compliment') ? `${name} ! ${line}` : line,
+    reply: name && (outcome.line === 'greeting' || outcome.line === 'compliment') ? `${name}! ${line}` : line,
     emotion: outcome.emotion,
     relationDelta: outcome.delta,
     reason: outcome.reason,

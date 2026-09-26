@@ -27,10 +27,10 @@ function canSpread(state: GameState, from: NpcId, to: NpcId): boolean {
 }
 
 const SMALL_TALK = [
-  'ont parlé de la pluie et du beau temps (surtout du beau temps)',
-  'se sont disputé la dernière part de tarte',
-  'ont refait le monde au bout du ponton',
-  'ont compté les mouettes. Désaccord sur le total',
+  'talked about the weather (mostly the nice bits)',
+  'fought over the last slice of pie',
+  'put the world to rights at the end of the pier',
+  'counted seagulls. They disagree on the total',
 ];
 
 /**
@@ -58,7 +58,7 @@ export function simulateFallback(state: GameState, hours: number): SimResult {
           result.conversations.push({
             a: from,
             b: to,
-            summary: `${CHARACTERS[from].name} a raconté à ${CHARACTERS[to].name} : « ${known.text} »`,
+            summary: `${CHARACTERS[from].name} told ${CHARACTERS[to].name}: "${known.text}"`,
           });
         }
       }
@@ -66,7 +66,7 @@ export function simulateFallback(state: GameState, hours: number): SimResult {
   }
   if (result.conversations.length === 0) {
     const seed = hashString(`${state.day}-${state.nextId}`);
-    result.conversations.push({ a: 'josette', b: 'marius', summary: `Josette et Marius ${pick(SMALL_TALK, seed)}.` });
+    result.conversations.push({ a: 'josette', b: 'marius', summary: `Josette and Marius ${pick(SMALL_TALK, seed)}.` });
   }
   return result;
 }
@@ -77,21 +77,21 @@ export function hearsayDelta(severity: number, distortion: number): number {
 }
 
 const THOUGHTS: Record<string, string[]> = {
-  'Ennemi juré': ['Si je croise ce phénomène, je change de trottoir. Et d\u2019île.', 'Je prépare un discours. Il est long. Il est méchant.'],
-  Rancunier: ['Je n\u2019oublie rien. J\u2019ai même pris des notes.', 'On me doit des excuses, et des intérêts.'],
-  Voisin: ['Ni chaud ni froid. Plutôt tiède, comme le café de Josette.', 'Je ne connais pas assez le nouveau pour en dire du mal. Pas encore.'],
-  Copain: ['Sympa, le nouveau. Mais je ne le dirai pas trop fort.', 'Je garderais bien au nouveau une part de tarte. Une petite.'],
-  Confident: ['Mon chouchou de l\u2019île. Ne le répétez pas, surtout pas à Josette.', 'Je lui confierais mes secrets. Enfin, presque tous.'],
+  'Sworn enemy': ['If I see that creature coming, I cross the street. And the island.', 'I\u2019m preparing a speech. It\u2019s long. It\u2019s mean.'],
+  'Holding a grudge': ['I forget nothing. I even took notes.', 'I\u2019m owed an apology. With interest.'],
+  Neighbor: ['Neither hot nor cold. Lukewarm, like Josette\u2019s coffee.', 'I don\u2019t know the newcomer well enough to badmouth them. Yet.'],
+  Pal: ['Nice, the newcomer. But I won\u2019t say it too loud.', 'I\u2019d save the newcomer a slice of pie. A small one.'],
+  Confidant: ['My favorite on the island. Don\u2019t repeat that, especially not to Josette.', 'I\u2019d tell them my secrets. Well, almost all of them.'],
 };
 
 /** Fallback inner thought about the player, picked from the NPC's current tier. */
 export function fallbackThought(state: GameState, npc: NpcId): string {
-  const options = THOUGHTS[tierOf(state.npcs[npc].relation).label] ?? THOUGHTS.Voisin!;
+  const options = THOUGHTS[tierOf(state.npcs[npc].relation).label] ?? THOUGHTS.Neighbor!;
   return pick(options, hashString(`${npc}-${state.day}-${state.nextId}`));
 }
 
 function confrontIntent(to: NpcId, from: NpcId, text: string): string {
-  return `${CHARACTERS[to].name} a entendu ${CHARACTERS[from].name} dire : « ${text} ». Veut des explications.`;
+  return `${CHARACTERS[to].name} heard ${CHARACTERS[from].name} say: "${text}". Wants an explanation.`;
 }
 
 function applyTransfer(
@@ -106,18 +106,18 @@ function applyTransfer(
   let next = moved.state;
   const fromName = CHARACTERS[transfer.from].name;
   const toName = CHARACTERS[transfer.to].name;
-  recap.push({ kind: 'rumor', npc: transfer.to, text: `${fromName} → ${toName} : « ${moved.rumor.text} »` });
+  recap.push({ kind: 'rumor', npc: transfer.to, text: `${fromName} → ${toName}: "${moved.rumor.text}"` });
   if (fact.actor !== 'player' || fact.severity === 0) return next;
   const applied = applyRelationDelta(
     next,
     transfer.to,
     hearsayDelta(fact.severity, moved.rumor.distortion),
-    `A entendu ${fromName} parler de toi`,
+    `Heard ${fromName} talking about you`,
   );
   next = applied.state;
   if (applied.change) {
     const sign = applied.change.delta > 0 ? '+' : '';
-    recap.push({ kind: 'relation', npc: transfer.to, text: `${toName} ${sign}${applied.change.delta} : ${applied.change.reason}` });
+    recap.push({ kind: 'relation', npc: transfer.to, text: `${toName} ${sign}${applied.change.delta}: ${applied.change.reason}` });
   }
   if (fact.severity <= -2 && !intents.has(transfer.to)) {
     intents.set(transfer.to, confrontIntent(transfer.to, transfer.from, moved.rumor.text));
@@ -149,7 +149,7 @@ export function applySimResult(
   for (const intent of result.intents) if (!intents.has(intent.npc)) intents.set(intent.npc, intent.text);
   for (const [npc, text] of intents) {
     next.npcs[npc].intent = text;
-    recap.push({ kind: 'intent', npc, text: `${CHARACTERS[npc].name} veut te parler.` });
+    recap.push({ kind: 'intent', npc, text: `${CHARACTERS[npc].name} wants to talk to you.` });
   }
   for (const npc of NPC_IDS) {
     const text = result.thoughts?.find((t) => t.npc === npc)?.text ?? fallbackThought(next, npc);

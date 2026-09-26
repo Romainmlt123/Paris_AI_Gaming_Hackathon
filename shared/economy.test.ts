@@ -4,7 +4,7 @@ import { createInitialState } from './state';
 
 describe('haggling', () => {
   it('parses offers', () => {
-    expect(parseOffer('je t\u2019en donne 600 pièces')).toBe(600);
+    expect(parseOffer('I\u2019ll give you 600 coins')).toBe(600);
     expect(parseOffer('1 000 ?')).toBe(1000);
     expect(parseOffer('non merci')).toBeNull();
   });
@@ -18,9 +18,9 @@ describe('haggling', () => {
   });
   it('flattery lowers the price once', () => {
     const deal = startDeal(createInitialState(), 'fontaine');
-    const once = haggle(deal, 'T\u2019as l\u2019œil pour les affaires !');
+    const once = haggle(deal, 'You\u2019ve got an eye for business!');
     expect(once.deal.ask).toBeLessThan(deal.ask);
-    const twice = haggle(once.deal, 'T\u2019as l\u2019œil pour les affaires !');
+    const twice = haggle(once.deal, 'You\u2019ve got an eye for business!');
     expect(twice.deal.ask).toBe(once.deal.ask);
   });
 });

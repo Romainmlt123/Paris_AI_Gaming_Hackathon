@@ -63,10 +63,10 @@ export function transferRumor(
 }
 
 const EXAGGERATIONS = [
-  'et en plus devant tout le monde',
-  'et apparemment ce n\u2019était pas la première fois',
-  'et il paraît qu\u2019il y avait des cris',
-  'et Josette dit qu\u2019il faudrait en parler au conseil',
+  'and in front of everyone, too',
+  'and apparently it wasn\u2019t the first time',
+  'and word is there was screaming',
+  'and Josette says the council should hear about it',
 ];
 
 /** Deterministic, code-side distortion used when the AI is unavailable. */
@@ -74,5 +74,5 @@ export function distortRumor(text: string, distortion: number): string {
   const base = text.replace(/[.!]+$/, '');
   if (distortion <= 0) return `${base}.`;
   const extra = EXAGGERATIONS[(distortion - 1) % EXAGGERATIONS.length];
-  return `Il paraît que ${base.charAt(0).toLowerCase()}${base.slice(1)}, ${extra} !`;
+  return `Word is ${base.charAt(0).toLowerCase()}${base.slice(1)}, ${extra}!`;
 }

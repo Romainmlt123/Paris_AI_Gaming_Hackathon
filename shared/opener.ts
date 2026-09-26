@@ -5,22 +5,21 @@ import type { GameState, NpcId } from './types';
 const OPENERS: Record<NpcId, (rumor: string | null) => string> = {
   josette: (r) =>
     r
-      ? `Mon chou ! Viens là. On m\u2019a raconté que… « ${r} ». C\u2019est vrai, ça ?!`
-      : 'Mon chou ! Viens vite, j\u2019ai des nouvelles toutes chaudes. Enfin… toi d\u2019abord.',
+      ? `Sweetie! Come here. Someone told me that… "${r}". Is that TRUE?!`
+      : 'Sweetie! Quick, come here, I\u2019ve got piping hot news. Well… you first.',
   marius: (r) =>
-    r ? `… La mer rapporte tout, tu sais. Même ça : « ${r} ». Pourquoi ?` : '… Assieds-toi. La mer a des choses à te dire. Moi aussi.',
+    r ? `… The sea brings everything back, you know. Even this: "${r}". Why?` : '… Sit down. The sea has things to tell you. So do I.',
   gaston: (r) =>
     r
-      ? `Mon ami ! Il paraît que « ${r} ». Mauvais pour les affaires, ça. Explique-toi.`
-      : 'Mon ami ! J\u2019ai une affaire pour toi. Rien que pour toi. Enfin, pour ton porte-monnaie.',
+      ? `My friend! Word is "${r}". Bad for business, that. Explain yourself.`
+      : 'My friend! I\u2019ve got a deal for you. Just for you. Well, for your wallet.',
 };
 
 const MURDER_OPENERS: Record<NpcId, (killer: string) => string> = {
-  josette: (k) => `Mon chou ?! T\u2019es vivant ?! On m\u2019a dit que ${k} t\u2019avait refroidi ! Raconte, RACONTE !`,
-  marius: (k) => `… On raconte que ${k} t\u2019a envoyé par le fond. Et pourtant te voilà. La mer rend parfois ce qu\u2019elle prend.`,
-  gaston: (k) => `Mon ami ! Mort hier, vivant aujourd\u2019hui ? ${k}, un assassin… Mauvais pour les affaires. Excellent pour les ragots.`,
+  josette: (k) => `Sweetie?! You\u2019re ALIVE?! They told me ${k} did you in! Tell me, TELL ME!`,
+  marius: (k) => `… They say ${k} sent you to the bottom. And yet here you are. Sometimes the sea gives back what it takes.`,
+  gaston: (k) => `My friend! Dead yesterday, alive today? ${k}, a murderer… Bad for business. Excellent for gossip.`,
 };
-
 /** First line an NPC says when they come to the player on their own (after the absence recap). */
 export function openerLine(state: GameState, npc: NpcId): string {
   const murder = [...state.facts].reverse().find((f) => f.actor !== 'player' && f.actor !== npc && f.severity <= -3 && f.day >= state.day - 1);
@@ -31,4 +30,4 @@ export function openerLine(state: GameState, npc: NpcId): string {
   return OPENERS[npc](rumor?.text ?? null);
 }
 
-export const CONFRONT_SUGGESTIONS = ['C\u2019est faux, j\u2019ai jamais dit ça !', 'Pardon, j\u2019ai été nul…', 'Et alors ?'];
+export const CONFRONT_SUGGESTIONS = ['That\u2019s a lie, I never said that!', 'Sorry, I was awful…', 'So what?'];
