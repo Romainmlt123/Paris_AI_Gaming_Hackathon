@@ -3,7 +3,6 @@ import { cleanIsland, cleanLook, cleanName } from '../../shared/player';
 import type { GameState } from '../../shared/types';
 
 const KEY = 'ragots.save.v1';
-export const TIPS_KEY = 'ragots.tips';
 
 export function loadState(): GameState {
   const raw = localStorage.getItem(KEY);
@@ -29,5 +28,4 @@ export function saveState(state: GameState): void {
 
 export function resetSave(): void {
   localStorage.removeItem(KEY);
-  localStorage.removeItem(TIPS_KEY);
 }

@@ -54,7 +54,7 @@ export function createInterior(hooks: InteriorHooks): Interior {
     if (near) hooks.onAction(near.action);
   });
   prompt.hidden = true;
-  const exitBtn = button('interior-exit', '🚪 Sortir', () => leave());
+  const exitBtn = button('interior-exit', '🚪 Exit', () => leave());
   const bar = el('div', 'interior-bar');
   bar.append(title, exitBtn);
   root.append(canvas, prompt, bar);
