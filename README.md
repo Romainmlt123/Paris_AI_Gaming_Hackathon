@@ -54,8 +54,8 @@ Your goal: build the prettiest, most prestigious island in town — without beco
   | 🗞️ `gazette` | The *Gossip Gazette* opens | 10 s stinger |
 
   The short `death` and `gazette` stingers play once, like big sound effects. Small UI and gameplay sounds (taps, dialogue blips, coins, slaps, punches, splashes, fish bites, doors…) are synthesized live with the Web Audio API, so they stay tiny and instant on mobile. All tracks live in `public/audio/`, and the 🔊/🔇 button mutes music, sound effects and voices together.
-- **Gradium**: the islanders' voices and your mic. Each islander has a voice made with Gradium Voice Design: Gaston is a fast-talking market hustler, Josette a bubbly village gossip, and Marius has the slow drawl of an old sea dog. Every line is spoken with text-to-speech, and its speed and expressiveness follow the islander's current emotion (faster when angry, slower when sad). Speech-to-text lets you answer out loud with the 🎤 button. Your own character stays silent. API keys stay on our small Node server, and if voice fails the game carries on in text.
-- **Cognition — Devin**: our AI teammate for the whole day. Devin worked on its own git branches and opened PRs for major features: the Gradium voices, NPCs that walk up to you based on your state, daily routines, and merges between team branches. It ran typecheck, tests and build before each push, and tested the game in a mobile browser (390×844).
+- **Gradium**: each islander speaks with their own voice, and you can answer them with your mic.
+- **Cognition — Devin**: our AI teammate for coding, testing and shipping features during the hackathon.
 - Designed for the **Voodoo** jury: portrait, one-thumb, playable in 30 seconds on a phone.
 
 ## The rest of the stack
