@@ -97,7 +97,7 @@ function showChange(change: RelationChange | null): void {
 
 function chipsFor(npc: NpcId, suggestions: string[]): Chip[] {
   const chips: Chip[] = suggestions.slice(0, 3).map((s) => ({ label: s, action: () => void onPlayerLine(s) }));
-  if (npc === 'gaston') chips.unshift({ label: '💰 Marchander', action: () => openShop() });
+  if (npc === 'gaston') chips.unshift({ label: '💰 Haggle', action: () => openShop() });
   if (npc === 'gaston' && isNaked(state)) chips.unshift({ label: `👕 Clothes (${CLOTHES_PRICE} 🪙)`, action: () => void buyOutfit() });
   if (state.fish.length > 0) chips.unshift({ label: npc === 'gaston' ? '🐟 Sell a fish' : '🐟 Give a fish', action: () => openFishGift(npc) });
   return chips;
@@ -575,7 +575,7 @@ function openWardrobe(): void {
     clothes.map((id) => ({
       label: SHOP_ITEMS[id].name,
       icon: iconUrl(id),
-      detail: Object.values(state.outfit).includes(id) ? '✔ worn · remove' : 'porter',
+      detail: Object.values(state.outfit).includes(id) ? '✔ worn · remove' : 'wear',
       action: () => commit(toggleWear(state, id)),
     })),
     'No clothes. Josette and Marius sell some.',
@@ -612,7 +612,7 @@ function openBag(): void {
       ...state.owned.filter((id) => SHOP_ITEMS[id].slot).map((id) => ({
         label: SHOP_ITEMS[id].name,
         icon: iconUrl(id),
-        detail: Object.values(state.outfit).includes(id) ? '✔ worn' : 'porter',
+        detail: Object.values(state.outfit).includes(id) ? '✔ worn' : 'wear',
         action: () => commit(toggleWear(state, id)),
       })),
       ...[...fishCounts()].map(([id, n]) => ({
