@@ -19,7 +19,7 @@ import { clashFor, moodOf, resolveFight, resolveMurder, resolveSlap, WEAPONS, ty
 import type { DecoId, FishId, GameState, NpcId, RelationChange, SlotId } from '../shared/types';
 import { NPC_IDS } from '../shared/types';
 import { initiativeLine, simulate, talk } from './api';
-import { loadState, resetSave, saveState, TIPS_KEY } from './game/save';
+import { loadState, resetSave, saveState } from './game/save';
 import { BUILDINGS, type BuildingId } from './game/map';
 import { createWorld, doorTile, HOMES, type FishSpot, type PlayerSkin } from './game/world';
 import { createInterior } from './interior/interior';
@@ -32,7 +32,6 @@ import { createDialogue, type Chip } from './ui/dialogue';
 import { el } from './ui/dom';
 import { createHud } from './ui/hud';
 import { runOnboarding, type Profile } from './ui/onboarding';
-import { createTips } from './ui/tips';
 import { playIntro } from './game/intro';
 import { bang, flash, sheet, showCatch, showDeath, showGazette, toast } from './ui/overlays';
 import { speak, unlockAudioOnGesture } from './voice';
@@ -75,7 +74,6 @@ const dialogue = createDialogue(portraits, (text) => void onPlayerLine(text), ()
 const interior = createInterior({ onAction: (a) => onInteriorAction(a), onExit: (id) => leaveBuilding(id) });
 ui.append(interior.root, hud.root, dialogue.root);
 let lookKey = '';
-const tips = createTips(ui);
 
 function commit(next: GameState): void {
   state = next;
@@ -113,7 +111,6 @@ function startTalk(npc: NpcId, initiated = false): void {
   endTalk();
   const open = (): void => {
     world.facePlayerToward(npc);
-    tips.done('talk');
     dialogue.open(npc, state.npcs[npc].relation);
     pin(npc);
     const confront = state.npcs[npc].intent !== null;
@@ -148,9 +145,6 @@ function pin(npc: NpcId): void {
 }
 
 function endTalk(): void {
-  if (dialogue.isOpen()) {
-    tips.show('rumor', '👂 Everything you say will be repeated… and twisted. Tap "Come back in 8 h" to watch the gossip spread.');
-  }
   dialogue.close();
   if (currentMusic() === 'tension') ambient();
   pinned = false;
@@ -780,7 +774,6 @@ async function offerFish(npc: NpcId, id: FishId): Promise<void> {
 
 async function absence(): Promise<void> {
   if (busy) return;
-  tips.done('rumor');
   busy = true;
   endTalk();
   document.body.classList.add('night');
@@ -965,12 +958,7 @@ function applyLook(): void {
   syncLook(true);
 }
 
-function talkTip(): void {
-  tips.show('talk', matchMedia('(pointer: fine)').matches ? '💬 Walk up to an islander and press E to talk' : '💬 Tap an islander to talk');
-}
-
 async function newGame(profile: Profile, short: boolean): Promise<void> {
-  localStorage.removeItem(TIPS_KEY);
   const fresh = createInitialState(profile.name, profile.island, profile.look);
   commit(recordFact(fresh, { actor: 'player', text: arrivalFactText(profile.name, profile.island), severity: -1, witnesses: ['josette', 'gaston', 'marius'] }).state);
   music('raft');
@@ -996,7 +984,6 @@ async function boot(): Promise<void> {
     if (!state.playerName) commit({ ...state, playerName: presetName || 'Jury', islandName: presetIsland || ISLAND_IDEAS[1] || '', look: state.look ?? DEFAULT_LOOK });
     applyLook();
     music('island');
-    talkTip();
     return;
   }
   busy = true;
@@ -1012,7 +999,6 @@ async function boot(): Promise<void> {
   music('island');
   hud.root.hidden = false;
   busy = false;
-  talkTip();
 }
 void boot();
 
