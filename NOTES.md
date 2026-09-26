@@ -60,3 +60,14 @@ Mémoire du projet : fait, reste, décisions, pièges.
 ## Eau & sable
 - Eau : bandes de profondeur, caustiques cellulaires fines (masquées par bruit), rides, reflets, écume de rivage, sable mouillé.
 - Sable : damier 2×2 multi-tons, rides décalées aléatoirement, galets et coquillages.
+
+## Voix Gradium (server/gradium.ts, src/voice.ts)
+- Clé serveur : `GRADIUM_API_KEY` (ou `GRADIUM_KEY`). Jamais côté client.
+- TTS : `POST /api/tts {npc,text,emotion}` → WAV (Gradium `pcm_22050`). 204 si rien à dire, 503 si Gradium KO (texte seul). Le joueur n'a pas de voix.
+- STT : bouton 🎤 du dialogue → WAV mono 24 kHz → `POST /api/stt` → `{text}` → même chemin que la saisie (`onPlayerLine`). Limite 12 s.
+- Voix créées par Voice Design (ids dans shared/voices.ts) :
+  - Gaston `Wu2q0FniGgTdlkjn` : bonimenteur marseillais, rapide, très expressif.
+  - Josette `LyiWr3yppCQBVOtH` : commère ch'ti, débit mitraillette, gloussements.
+  - Marius `RyPxucblPbKsz0Xp` : vieux pêcheur provençal, lent, grave, soupirs.
+- Émotion → `padding_bonus`/`temp` (colère/joie plus vite, tristesse plus lent). `…` → `<break time="0.5s" />`.
+- Bouton 🔊/🔇 dans le HUD (localStorage `ragots.sound`).

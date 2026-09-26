@@ -4,6 +4,7 @@ import type { Emotion, NpcId } from '../../shared/types';
 import { button, el, typewrite } from './dom';
 import { gaugeFill } from './hud';
 import { percentOf } from '../../shared/violence';
+import { micSupported, speak, startRecording, stopSpeaking, transcribe, type Recording } from '../voice';
 
 export interface Chip {
   label: string;
@@ -58,7 +59,9 @@ export function createDialogue(portraits: Record<NpcId, string>, onSend: (text: 
   const form = el('form', 'dlg-form');
   const input = el('input', 'dlg-input', '', { type: 'text', maxlength: '200', placeholder: 'Écris ta réplique…', enterkeyhint: 'send', autocomplete: 'off' });
   const send = el('button', 'dlg-send', '➤', { type: 'submit', 'aria-label': 'Envoyer' });
-  form.append(input, send);
+  const mic = el('button', 'dlg-mic', '🎤', { type: 'button', 'aria-label': 'Parler au micro' });
+  mic.hidden = !micSupported();
+  form.append(input, mic, send);
   root.append(head, box, chips, form);
   let npc: NpcId | null = null;
   let busy = false;
@@ -73,6 +76,58 @@ export function createDialogue(portraits: Record<NpcId, string>, onSend: (text: 
     onSend(value);
   });
   root.addEventListener('pointerdown', (e) => e.stopPropagation());
+
+  let recording: Recording | null = null;
+  const setMic = (mode: 'idle' | 'rec' | 'wait'): void => {
+    mic.dataset['mode'] = mode;
+    mic.textContent = mode === 'rec' ? '■' : mode === 'wait' ? '…' : '🎤';
+    mic.disabled = mode === 'wait';
+    input.placeholder = mode === 'rec' ? 'Je t\u2019écoute… (touche ■ pour finir)' : mode === 'wait' ? 'Transcription…' : 'Écris ta réplique…';
+  };
+  const cancelRecording = (): void => {
+    recording?.cancel();
+    recording = null;
+    setMic('idle');
+  };
+  const finishRecording = async (): Promise<void> => {
+    const rec = recording;
+    if (!rec) return;
+    recording = null;
+    setMic('wait');
+    const text = await transcribe(await rec.stop());
+    setMic('idle');
+    if (npc === null) return;
+    if (!text) {
+      input.placeholder = text === null ? 'Micro indisponible, écris ta réplique…' : 'Rien entendu… réessaie ?';
+      return;
+    }
+    if (busy) {
+      input.value = text;
+      return;
+    }
+    skipTyping();
+    onSend(text);
+  };
+  mic.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (recording) {
+      void finishRecording();
+      return;
+    }
+    if (mic.dataset['mode'] === 'wait') return;
+    if (mic.dataset['mode'] === 'rec') return setMic('idle');
+    setMic('rec');
+    startRecording(() => void finishRecording())
+      .then((rec) => {
+        if (npc === null || mic.dataset['mode'] !== 'rec') return rec.cancel();
+        recording = rec;
+      })
+      .catch((err: unknown) => {
+        console.warn('[voice] microphone unavailable', err);
+        setMic('idle');
+        input.placeholder = 'Micro refusé, écris ta réplique…';
+      });
+  });
 
   const setRelation = (relation: number): void => {
     fill.style.width = gaugeFill(relation);
@@ -101,6 +156,8 @@ export function createDialogue(portraits: Record<NpcId, string>, onSend: (text: 
     },
     close() {
       skipTyping();
+      stopSpeaking();
+      cancelRecording();
       npc = null;
       root.hidden = true;
       input.blur();
@@ -108,6 +165,7 @@ export function createDialogue(portraits: Record<NpcId, string>, onSend: (text: 
     async say(line, emotion) {
       mood.textContent = EMOJI[emotion];
       skipTyping();
+      if (npc) void speak(npc, line, emotion);
       const typing = typewrite(text, line);
       skipTyping = typing.skip;
       await typing.done;
