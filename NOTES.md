@@ -62,5 +62,5 @@ Mémoire du projet : fait, reste, décisions, pièges.
 - Sable : damier 2×2 multi-tons, rides décalées aléatoirement, galets et coquillages.
 
 ## Onboarding / cinématique (branche feature/rouge)
-- Skin « naufragé » : `SPRITES.castaway` (`naked: true`, src/render/sprites.ts) — tout nu, fesses et corps dans la planche ; gros floutage mosaïque animé (plus large que le perso, recalculé 9×/s, pulse + tangage) ajouté par l'acteur (src/render/actor.ts, censorMosaic) quand il fait face caméra, fesses visibles de dos (marque de bronzage + joues roses), algue dans les cheveux.
+- Skin « naufragé » : `SPRITES.castaway` (`naked: true`, src/render/sprites.ts) — tout nu, fesses et corps dans la planche ; nuage de censure mosaïque animé (un peu plus large que le perso, recalculé 9×/s, pulse + tangage) ajouté par l'acteur (src/render/actor.ts, censorMosaic) quand il fait face caméra, fesses visibles de dos (marque de bronzage + joues roses), algue dans les cheveux.
 - Changer le skin du joueur à chaud : `world.setPlayerSkin('castaway' | 'player')`, hook `ragots.skin(...)`, ou `?skin=castaway` au chargement.
