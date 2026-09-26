@@ -15,6 +15,7 @@ export interface ActorView {
   setMood(mood: Mood, time: number): void;
   /** Knocked out: sprite lies flat on the ground. */
   setDown(down: boolean): void;
+  /** Redraw the sprite sheet (new skin or outfit). */
   setSkin(spec: SpriteSpec): void;
 }
 

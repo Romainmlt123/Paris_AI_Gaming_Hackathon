@@ -103,6 +103,22 @@ export function weaponSprite(npc: NpcId): THREE.Sprite {
   return pixelSprite(28, 16, 0.9, WEAPON_DRAW[npc]);
 }
 
+/** Open palm for slaps, drawn in the slapper's skin tone. */
+export function handSprite(skin: string): THREE.Sprite {
+  return pixelSprite(16, 16, 0.55, (ctx) => {
+    rect(ctx, INK, 3, 5, 10, 10);
+    rect(ctx, skin, 4, 6, 8, 8);
+    for (let i = 0; i < 4; i++) {
+      rect(ctx, INK, 3 + i * 2 + (i > 1 ? 1 : 0), 0, 3, 7);
+      rect(ctx, skin, 4 + i * 2 + (i > 1 ? 1 : 0), 1, 1, 6);
+    }
+    rect(ctx, INK, 11, 7, 5, 4);
+    rect(ctx, skin, 12, 8, 3, 2);
+    rect(ctx, 'rgba(255,255,255,0.45)', 5, 7, 5, 1);
+    rect(ctx, 'rgba(0,0,0,0.12)', 4, 12, 8, 2);
+  });
+}
+
 export function ghostSprite(): THREE.Sprite {
   return pixelSprite(14, 16, 1, (ctx) => {
     blob(ctx, 7, 6, 5, '#f4f7ff');

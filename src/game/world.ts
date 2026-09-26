@@ -4,8 +4,9 @@ import type { DecoId, GameState, NpcId, SlotId } from '../../shared/types';
 import { NPC_IDS } from '../../shared/types';
 import type { Mood } from '../../shared/violence';
 import { createActorView, type ActorView } from '../render/actor';
-import { brawlCloud, ghostSprite, weaponSprite } from '../render/brawl';
-import { createBuildings } from '../render/buildings';
+import { brawlCloud, ghostSprite, handSprite, weaponSprite } from '../render/brawl';
+import { chimneyTops, createBuildings } from '../render/buildings';
+import { createLife } from '../render/life';
 import { createDeco, slotMarker } from '../render/decor';
 import { createBushes, createFlowers, createRocks, createTrees, type Swaying } from '../render/props';
 import { createGrass } from '../render/grass';
@@ -13,7 +14,7 @@ import { SPRITES, type Facing, type SpriteSpec } from '../render/sprites';
 import type { Stage } from '../render/stage';
 import { createTerrain, type Terrain } from '../render/terrain';
 import { createWater, type Water } from '../render/water';
-import { canStep, findPath, generateMap, kindAt, nearestWalkable, surfaceHeight, type Tile, type TileMap } from './map';
+import { canStep, findPath, generateMap, isWalkable, kindAt, nearestWalkable, surfaceHeight, type Building, type BuildingId, type Tile, type TileMap } from './map';
 
 const SPEED = 3.2;
 const NPC_SPEED = 1.4;
@@ -41,7 +42,24 @@ export const HOMES: Record<NpcId, Tile> = {
   marius: { x: 14, z: 24 },
 };
 
-export type TapTarget = { kind: 'npc'; npc: NpcId } | { kind: 'slot'; slot: SlotId } | { kind: 'ground'; tile: Tile };
+export type TapTarget =
+  | { kind: 'npc'; npc: NpcId }
+  | { kind: 'slot'; slot: SlotId }
+  | { kind: 'building'; building: BuildingId }
+  | { kind: 'water'; tile: Tile }
+  | { kind: 'ground'; tile: Tile };
+
+/** Walkable tile right in front of a building's door. */
+export function doorTile(b: Building): Tile {
+  return { x: b.x + Math.round((b.w - 1) / 2), z: b.z + b.d };
+}
+
+export interface FishSpot {
+  /** Shore tile the player stands on. */
+  stand: Tile;
+  /** Water tile where the bobber lands. */
+  spot: Tile;
+}
 
 export interface World {
   map: TileMap;
@@ -63,13 +81,21 @@ export interface World {
   /** Closest NPC within `range` tiles of the player. */
   nearestNpc(range: number): NpcId | null;
   setMoods(moods: Record<NpcId, Mood>): void;
+  /** The NPC slaps the player: quick lunge, swinging palm, knockback; `onHit` fires on impact. */
+  slap(id: NpcId, onHit: () => void): Promise<void>;
   /** Cartoon dust-cloud brawl between the player and an NPC. */
   fight(id: NpcId): Promise<void>;
   /** The NPC lunges with its weapon; `onHit` fires on impact, then the player's ghost floats away. */
   murder(id: NpcId, onHit: () => void): Promise<void>;
   revive(): void;
-  setPlayerSkin(skin: PlayerSkin): void;
   setPlayerSpec(spec: SpriteSpec): void;
+  /** Building whose door the player stands in front of. */
+  doorHere(): BuildingId | null;
+  setPlayerSkin(skin: PlayerSkin): void;
+  /** Closest shore tile (and the water next to it) within `radius` of `near`. */
+  fishSpot(near: Tile, radius: number): FishSpot | null;
+  /** Show the line and bobber (`bite` makes it plunge); null reels everything in. */
+  setFishing(spot: Tile | null, bite?: boolean): void;
   /** Cutscene mode: NPCs stop wandering and only move when scripted. */
   setScripted(on: boolean): void;
   placeNpc(id: NpcId, tile: Tile): void;
@@ -153,6 +179,61 @@ function turn(actor: Actor, dx: number, dz: number): void {
   if (Math.abs(dx) > 0.01) actor.flip = dx < 0;
 }
 
+const WATER_Y = -0.1;
+
+/** Line, red-and-white bobber, ripple and a fish shadow that circles in before the bite. */
+function fishingRig(): { group: THREE.Group; set(spot: Tile | null, bite: boolean): void; update(time: number, hand: THREE.Vector3): void } {
+  const group = new THREE.Group();
+  group.visible = false;
+  const bobber = new THREE.Group();
+  const top = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshLambertMaterial({ color: '#e0443a' }));
+  const bottom = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 6, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), new THREE.MeshLambertMaterial({ color: '#fbf8f0' }));
+  const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.1, 4), new THREE.MeshLambertMaterial({ color: '#2b2233' }));
+  stick.position.y = 0.1;
+  bobber.add(top, bottom, stick);
+  bobber.scale.setScalar(1.8);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.12, 0.16, 20), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, depthWrite: false }));
+  ring.rotation.x = -Math.PI / 2;
+  const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.2, 12), new THREE.MeshBasicMaterial({ color: '#12324a', transparent: true, opacity: 0.45, depthWrite: false }));
+  shadow.rotation.x = -Math.PI / 2;
+  shadow.scale.set(1, 0.45, 1);
+  const lineGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()]);
+  const line = new THREE.Line(lineGeo, new THREE.LineBasicMaterial({ color: '#f4efe4' }));
+  const poleGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
+  const pole = new THREE.Line(poleGeo, new THREE.LineBasicMaterial({ color: '#7a4a2a' }));
+  group.add(bobber, ring, shadow, line, pole);
+  const at = new THREE.Vector3();
+  let bite = false;
+  let since = 0;
+  return {
+    group,
+    set(spot, nextBite) {
+      group.visible = spot !== null;
+      if (spot) at.set(spot.x, WATER_Y, spot.z);
+      if (nextBite !== bite || !spot) since = 0;
+      bite = nextBite;
+    },
+    update(time, hand) {
+      if (!group.visible) return;
+      since += 1 / 60;
+      const dip = bite ? -0.07 - Math.abs(Math.sin(time * 18)) * 0.05 : Math.sin(time * 2.4) * 0.015;
+      bobber.position.set(at.x, at.y + dip, at.z);
+      const pulse = bite ? (time * 3) % 1 : (time * 0.7) % 1;
+      ring.position.set(at.x, WATER_Y + 0.01, at.z);
+      ring.scale.setScalar(1 + pulse * (bite ? 2.5 : 1.2));
+      ring.material.opacity = (1 - pulse) * (bite ? 0.9 : 0.4);
+      const r = bite ? 0.12 : 0.5 + Math.max(0, 0.6 - since * 0.1);
+      shadow.position.set(at.x + Math.cos(time * 0.9) * r, WATER_Y - 0.02, at.z + Math.sin(time * 0.9) * r * 0.6);
+      shadow.rotation.z = -time * 0.9;
+      const tip = new THREE.Vector3(hand.x + (at.x > hand.x ? 0.45 : -0.45), hand.y + 1.35, hand.z);
+      const mid = tip.clone().lerp(bobber.position, 0.5);
+      mid.y -= 0.25;
+      lineGeo.setFromPoints([tip, mid, bobber.position.clone().setY(bobber.position.y + 0.1)]);
+      poleGeo.setFromPoints([new THREE.Vector3(hand.x + (at.x > hand.x ? 0.12 : -0.12), hand.y + 0.75, hand.z + 0.05), tip]);
+    },
+  };
+}
+
 function roundTile(v: THREE.Vector3): Tile {
   return { x: Math.round(v.x), z: Math.round(v.z) };
 }
@@ -166,7 +247,13 @@ export function createWorld(stage: Stage): World {
   const grass = createGrass(map);
   let grassQuality = stage.quality;
   grass.setQuality(grassQuality);
-  stage.scene.add(terrain.group, water.mesh, trees.group, grass.mesh, createBushes(map), createRocks(map), createFlowers(map), createBuildings(map));
+  stage.scene.add(terrain.group, water.mesh, trees.group, grass.mesh, createBushes(map), createRocks(map), createFlowers(map));
+  const buildings = createBuildings(map);
+  stage.scene.add(buildings);
+  const life = createLife(map, chimneyTops(map));
+  stage.scene.add(life.group);
+  const rod = fishingRig();
+  stage.scene.add(rod.group);
 
   const player = makeActor(createActorView(SPRITES.player, 'player'), { x: 12, z: 20 }, map, SPEED);
   stage.scene.add(player.view.root);
@@ -326,11 +413,18 @@ export function createWorld(stage: Stage): World {
         const s = SLOTS.find((x) => x.id === slot);
         if (s) return { kind: 'slot', slot: s.id };
       }
+      const hitBuilding = raycaster.intersectObject(buildings, true)[0];
+      for (let o: THREE.Object3D | null = hitBuilding?.object ?? null; o; o = o.parent) {
+        const b = map.buildings.find((x) => x.id === o?.userData['building']);
+        if (b) return { kind: 'building', building: b.id };
+      }
       const hitGround = raycaster.intersectObjects(terrain.pickables, false)[0];
       if (hitGround && hitGround.instanceId !== undefined) {
         const tile = terrain.tileOf(hitGround.object, hitGround.instanceId);
         if (tile) return { kind: 'ground', tile };
       }
+      const hitWater = raycaster.intersectObject(water.mesh, false)[0];
+      if (hitWater) return { kind: 'water', tile: { x: Math.round(hitWater.point.x), z: Math.round(hitWater.point.z) } };
       return null;
     },
     walkTo(tile, onArrive) {
@@ -409,10 +503,19 @@ export function createWorld(stage: Stage): World {
       }
       water.update(time);
       grass.update(time);
+      life.update(dt, time);
+      rod.update(time, player.pos);
       if (stage.quality !== grassQuality) {
         grassQuality = stage.quality;
         grass.setQuality(grassQuality);
       }
+    },
+    doorHere() {
+      const t = roundTile(player.pos);
+      return map.buildings.find((b) => {
+        const d = doorTile(b);
+        return d.x === t.x && d.z === t.z;
+      })?.id ?? null;
     },
     teleportPlayer(tile) {
       player.path = [];
@@ -452,6 +555,51 @@ export function createWorld(stage: Stage): World {
     },
     setMoods(next) {
       moods = next;
+    },
+    slap(id, onHit) {
+      const n = npc(id);
+      const wasFrozen = frozen;
+      frozen = id;
+      player.path = [];
+      n.path = [];
+      const hand = handSprite(SPRITES[id].skin);
+      hand.visible = true;
+      stage.scene.add(hand);
+      const start = n.pos.clone();
+      const home = player.pos.clone();
+      const away = new THREE.Vector3().subVectors(player.pos, n.pos).setY(0).normalize();
+      const knock = home.clone().addScaledVector(away, 0.35);
+      const lunge = n.pos.clone().lerp(player.pos, 0.3);
+      const side = away.x >= 0 ? 1 : -1;
+      let hit = false;
+      return play((t) => {
+        if (t < 0.25) n.pos.lerpVectors(start, lunge, t / 0.25);
+        else if (t > 0.6) n.pos.lerpVectors(lunge, start, Math.min(1, (t - 0.6) / 0.3));
+        const k = THREE.MathUtils.clamp((t - 0.15) / 0.2, 0, 1);
+        hand.position.set(
+          THREE.MathUtils.lerp(n.pos.x - side * 0.4, player.pos.x, k),
+          player.pos.y + 1.1 + Math.sin(k * Math.PI) * 0.35,
+          THREE.MathUtils.lerp(n.pos.z, player.pos.z, k) + 0.05,
+        );
+        hand.material.rotation = side * (1.4 - k * 2.2);
+        if (!hit && t >= 0.35) {
+          hit = true;
+          stage.shake(0.45);
+          player.flip = side > 0;
+          onHit();
+        }
+        if (hit) {
+          const b = Math.min(1, (t - 0.35) / 0.12);
+          const back = Math.max(0, (t - 0.55) / 0.35);
+          player.pos.lerpVectors(home, knock, back > 0 ? Math.max(0, 1 - back) : b);
+          hand.material.opacity = Math.max(0, 1 - (t - 0.45) * 3);
+        }
+        if (t < 0.95) return false;
+        player.pos.copy(home);
+        disposeSprite(hand);
+        frozen = wasFrozen;
+        return true;
+      });
     },
     fight(id) {
       const n = npc(id);
@@ -518,6 +666,36 @@ export function createWorld(stage: Stage): World {
         ghost.visible = false;
         return true;
       });
+    },
+    fishSpot(near, radius) {
+      let best: FishSpot | null = null;
+      let bestD = Infinity;
+      for (let dz = -radius; dz <= radius; dz++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+          const x = near.x + dx;
+          const z = near.z + dz;
+          const k = kindAt(map, x, z);
+          if (!isWalkable(map, x, z) || k === 'plateau' || k === 'stairs') continue;
+          const wet = [[0, 1], [1, 0], [-1, 0], [0, -1]].map(([ax = 0, az = 0]) => ({ x: x + ax, z: z + az })).find((t) => kindAt(map, t.x, t.z) === 'water');
+          if (!wet) continue;
+          const d = dx * dx + dz * dz;
+          if (d < bestD) {
+            bestD = d;
+            const far = { x: wet.x * 2 - x, z: wet.z * 2 - z };
+            best = { stand: { x, z }, spot: kindAt(map, far.x, far.z) === 'water' ? { x: (wet.x + far.x) / 2, z: (wet.z + far.z) / 2 } : wet };
+          }
+        }
+      }
+      return best;
+    },
+    setFishing(spot, bite = false) {
+      rod.set(spot, bite);
+      if (spot) {
+        player.path = [];
+        const dx = spot.x - player.pos.x;
+        const dz = spot.z - player.pos.z;
+        turn(player, dx, dz);
+      }
     },
     revive() {
       player.view.setDown(false);

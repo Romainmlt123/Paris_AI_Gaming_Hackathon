@@ -6,13 +6,14 @@ import { NPC_IDS } from './types';
 import type { GameState, NpcId, RelationChange } from './types';
 
 /** Gauge percentages (0 % = RELATION_MIN, 100 % = RELATION_MAX). */
-export const FIGHT_PCT = 10;
-export const DANGER_PCT = 18;
+export const SLAP_PCT = 35;
+export const FIGHT_PCT = 20;
+export const DANGER_PCT = 28;
 export const FIGHT_RELIEF = 15;
 export const MURDER_RESET = -40;
 const WAKE_CLOCK = 8 * 60;
 
-export type Clash = 'fight' | 'murder';
+export type Clash = 'slap' | 'fight' | 'murder';
 export type Mood = 'heart' | 'storm' | 'skull' | null;
 
 export const WEAPONS: Record<NpcId, string> = {
@@ -25,20 +26,31 @@ export function percentOf(relation: number): number {
   return Math.round(((relation - RELATION_MIN) / (RELATION_MAX - RELATION_MIN)) * 100);
 }
 
-/** What a relation drop triggers: a murder at 0 %, a fight when the gauge crosses 10 % downward. */
+/** What a relation drop triggers: a murder at 0 %, a fight when the gauge crosses 20 % downward, a slap on any drop at or under 35 %. */
 export function clashFor(before: number, after: number): Clash | null {
   if (after >= before) return null;
   if (percentOf(after) <= 0) return 'murder';
   if (percentOf(after) <= FIGHT_PCT && percentOf(before) > FIGHT_PCT) return 'fight';
+  if (percentOf(after) <= SLAP_PCT) return 'slap';
   return null;
 }
 
 export function moodOf(relation: number): Mood {
   const pct = percentOf(relation);
   if (pct <= DANGER_PCT) return 'skull';
-  if (pct <= 25) return 'storm';
+  if (pct <= SLAP_PCT) return 'storm';
   if (pct >= 75) return 'heart';
   return null;
+}
+
+/** A slap is a warning shot: it doesn't calm anyone down, but everyone hears about it. */
+export function resolveSlap(state: GameState, npc: NpcId): GameState {
+  return recordFact(state, {
+    actor: npc,
+    text: `${CHARACTERS[npc].name} a collé une baffe au joueur`,
+    severity: -1,
+    witnesses: [npc],
+  }).state;
 }
 
 /** After the brawl both sides have vented: the gauge climbs a little and the island hears about it. */

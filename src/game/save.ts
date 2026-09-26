@@ -11,7 +11,7 @@ export function loadState(): GameState {
   try {
     const parsed: unknown = JSON.parse(raw);
     if (typeof parsed === 'object' && parsed !== null && 'version' in parsed && parsed.version === 1 && 'decor' in parsed) {
-      const state = parsed as GameState;
+      const state = { ...createInitialState(), ...(parsed as GameState) };
       return { ...state, playerName: cleanName(state.playerName), islandName: cleanIsland(state.islandName), look: cleanLook(state.look) };
     }
     console.warn('[save] incompatible save, starting fresh');
