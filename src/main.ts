@@ -2,15 +2,17 @@ import '@fontsource/pixelify-sans/400.css';
 import '@fontsource/pixelify-sans/700.css';
 import * as THREE from 'three';
 import { CHARACTERS } from '../shared/characters';
-import { buy, CATALOG, haggle, placeDeco, SLOTS, startDeal, type Deal } from '../shared/economy';
+import { buy, buyClothes, CATALOG, CLOTHES_PRICE, haggle, placeDeco, SLOTS, startDeal, type Deal } from '../shared/economy';
+import { comingToast, markInitiative, pickInitiative, type Initiative } from '../shared/initiative';
+import { advanceClock, chatterLine, routineStep } from '../shared/routine';
 import { CONFRONT_SUGGESTIONS, openerLine } from '../shared/opener';
 import { applySimResult, buildSimRequest } from '../shared/simulate';
-import { applyTalkResult, buildTalkContext, npcsWithIntent } from '../shared/state';
+import { applyOpener, applyTalkResult, buildTalkContext, npcsWithIntent } from '../shared/state';
 import { defaultSuggestions } from '../shared/fallback';
 import { clashFor, moodOf, resolveFight, resolveMurder, WEAPONS, type Clash } from '../shared/violence';
 import type { DecoId, GameState, NpcId, RelationChange, SlotId } from '../shared/types';
 import { NPC_IDS } from '../shared/types';
-import { simulate, talk } from './api';
+import { initiativeLine, simulate, talk } from './api';
 import { loadState, resetSave, saveState } from './game/save';
 import { createWorld, HOMES, type PlayerSkin } from './game/world';
 import { portraitDataUrl, SPRITES, drawSheet } from './render/sprites';
@@ -19,7 +21,7 @@ import { createDialogue, type Chip } from './ui/dialogue';
 import { el } from './ui/dom';
 import { createHud } from './ui/hud';
 import { bang, flash, sheet, showDeath, showRecap, toast } from './ui/overlays';
-import { unlockAudioOnGesture } from './voice';
+import { speak, unlockAudioOnGesture } from './voice';
 
 const ABSENCE_HOURS = 8;
 const params = new URLSearchParams(location.search);
@@ -37,6 +39,8 @@ const world = createWorld(stage);
 let state: GameState = loadState();
 let deal: Deal | null = null;
 let busy = false;
+let seeking: NpcId | null = null;
+let skinOutfit: GameState['outfit'] | null = null;
 
 const portraits = Object.fromEntries(NPC_IDS.map((id) => [id, portraitDataUrl(drawSheet(SPRITES[id]))])) as Record<NpcId, string>;
 const hud = createHud(portraits, (id) => startTalk(id), () => void absence(), () => openBag());
@@ -48,6 +52,10 @@ function commit(next: GameState): void {
   saveState(state);
   hud.render(state);
   world.syncDecor(state);
+  if (skinOutfit !== state.outfit) {
+    skinOutfit = state.outfit;
+    world.setPlayerSkin(state.outfit === 'nu' ? 'castaway' : 'player');
+  }
   world.setMoods({ gaston: moodOf(state.npcs.gaston.relation), josette: moodOf(state.npcs.josette.relation), marius: moodOf(state.npcs.marius.relation) });
 }
 
@@ -64,11 +72,13 @@ function showChange(change: RelationChange | null): void {
 function chipsFor(npc: NpcId, suggestions: string[]): Chip[] {
   const chips: Chip[] = suggestions.slice(0, 3).map((s) => ({ label: s, action: () => void onPlayerLine(s) }));
   if (npc === 'gaston') chips.unshift({ label: '💰 Marchander', action: () => openShop() });
+  if (npc === 'gaston' && state.outfit === 'nu') chips.unshift({ label: `👕 Habits (${CLOTHES_PRICE} 🪙)`, action: () => void buyOutfit() });
   return chips;
 }
 
 function startTalk(npc: NpcId, initiated = false): void {
   if (busy || dialogue.current() === npc) return;
+  seeking = null;
   dialogue.close();
   deal = null;
   const open = (): void => {
@@ -124,6 +134,102 @@ async function onPlayerLine(text: string): Promise<void> {
   await dialogue.say(result.reply, 'colere');
   await new Promise((r) => setTimeout(r, 900));
   await runClash(npc, clash);
+}
+
+async function buyOutfit(): Promise<void> {
+  const dressed = buyClothes(state, CLOTHES_PRICE);
+  if (!dressed) {
+    await dialogue.say('Sans pièces, pas de pantalon, mon ami. C\u2019est la loi du marché. Et de la pudeur.', 'mefiance');
+    return;
+  }
+  commit(dressed);
+  toast(ui!, `👕 Habillé pour ${CLOTHES_PRICE} 🪙`, 'good');
+  dialogue.setChips(chipsFor('gaston', defaultSuggestions('gaston')));
+  await dialogue.say('Vé ! Te voilà présentable. Presque élégant. Le reste de l\u2019île va être déçu, hé hé.', 'joie');
+}
+
+// ---------- Life: clock, routines, initiatives, chatter ----------
+
+const GAME_MINUTES_PER_SEC = 1;
+const INITIATIVE_GAP_SEC = 30;
+const NPC_INITIATIVE_GAP_SEC = 90;
+const FIRST_INITIATIVE_SEC = 3;
+const CHATTER_GAP_SEC = 16;
+const CHATTER_RANGE = 7;
+
+let lastInputAt = 0;
+let lastLifeTick = 0;
+let lastInitiativeAt = FIRST_INITIATIVE_SEC - INITIATIVE_GAP_SEC;
+let lastChatterAt = 0;
+const npcInitiativeAt: Partial<Record<NpcId, number>> = {};
+
+function overlayOpen(): boolean {
+  return ui!.querySelector('.sheet-back, .modal-back, .recap, .death') !== null;
+}
+
+function tickLife(now: number): void {
+  if (now - lastLifeTick < 1) return;
+  const minutes = Math.floor((now - lastLifeTick) * GAME_MINUTES_PER_SEC);
+  lastLifeTick = now;
+  if (!busy) {
+    state = advanceClock(state, minutes);
+    hud.render(state);
+    if (state.clock % 10 === 0) saveState(state);
+  }
+  for (const id of NPC_IDS) world.setAnchor(id, routineStep(state, id).spot);
+  tickInitiative(now);
+  tickChatter(now);
+}
+
+function tickInitiative(now: number): void {
+  if (busy || seeking || dialogue.isOpen() || overlayOpen() || now - lastInitiativeAt < INITIATIVE_GAP_SEC) return;
+  const blocked = new Set(NPC_IDS.filter((id) => now - (npcInitiativeAt[id] ?? -Infinity) < NPC_INITIATIVE_GAP_SEC));
+  const initiative = pickInitiative(state, now - lastInputAt, blocked);
+  if (!initiative) return;
+  lastInitiativeAt = now;
+  npcInitiativeAt[initiative.npc] = now;
+  commit(markInitiative(state, initiative.npc, initiative.trigger));
+  runInitiative(initiative);
+}
+
+function runInitiative({ npc, reason, fallback }: Initiative): void {
+  seeking = npc;
+  const line = initiativeLine(npc, buildTalkContext(state, npc), reason, fallback);
+  toast(ui!, comingToast(npc), 'info');
+  world.npcSeekPlayer(npc, () => void arrive());
+  async function arrive(): Promise<void> {
+    if (seeking !== npc || busy || dialogue.isOpen()) return;
+    seeking = null;
+    deal = null;
+    world.setFrozen(npc);
+    world.facePlayerToward(npc);
+    dialogue.open(npc, state.npcs[npc].relation);
+    dialogue.thinking(true);
+    const result = await line;
+    if (dialogue.current() !== npc) return;
+    dialogue.thinking(false);
+    commit(applyOpener(state, npc, result));
+    hud.setAiStatus(result.source === 'ai' ? '' : 'IA hors ligne · répliques de secours');
+    dialogue.setChips(chipsFor(npc, result.suggestions));
+    await dialogue.say(result.reply, result.emotion);
+  }
+}
+
+function tickChatter(now: number): void {
+  if (busy || dialogue.isOpen() || now - lastChatterAt < CHATTER_GAP_SEC) return;
+  for (const a of NPC_IDS) {
+    for (const b of NPC_IDS) {
+      if (a >= b || seeking === a || seeking === b || world.isBusy(a) || world.isBusy(b)) continue;
+      if (world.distance(a, b) > 2.5 || world.distance(a) > CHATTER_RANGE) continue;
+      const [speaker, listener] = Math.floor(now / CHATTER_GAP_SEC) % 2 === 0 ? [a, b] : [b, a];
+      const line = chatterLine(speaker, listener, Math.floor(now));
+      if (!line) continue;
+      lastChatterAt = now;
+      toast(ui!, `${CHARACTERS[speaker].name} → ${CHARACTERS[listener].name} : « ${line} »`, 'info');
+      void speak(speaker, line, 'amuse');
+      return;
+    }
+  }
 }
 
 // ---------- Fights & murders ----------
@@ -299,6 +405,8 @@ async function absence(): Promise<void> {
 // ---------- Input & loop ----------
 
 const down = new THREE.Vector2();
+window.addEventListener('pointerdown', () => (lastInputAt = timer.getElapsed()), { capture: true });
+window.addEventListener('keydown', () => (lastInputAt = timer.getElapsed()), { capture: true });
 canvas.addEventListener('pointerdown', (e) => down.set(e.clientX, e.clientY));
 canvas.addEventListener('pointerup', (e) => {
   if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > 12 || busy) return;
@@ -397,6 +505,7 @@ function frame(): void {
   const dt = Math.min(timer.getDelta(), 0.1);
   const time = timer.getElapsed();
   keyboardMove(dt);
+  tickLife(time);
   world.update(dt, time, new Set(npcsWithIntent(state)));
   stage.follow(world.playerPos, dt);
   stage.render();

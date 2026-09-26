@@ -30,6 +30,8 @@ export function createInitialState(): GameState {
     facts: [],
     rumors: [],
     changes: [],
+    outfit: 'nu',
+    initiatives: {},
   };
 }
 
@@ -94,4 +96,13 @@ export function applyTalkResult(
 
 export function npcsWithIntent(state: GameState): NpcId[] {
   return NPC_IDS.filter((id) => state.npcs[id].intent !== null);
+}
+
+/** Records the line an NPC opened with when it came to the player on its own. */
+export function applyOpener(state: GameState, npc: NpcId, result: TalkResult): GameState {
+  const next = structuredClone(state);
+  const npcState = next.npcs[npc];
+  npcState.emotion = result.emotion;
+  npcState.history = [...npcState.history, { who: npc, text: result.reply }].slice(-HISTORY_LIMIT);
+  return next;
 }

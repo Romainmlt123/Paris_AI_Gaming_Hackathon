@@ -120,6 +120,14 @@ export function buy(state: GameState, item: DecoId, price: number): GameState | 
   return next;
 }
 
+export const CLOTHES_PRICE = 150;
+
+/** Gaston sells the castaway some clothes. Null if the player can't pay or is already dressed. */
+export function buyClothes(state: GameState, price: number): GameState | null {
+  if (state.outfit !== 'nu' || state.coins < price) return null;
+  return { ...state, coins: state.coins - price, outfit: 'habille' };
+}
+
 // ---------- Placing decorations ----------
 
 export interface DecoReaction {

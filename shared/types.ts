@@ -52,6 +52,8 @@ export interface RelationChange {
 export type DecoId = 'parterre' | 'banc' | 'lampadaire' | 'fontaine' | 'statue';
 export type SlotId = 'placette' | 'falaise' | 'ponton' | 'mairie' | 'boulangerie';
 
+export type Outfit = 'nu' | 'habille';
+
 export interface GameState {
   version: 1;
   nextId: number;
@@ -68,6 +70,10 @@ export interface GameState {
   facts: Fact[];
   rumors: Rumor[];
   changes: RelationChange[];
+  /** 'nu' for the castaway who just washed ashore. */
+  outfit: Outfit;
+  /** Last day each `npc:trigger` initiative fired (NPCs don't repeat themselves the same day). */
+  initiatives: Record<string, number>;
 }
 
 export interface TalkEvent {
@@ -110,6 +116,8 @@ export interface TalkRequest {
   npc: NpcId;
   message: string;
   context: TalkContext;
+  /** Set when the NPC comes to the player on its own: why it came. `message` is then empty. */
+  initiative?: string;
 }
 
 export interface SimConversation {

@@ -17,6 +17,7 @@ import { canStep, findPath, generateMap, kindAt, nearestWalkable, surfaceHeight,
 
 const SPEED = 3.2;
 const NPC_SPEED = 1.4;
+const SEEK_TRIES = 4;
 
 interface Actor {
   view: ActorView;
@@ -32,6 +33,7 @@ interface Actor {
 interface Npc extends Actor {
   id: NpcId;
   home: Tile;
+  anchor: Tile;
   idle: number;
 }
 
@@ -54,6 +56,11 @@ export interface World {
   /** NPC walks up to the player by itself (initiative). */
   npcSeekPlayer(id: NpcId, onArrive: () => void): void;
   setFrozen(id: NpcId | null): void;
+  /** Where the NPC's daily routine wants it; it wanders around that spot. */
+  setAnchor(id: NpcId, tile: Tile): void;
+  /** Distance in tiles from an NPC to the player, or to another NPC. */
+  distance(id: NpcId, other?: NpcId): number;
+  isBusy(id: NpcId): boolean;
   facePlayerToward(id: NpcId): void;
   syncDecor(state: GameState): void;
   update(dt: number, time: number, intents: Set<NpcId>): void;
@@ -130,7 +137,7 @@ export function createWorld(stage: Stage): World {
   stage.scene.add(player.view.root);
   const npcs = new Map<NpcId, Npc>();
   for (const id of NPC_IDS) {
-    const npc: Npc = { ...makeActor(createActorView(SPRITES[id], id), HOMES[id], map, NPC_SPEED), id, home: HOMES[id], idle: 1 + Math.random() * 2 };
+    const npc: Npc = { ...makeActor(createActorView(SPRITES[id], id), HOMES[id], map, NPC_SPEED), id, home: HOMES[id], anchor: HOMES[id], idle: 1 + Math.random() * 2 };
     npcs.set(id, npc);
     stage.scene.add(npc.view.root);
   }
@@ -213,9 +220,10 @@ export function createWorld(stage: Stage): World {
     n.idle -= dt;
     if (n.idle > 0) return;
     n.idle = 2 + Math.random() * 4;
-    const tx = n.home.x + Math.round((Math.random() - 0.5) * 5);
-    const tz = n.home.z + Math.round((Math.random() - 0.5) * 3);
-    const tile = nearestWalkable(map, tx, tz, 1);
+    const far = Math.hypot(n.pos.x - n.anchor.x, n.pos.z - n.anchor.z) > 3;
+    const tx = n.anchor.x + (far ? 0 : Math.round((Math.random() - 0.5) * 3));
+    const tz = n.anchor.z + (far ? 0 : Math.round((Math.random() - 0.5) * 2));
+    const tile = nearestWalkable(map, tx, tz, 2);
     if (tile) route(n, tile, null);
   }
 
@@ -259,12 +267,28 @@ export function createWorld(stage: Stage): World {
     npcSeekPlayer(id, onArrive) {
       const n = npc(id);
       frozen = null;
-      const spot = besideTile(player.pos, n.pos);
+      let tries = 0;
+      const chase = (): void => {
+        const close = Math.hypot(n.pos.x - player.pos.x, n.pos.z - player.pos.z) <= 1.6;
+        const spot = close ? null : besideTile(player.pos, n.pos);
+        if (!spot || tries++ >= SEEK_TRIES || !route(n, spot, chase)) onArrive();
+      };
       player.path = [];
-      if (!spot || !route(n, spot, onArrive)) onArrive();
+      chase();
     },
     setFrozen(id) {
       frozen = id;
+    },
+    setAnchor(id, tile) {
+      npc(id).anchor = tile;
+    },
+    distance(id, other) {
+      const a = npc(id).pos;
+      const b = other ? npc(other).pos : player.pos;
+      return Math.hypot(a.x - b.x, a.z - b.z);
+    },
+    isBusy(id) {
+      return frozen === id || npc(id).onArrive !== null;
     },
     facePlayerToward(id) {
       const n = npc(id);

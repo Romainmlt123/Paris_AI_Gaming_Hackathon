@@ -75,3 +75,9 @@ Mémoire du projet : fait, reste, décisions, pièges.
   - Marius `RyPxucblPbKsz0Xp` : vieux pêcheur provençal, lent, grave, soupirs.
 - Émotion → `padding_bonus`/`temp` (colère/joie plus vite, tristesse plus lent). `…` → `<break time="0.5s" />`.
 - Bouton 🔊/🔇 dans le HUD (localStorage `ragots.sound`).
+
+## Initiatives & vie des PNJ (shared/initiative.ts, shared/routine.ts)
+- `GameState.outfit` : `'nu'` en nouvelle partie (skin castaway), `'habille'` pour les anciennes sauvegardes. Gaston vend des habits (chip 👕, `CLOTHES_PRICE`).
+- `pickInitiative(state, idleSec, blocked)` : règles déterministes par PNJ et priorité (nu, rumeur/intent, colère ≤25 %, ami ≥75 %, fauché, riche, île célèbre, immobile 45 s, nuit). Une fois par jour et par couple PNJ/déclencheur (`state.initiatives`).
+- Boucle client (src/main.ts `tickLife`) : horloge 1 s réelle = 1 min de jeu, 30 s entre deux initiatives, 90 s par PNJ, jamais pendant un dialogue/cinématique/fenêtre. Le PNJ poursuit le joueur (`npcSeekPlayer`, 4 relances), Gemini écrit la première réplique (`/api/talk` avec `initiative`), réplique écrite en secours.
+- Emploi du temps horaire par PNJ (`routineStep`), visites aux amis (lien ≥40) ; deux PNJ proches et le joueur à ≤7 cases → bavardage affiché + voix.

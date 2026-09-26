@@ -31,7 +31,13 @@ Règles :
 {"reply": string, "emotion": un de ${EMOTIONS.join('|')}, "relationDelta": entier entre -20 et +10 (variation de ton affection pour le joueur suite à SA réplique), "reason": string courte à la 2e personne expliquant la variation (ex. « Tu l'as traité de radin »), "events": [{"text": fait objectif à la 3e personne sur ce que le joueur vient de faire, seulement si c'est marquant (insulte, mensonge, promesse, cadeau, confidence), "severity": entier -3..3}], "intent": null ou une intention courte pour la suite, "suggestions": 3 répliques courtes (max 40 caractères) que le joueur pourrait dire ensuite, variées (une gentille, une neutre/curieuse, une provocante)}`;
 }
 
-function contextPrompt(message: string, ctx: TalkContext): string {
+function openingLine(message: string, initiative: string | undefined): string {
+  if (!initiative) return `Joueur : ${message}`;
+  return `(Le joueur n'a rien dit. C'est TOI qui viens de le rejoindre de ta propre initiative. Raison : ${initiative}
+Lance la conversation en parlant le premier. relationDelta = 0, events = [].)`;
+}
+
+function contextPrompt(message: string, ctx: TalkContext, initiative?: string): string {
   const rumors = ctx.knownRumors.length
     ? ctx.knownRumors.map((r) => `- ${r.source === 'vu' ? 'Vu de tes yeux' : `Entendu de ${CHARACTERS[r.source].name}`} : ${r.text}`).join('\n')
     : '- (rien de spécial)';
@@ -45,7 +51,7 @@ Ce que tu sais / as entendu :
 ${rumors}
 Conversation récente :
 ${history || '(début)'}
-Joueur : ${message}`;
+${openingLine(message, initiative)}`;
 }
 
 function parseRequest(raw: unknown): TalkRequest | null {
@@ -53,7 +59,8 @@ function parseRequest(raw: unknown): TalkRequest | null {
   const body = raw as Partial<TalkRequest>;
   const npc = asNpcId(body.npc);
   if (!npc || typeof body.message !== 'string' || typeof body.context !== 'object' || body.context === null) return null;
-  return { npc, message: body.message.slice(0, 300), context: body.context };
+  const initiative = typeof body.initiative === 'string' && body.initiative ? body.initiative.slice(0, 300) : undefined;
+  return { npc, message: body.message.slice(0, 300), context: body.context, ...(initiative ? { initiative } : {}) };
 }
 
 export async function handleTalk(req: Request): Promise<Response> {
@@ -68,9 +75,9 @@ export async function handleTalk(req: Request): Promise<Response> {
   return json(result);
 }
 
-async function talkWithAi({ npc, message, context }: TalkRequest): Promise<TalkResult> {
+async function talkWithAi({ npc, message, context, initiative }: TalkRequest): Promise<TalkResult> {
   try {
-    const raw = await generateJson(systemPrompt(npc), contextPrompt(message, context), TALK_TIMEOUT_MS);
+    const raw = await generateJson(systemPrompt(npc), contextPrompt(message, context, initiative), TALK_TIMEOUT_MS);
     const parsed = parseTalkResult(raw);
     if (parsed) return parsed;
     console.warn(`[talk] ${npc}: AI output rejected by validation`, JSON.stringify(raw).slice(0, 200));
