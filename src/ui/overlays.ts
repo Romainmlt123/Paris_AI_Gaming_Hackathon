@@ -1,27 +1,32 @@
 import { CHARACTERS } from '../../shared/characters';
-import type { RecapEntry } from '../../shared/types';
+import type { Gazette } from '../../shared/gazette';
 import { button, el } from './dom';
 
-const ICON: Record<RecapEntry['kind'], string> = { talk: '💬', rumor: '👂', relation: '💔', intent: '❗' };
-
-export function showRecap(host: HTMLElement, entries: RecapEntry[], hours: number): Promise<void> {
+export function showGazette(host: HTMLElement, gazette: Gazette): Promise<void> {
   return new Promise((resolve) => {
-    const back = el('div', 'modal-back');
-    const card = el('div', 'modal recap');
-    card.append(el('h2', '', 'Pendant ton absence…'), el('div', 'recap-sub', `${hours} heures plus tard`));
-    const list = el('ul', 'recap-list');
-    entries.forEach((e, i) => {
-      const li = el('li', `recap-${e.kind}`);
-      li.style.animationDelay = `${0.25 + i * 0.35}s`;
-      const icon = e.kind === 'relation' && /\+\d/.test(e.text) ? '💚' : ICON[e.kind];
-      li.append(el('span', 'recap-icon', icon), el('span', '', e.text));
-      list.append(li);
-    });
-    card.append(list, button('primary', 'Retourner sur l\u2019île', () => {
-      back.remove();
-      resolve();
-    }));
-    back.append(card);
+    const back = el('div', 'modal-back gazette-back');
+    const paper = el('article', 'gazette');
+    const ears = el('div', 'gz-ears');
+    ears.append(el('div', 'gz-ear', '« Tous les ragots qu\u2019on ose imprimer »'), el('div', 'gz-ear', gazette.weather));
+    const columns = el('div', 'gz-columns');
+    for (const a of gazette.articles) {
+      const col = el('section', 'gz-article');
+      col.append(el('div', 'gz-rubric', a.rubric), el('h3', 'gz-title', a.title), el('p', 'gz-body', a.body));
+      columns.append(col);
+    }
+    paper.append(
+      ears,
+      el('h1', 'gz-masthead', 'La Gazette des Ragots'),
+      el('div', 'gz-issue', gazette.issue),
+      el('h2', 'gz-headline', gazette.headline),
+      el('p', 'gz-subhead', gazette.subhead),
+      columns,
+      button('primary gz-close', 'Retourner sur l\u2019île', () => {
+        back.remove();
+        resolve();
+      }),
+    );
+    back.append(paper);
     host.append(back);
   });
 }

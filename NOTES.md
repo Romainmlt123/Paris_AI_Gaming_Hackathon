@@ -91,3 +91,8 @@ Mémoire du projet : fait, reste, décisions, pièges.
 - Pêche : tap sur l'eau (ou bouton 🎣 près du rivage / E) → bouchon, tap quand il plonge (0,9 s). 9 prises (`shared/fishing.ts`), 12 max dans le sac. En dialogue : « Vendre un poisson » (Gaston, pièces) ou « Offrir » (jauge). Botte = vexe. Hooks `ragots.fish()` / `ragots.strike()`.
 - Intérieurs : grain de bois, joints, papiers peints, lambris, rideaux, lumière de fenêtre.
 - Piège : `shade()` doit accepter des couleurs `rgb(...)` (chaînage).
+
+## Gazette des Ragots (branche gazette)
+- Le récap d'absence est une une de journal façon NYT : `buildGazette(before, after, recap)` (shared/gazette.ts, pur, testé) + `showGazette` (src/ui/overlays.ts).
+- Gros titre choisi par le code : pire chute de relation (≤ -5) > ragots transmis > habitant qui veut parler > plus grosse hausse > titre calme.
+- Rubriques : Ragots, Carnet mondain, Cote de popularité, Petites annonces, Bourse. Titre en UnifrakturMaguntia (@fontsource), corps en serif.
