@@ -90,17 +90,17 @@ function headlineFor(
       `${rumors.length} ragot${rumors.length > 1 ? 's ont' : ' a'} changé de bouche cette nuit. Démenti attendu, jamais reçu.`,
     ];
   }
-  if (best && best.delta >= 5) {
-    return [
-      `${name(best.npc).toUpperCase()} TE TROUVE FORMIDABLE ; L\u2019ÎLE SOUPÇONNE UN POT-DE-VIN`,
-      `+${best.delta} points pour toi. Notre enquête continue.`,
-    ];
-  }
   const caller = wanting[0];
   if (caller) {
     return [
       `${name(caller).toUpperCase()} VEUT TE PARLER : ÇA SENT LE ROUSSI`,
       'Personne ne sait de quoi il retourne. Tout le monde a un avis.',
+    ];
+  }
+  if (best && best.delta >= 5) {
+    return [
+      `${name(best.npc).toUpperCase()} TE TROUVE FORMIDABLE ; L\u2019ÎLE SOUPÇONNE UN POT-DE-VIN`,
+      `+${best.delta} points pour toi. Notre enquête continue.`,
     ];
   }
   return [pick(CALM_HEADLINES, seed), 'Nos reporters ont veillé toute la nuit pour rien. Heures sup non payées.'];
@@ -121,12 +121,14 @@ function societyArticle(recap: RecapEntry[]): GazetteArticle {
   return { rubric: 'Carnet mondain', title: 'Ils se sont vus cette nuit', body };
 }
 
-function popularityArticle(list: Mood[]): GazetteArticle {
+function popularityArticle(list: Mood[], recap: RecapEntry[]): GazetteArticle {
   const lines = list.map((m) => {
     const trend = m.delta > 0 ? `en hausse (+${m.delta})` : m.delta < 0 ? `en chute (${m.delta})` : 'stable';
     return `${name(m.npc)} : ${tierOf(m.after).label}, ${trend}`;
   });
-  return { rubric: 'Cote de popularité', title: 'Ta cote à la criée', body: `${lines.join(' · ')}.` };
+  const reasons = recap.filter((e) => e.kind === 'relation').map((e) => e.text);
+  const detail = reasons.length ? ` Dans le détail : ${reasons.join(' ; ')}.` : '';
+  return { rubric: 'Cote de popularité', title: 'Ta cote à la criée', body: `${lines.join(' · ')}.${detail}` };
 }
 
 function adsArticle(after: GameState, wanting: NpcId[]): GazetteArticle | null {
@@ -149,9 +151,9 @@ export function buildGazette(before: GameState, after: GameState, recap: RecapEn
   const list = moods(before, after);
   const sorted = [...list].sort((a, b) => a.delta - b.delta);
   const rumors = newRumors(before, after);
-  const wanting = NPC_IDS.filter((npc) => after.npcs[npc].intent);
+  const wanting = NPC_IDS.filter((npc) => recap.some((e) => e.kind === 'intent' && e.npc === npc));
   const [headline, subhead] = headlineFor(sorted[0], sorted[sorted.length - 1], rumors, wanting, seed);
-  const articles = [rumorArticle(rumors), societyArticle(recap), popularityArticle(list), adsArticle(after, wanting), economyArticle(after)];
+  const articles = [rumorArticle(rumors), societyArticle(recap), popularityArticle(list, recap), adsArticle(after, wanting), economyArticle(after)];
   return {
     issue: `Jour ${after.day} · N° ${after.day * 7 + 3} · 2 clochettes`,
     weather: pick(WEATHER, seed >>> 3),
