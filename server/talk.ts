@@ -45,7 +45,8 @@ function contextPrompt(message: string, ctx: TalkContext): string {
     ? `Le joueur s'appelle ${name}. Appelle-le souvent par son prénom, naturellement (et déforme-le ou moque-le si tu es fâché).\n`
     : '';
   const place = island ? `L'île où vous vivez s'appelle ${island} (ce nom a été choisi par le joueur, glisse-le parfois).\n` : '';
-  return `${naming}${place}Jour ${ctx.day}. Valeur de l'île du joueur : ${ctx.islandValue}.
+  const nude = "Le joueur est arrivé sur l'île tout nu, sur un radeau, et il est TOUJOURS tout nu : personne ne lui a donné de vêtements. Tu peux le remarquer, t'en moquer ou en être gêné.\n";
+  return `${naming}${place}${nude}Jour ${ctx.day}. Valeur de l'île du joueur : ${ctx.islandValue}.
 Ta jauge d'amitié envers le joueur : ${Math.round((ctx.relation + 100) / 2)} % (${ctx.tier}). Ton humeur : ${ctx.emotion}.
 ${ctx.intent ? `Tu voulais lui parler de ceci : ${ctx.intent}\n` : ''}Tes souvenirs du joueur :
 ${memories}

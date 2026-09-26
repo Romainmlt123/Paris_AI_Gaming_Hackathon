@@ -28,7 +28,7 @@ export const FRAMES = 3;
 
 type Px = (x: number, y: number, c: string, w?: number, h?: number) => void;
 
-function tone(c: string, k: number): string {
+export function tone(c: string, k: number): string {
   const col = new THREE.Color(c);
   return (k < 0 ? col.lerp(new THREE.Color('#2a1e3a'), -k) : col.lerp(new THREE.Color('#fff4dc'), k)).getStyle();
 }
@@ -300,7 +300,7 @@ export const SPRITES: Record<'player' | 'castaway' | 'gaston' | 'josette' | 'mar
 
 /** Player sprite built from the character-creator choices (clothed, or castaway for the intro). */
 export function lookSpec(look: PlayerLook, naked = false): SpriteSpec {
-  if (naked) return { skin: look.skin, hair: look.hair, hairStyle: look.hairStyle === 'bun' ? 'bun' : 'short', shirt: look.skin, pants: look.skin, shoes: look.skin, naked: true };
   const hat = look.hairStyle === 'cap' || look.hairStyle === 'beanie' ? tone(look.shirt, -0.25) : undefined;
+  if (naked) return { skin: look.skin, hair: look.hair, hairStyle: look.hairStyle, ...(hat ? { hat } : {}), shirt: look.skin, pants: look.skin, shoes: look.skin, naked: true };
   return { skin: look.skin, hair: look.hair, hairStyle: look.hairStyle, ...(hat ? { hat } : {}), shirt: look.shirt, pants: '#34466b', shoes: '#4a3328', scarf: tone(look.shirt, 0.35) };
 }

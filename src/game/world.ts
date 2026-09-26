@@ -77,6 +77,8 @@ export interface World {
   walk(who: 'player' | NpcId, tile: Tile, speed?: number): Promise<void>;
   face(who: 'player' | NpcId, facing: 'down' | 'up', flip?: boolean): void;
   setPlayerDown(down: boolean): void;
+  /** Shows a raft at `pos` (null hides it); while `riding`, the player stands on it. */
+  setRaft(pos: THREE.Vector3 | null, riding: boolean): void;
 }
 
 export type PlayerSkin = 'player' | 'castaway';
@@ -87,6 +89,31 @@ function tileY(map: TileMap, x: number, z: number): number {
 
 function makeActor(view: ActorView, tile: Tile, map: TileMap, speed: number): Actor {
   return { view, pos: new THREE.Vector3(tile.x, tileY(map, tile.x, tile.z), tile.z), path: [], facing: 'down', flip: false, speed, onArrive: null, manual: false };
+}
+
+function raftMesh(): THREE.Group {
+  const g = new THREE.Group();
+  const wood = ['#8a5a36', '#a06a40', '#7a4c2c', '#96623a'];
+  wood.forEach((c, i) => {
+    const log = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 1.3, 8), new THREE.MeshLambertMaterial({ color: c }));
+    log.rotation.x = Math.PI / 2;
+    log.position.set(-0.36 + i * 0.24, 0.05, 0);
+    log.castShadow = true;
+    g.add(log);
+  });
+  const rope = new THREE.MeshLambertMaterial({ color: '#d9c38c' });
+  for (const z of [-0.42, 0.42]) {
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.05, 0.08), rope);
+    bar.position.set(0, 0.16, z);
+    g.add(bar);
+  }
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.1, 6), new THREE.MeshLambertMaterial({ color: '#6b4428' }));
+  mast.position.set(0.38, 0.6, -0.38);
+  g.add(mast);
+  const leaf = new THREE.Mesh(new THREE.PlaneGeometry(0.45, 0.3), new THREE.MeshLambertMaterial({ color: '#5fb04a', side: THREE.DoubleSide }));
+  leaf.position.set(0.6, 1.0, -0.38);
+  g.add(leaf);
+  return g;
 }
 
 function stepActor(actor: Actor, map: TileMap, dt: number, time: number): void {
@@ -169,6 +196,10 @@ export function createWorld(stage: Stage): World {
   let scripted = false;
   let playerSpec: SpriteSpec = SPRITES.player;
   let cineT = 0;
+  const raft = raftMesh();
+  raft.visible = false;
+  stage.scene.add(raft);
+  let riding = false;
 
   function play(step: (t: number) => boolean): Promise<void> {
     return new Promise((resolve) => {
@@ -268,6 +299,12 @@ export function createWorld(stage: Stage): World {
     setPlayerDown(down) {
       player.view.setDown(down);
     },
+    setRaft(pos, ride) {
+      raft.visible = pos !== null;
+      if (pos) raft.position.copy(pos);
+      riding = ride && pos !== null;
+      if (riding) player.path = [];
+    },
     pick(ndc) {
       raycaster.setFromCamera(ndc, stage.camera);
       const sprites = [...npcs.values()].map((n) => n.view.sprite);
@@ -341,7 +378,16 @@ export function createWorld(stage: Stage): World {
         cineT += dt;
         if (cine(cineT)) cine = null;
       }
-      stepActor(player, map, dt, time);
+      if (raft.visible) {
+        raft.rotation.z = Math.sin(time * 1.7) * 0.05;
+        raft.rotation.x = Math.cos(time * 1.3) * 0.04;
+        raft.position.y = -0.1 + Math.sin(time * 2.1) * 0.04;
+      }
+      if (riding) {
+        player.pos.set(raft.position.x, raft.position.y + 0.14, raft.position.z);
+        player.view.root.position.copy(player.pos);
+        player.view.setPose(false, player.facing, player.flip, time);
+      } else stepActor(player, map, dt, time);
       for (const n of npcs.values()) {
         wander(n, dt);
         stepActor(n, map, dt, time);

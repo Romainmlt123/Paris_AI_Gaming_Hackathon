@@ -1,6 +1,6 @@
 import { cleanIsland, cleanName, ISLAND_IDEAS, ISLAND_MAX, LOOK_OPTIONS, NAME_IDEAS, NAME_MAX, randomLook } from '../../shared/player';
 import type { HairStyle, PlayerLook } from '../../shared/types';
-import { drawSheet, FRAME_H, FRAME_W, lookSpec } from '../render/sprites';
+import { drawSheet, FRAME_H, FRAME_W, lookSpec, SPRITES, tone, type SpriteSpec } from '../render/sprites';
 import { button, el } from './dom';
 
 export interface Profile {
@@ -19,7 +19,34 @@ export interface OnboardingOptions {
 }
 
 const HAIR_LABEL: Record<HairStyle, string> = { short: 'Court', bun: 'Chignon', cap: 'Casquette', beanie: 'Bonnet' };
-const PREVIEW_SCALE = 5;
+const PREVIEW_SCALE = 7;
+const SQUAD: readonly [SpriteSpec, string][] = [
+  [SPRITES.gaston, 'Gaston'],
+  [SPRITES.josette, 'Josette'],
+  [SPRITES.marius, 'Marius'],
+];
+
+function spriteCanvas(spec: SpriteSpec, facing: 0 | 1, scale: number): HTMLCanvasElement {
+  const c = el('canvas', 'onb-sprite', '', { width: String(FRAME_W * scale), height: String(FRAME_H * scale) });
+  const ctx = c.getContext('2d');
+  if (ctx) {
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(drawSheet(spec), 0, facing * FRAME_H, FRAME_W, FRAME_H, 0, 0, c.width, c.height);
+  }
+  return c;
+}
+
+/** Pixel mosaic over the crotch of the front-facing naked preview. */
+function censor(ctx: CanvasRenderingContext2D, skin: string, tick: number): void {
+  const s = PREVIEW_SCALE;
+  const shades = [tone(skin, -0.28), tone(skin, -0.12), tone(skin, 0.08), tone(skin, -0.2)];
+  for (let by = 0; by < 3; by++) {
+    for (let bx = 0; bx < 4; bx++) {
+      ctx.fillStyle = shades[(bx * 7 + by * 3 + tick) % shades.length] ?? skin;
+      ctx.fillRect((12 + bx * 2) * s, (32 + by * 2) * s, 2 * s, 2 * s);
+    }
+  }
+}
 
 function swatchRow<T extends string>(label: string, options: readonly T[], current: () => T, pick: (v: T) => void, text?: (v: T) => string): { row: HTMLElement; sync(): void } {
   const row = el('div', 'onb-row');
@@ -59,7 +86,7 @@ function ideaChips(ideas: readonly string[], onPick: (idea: string) => void): HT
   return box;
 }
 
-/** Title screen → character creator → island name. DOM overlay above the live 3D scene. */
+/** Title screen → character creator → island name, on an opaque full-screen lobby. */
 export function runOnboarding(host: HTMLElement, opts: OnboardingOptions): Promise<OnboardingResult> {
   return new Promise((resolve) => {
     const back = el('div', 'onb-back');
@@ -79,35 +106,58 @@ export function runOnboarding(host: HTMLElement, opts: OnboardingOptions): Promi
     };
 
     function title(): void {
-      const card = el('div', 'onb-card onb-title');
+      const card = el('div', 'onb-title');
+      const squad = el('div', 'onb-squad');
+      for (const [spec, label] of SQUAD) {
+        const who = el('div', 'onb-squad-one');
+        who.append(spriteCanvas(spec, 0, 6), el('span', 'onb-squad-name', label));
+        squad.append(who);
+      }
+      const play = button('onb-play', 'JOUER', () => creator());
+      const actions = el('div', 'onb-title-actions');
+      actions.append(play);
+      if (opts.canContinue) actions.append(button('onb-ghost', opts.continueLabel, () => finish({ kind: 'continue' })));
       card.append(
+        el('div', 'onb-season', 'SAISON 1 · L\u2019ARRIVÉE'),
         el('h1', 'onb-logo', 'RAGOTS'),
-        el('p', 'onb-tag', 'Une île mignonne. Des voisins qui parlent. Beaucoup trop.'),
-        button('onb-go', 'Nouvelle partie', () => creator()),
+        el('p', 'onb-tag', 'Chaque mot compte. Chaque ragot circule.'),
+        squad,
+        actions,
+        el('p', 'onb-foot', 'IA Gemini · voix Gradium · Paris AI Gaming Hackathon'),
       );
-      if (opts.canContinue) card.append(button('onb-ghost', opts.continueLabel, () => finish({ kind: 'continue' })));
-      card.append(el('p', 'onb-foot', 'Chaque mot compte. Chaque ragot circule.'));
       show(card);
+      play.focus();
     }
 
     function creator(): void {
-      const card = el('form', 'onb-card onb-creator');
-      card.append(el('h2', 'onb-h', 'Qui débarque sur l\u2019île ?'));
+      const card = el('form', 'onb-creator');
+      const stage = el('div', 'onb-podium');
       const preview = el('canvas', 'onb-preview', '', { width: String(FRAME_W * PREVIEW_SCALE), height: String(FRAME_H * PREVIEW_SCALE) });
       let facing: 0 | 1 = 0;
+      let tick = 0;
       const draw = (): void => {
         const ctx = preview.getContext('2d');
         if (!ctx) return;
         ctx.imageSmoothingEnabled = false;
         ctx.clearRect(0, 0, preview.width, preview.height);
-        ctx.drawImage(drawSheet(lookSpec(look)), 0, facing * FRAME_H, FRAME_W, FRAME_H, 0, 0, preview.width, preview.height);
+        ctx.drawImage(drawSheet(lookSpec(look, true)), 0, facing * FRAME_H, FRAME_W, FRAME_H, 0, 0, preview.width, preview.height);
+        if (facing === 0) censor(ctx, look.skin, tick);
       };
+      const timer = setInterval(() => {
+        if (!preview.isConnected) {
+          clearInterval(timer);
+          return;
+        }
+        tick += 1;
+        draw();
+      }, 320);
       const turn = button('onb-turn', '', () => {
         facing = facing === 0 ? 1 : 0;
         draw();
       });
       turn.setAttribute('aria-label', 'Tourner le personnage');
-      turn.append(preview, el('span', 'onb-turn-hint', '↻ tourner'));
+      turn.append(preview, el('span', 'onb-turn-hint', '↻ Tourner'));
+      stage.append(el('div', 'onb-step', 'ÉTAPE 1 / 2'), turn);
 
       const nameInput = textField('onb-name', 'Ton prénom', NAME_MAX, name);
       let refresh: () => void = () => undefined;
@@ -119,7 +169,6 @@ export function runOnboarding(host: HTMLElement, opts: OnboardingOptions): Promi
         swatchRow('Peau', LOOK_OPTIONS.skin, () => look.skin, (v) => set({ skin: v })),
         swatchRow('Coiffure', LOOK_OPTIONS.hairStyle, () => look.hairStyle, (v) => set({ hairStyle: v }), (v) => HAIR_LABEL[v]),
         swatchRow('Cheveux', LOOK_OPTIONS.hair, () => look.hair, (v) => set({ hair: v })),
-        swatchRow('Haut', LOOK_OPTIONS.shirt, () => look.shirt, (v) => set({ shirt: v })),
       ];
       const next = el('button', 'onb-go', 'Suivant ›', { type: 'submit' });
       const sync = (): void => {
@@ -139,7 +188,7 @@ export function runOnboarding(host: HTMLElement, opts: OnboardingOptions): Promi
         e.preventDefault();
         if (cleanName(nameInput.value)) islandStep();
       });
-      const top = el('div', 'onb-top');
+      const panel = el('div', 'onb-panel');
       const fields = el('div', 'onb-fields');
       fields.append(
         el('label', 'onb-label', 'Ton prénom', { for: 'onb-name' }),
@@ -149,19 +198,19 @@ export function runOnboarding(host: HTMLElement, opts: OnboardingOptions): Promi
           sync();
         }),
       );
-      top.append(turn, fields);
-      card.append(top, ...rows.map((r) => r.row), el('div', 'onb-actions'));
-      card.lastElementChild?.append(dice, next);
-      card.append(el('p', 'onb-hint', 'Les habitants s\u2019en souviendront. Et le répéteront.'));
+      const actions = el('div', 'onb-actions');
+      actions.append(dice, next);
+      panel.append(el('h2', 'onb-h', 'QUI DÉBARQUE ?'), fields, ...rows.map((r) => r.row), el('p', 'onb-hint', 'Tu arrives tout nu. Et tu le resteras.'), actions);
+      card.append(stage, panel);
       show(card, name ? undefined : nameInput);
       sync();
     }
 
     function islandStep(): void {
-      const card = el('form', 'onb-card onb-island');
-      card.append(el('h2', 'onb-h', 'Comment s\u2019appelle ton île ?'));
+      const card = el('form', 'onb-panel onb-island');
+      card.append(el('div', 'onb-step', 'ÉTAPE 2 / 2'), el('h2', 'onb-h', 'TON ÎLE S\u2019APPELLE…'));
       const input = textField('onb-island', 'Nom de l\u2019île', ISLAND_MAX, island);
-      const go = el('button', 'onb-go', 'Débarquer sur l\u2019île ›', { type: 'submit' });
+      const go = el('button', 'onb-go', 'LARGUER LES AMARRES ›', { type: 'submit' });
       const sync = (): void => {
         island = input.value;
         go.disabled = cleanIsland(island) === '';

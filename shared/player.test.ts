@@ -48,7 +48,7 @@ describe('onboarding profile', () => {
     expect(buildTalkContext(s, 'gaston').islandName).toBe('Potinville');
     expect(buildSimRequest(s, 8).islandName).toBe('Potinville');
     expect(cleanIsland('  Île   <x>  ')).toBe('Île x');
-    expect(arrivalFactText('Momo', 'Potinville')).toBe('Momo a débarqué tout nu sur la plage de Potinville');
-    expect(arrivalFactText('', '')).toBe('Le joueur a débarqué tout nu sur la plage');
+    expect(arrivalFactText('Momo', 'Potinville')).toBe('Momo a débarqué tout nu sur un radeau à Potinville');
+    expect(arrivalFactText('', '')).toBe('Le joueur a débarqué tout nu sur un radeau');
   });
 });

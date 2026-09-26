@@ -57,3 +57,9 @@ Estimation : P0 + P1 ≈ une session de travail.
 - [x] Mode démo : `?demo` (île pré-remplie, cinématique accélérée), `?skip-intro`, `?name=` / `?island=` pour pré-remplir.
 - [x] P2 partiel — voix Gradium des répliques de la cinématique quand le son est activé.
 - [ ] P2 restant — jingle, trait de caractère, accessoire.
+
+## Itération 2 (retours Romain)
+- Écran d'accueil plein écran opaque, style « lobby » (rayons animés, logo géant, trio de PNJ, bouton JOUER) : on ne voit plus l'île.
+- Création du perso sur le même fond ; le perso est prévisualisé nu (mosaïque), la couleur du haut est retirée.
+- Cinématique : le joueur dérive nu sur un radeau pendant 5 cartons (objectif, parler aux habitants, chaque mot compte, meilleurs amis / pires ennemis), puis le radeau s'échoue au ponton, point de départ du joueur.
+- Le joueur reste nu en jeu : personne ne l'habille. Les PNJ le savent (prompt `/api/talk`).

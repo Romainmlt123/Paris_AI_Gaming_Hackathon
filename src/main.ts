@@ -24,7 +24,7 @@ import { runOnboarding, type Profile } from './ui/onboarding';
 import { createTips } from './ui/tips';
 import { playIntro } from './game/intro';
 import { bang, flash, sheet, showDeath, showRecap, toast } from './ui/overlays';
-import { isSoundOn, unlockAudioOnGesture } from './voice';
+import { unlockAudioOnGesture } from './voice';
 
 const ABSENCE_HOURS = 8;
 const params = new URLSearchParams(location.search);
@@ -420,7 +420,7 @@ stage.resize();
 requestAnimationFrame(frame);
 
 function applyLook(): void {
-  world.setPlayerSpec(lookSpec(state.look ?? DEFAULT_LOOK));
+  world.setPlayerSpec(lookSpec(state.look ?? DEFAULT_LOOK, true));
 }
 
 function talkTip(): void {
@@ -434,10 +434,8 @@ async function newGame(profile: Profile, short: boolean): Promise<void> {
   await playIntro(world, ui!, {
     name: profile.name,
     island: profile.island,
-    castaway: lookSpec(profile.look, true),
-    dressed: lookSpec(profile.look),
+    spec: lookSpec(profile.look, true),
     short,
-    voices: isSoundOn(),
   });
   toast(ui!, `Bienvenue sur ${profile.island}, ${profile.name} !`, 'good');
 }

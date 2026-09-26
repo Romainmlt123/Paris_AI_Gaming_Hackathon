@@ -64,5 +64,5 @@ export function cleanIsland(raw: unknown): string {
 /** Arrival rumor planted by the intro cutscene. */
 export function arrivalFactText(playerName: string, islandName: string): string {
   const island = cleanIsland(islandName);
-  return `${playerLabel(playerName)} a débarqué tout nu sur la plage${island ? ` de ${island}` : ''}`;
+  return `${playerLabel(playerName)} a débarqué tout nu sur un radeau${island ? ` à ${island}` : ''}`;
 }
