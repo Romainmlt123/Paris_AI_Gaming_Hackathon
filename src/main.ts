@@ -3,21 +3,28 @@ import '@fontsource/pixelify-sans/700.css';
 import '@fontsource/unifrakturmaguntia/400.css';
 import * as THREE from 'three';
 import { CHARACTERS } from '../shared/characters';
-import { buy, CATALOG, haggle, placeDeco, SLOTS, startDeal, type Deal } from '../shared/economy';
+import { buy, CATALOG, haggle, islandValue, placeDeco, SLOTS, startDeal, type Deal } from '../shared/economy';
 import { CONFRONT_SUGGESTIONS, openerLine } from '../shared/opener';
+import { addCatch, BAG_FISH_MAX, FISH, giveFish, rollFish } from '../shared/fishing';
+import { buyItem, islandLevel, ISLAND_LEVELS, lookOf, nextLevel, SHOP_ITEMS, SHOP_OWNER, stockOf, toggleWear, type ShopId } from '../shared/shop';
 import { buildGazette } from '../shared/gazette';
 import { applySimResult, buildSimRequest } from '../shared/simulate';
 import { applyTalkResult, buildTalkContext, createInitialState, npcsWithIntent } from '../shared/state';
 import { arrivalFactText, cleanIsland, cleanName, DEFAULT_LOOK, ISLAND_IDEAS } from '../shared/player';
 import { recordFact } from '../shared/rumors';
 import { defaultSuggestions } from '../shared/fallback';
-import { clashFor, moodOf, resolveFight, resolveMurder, WEAPONS, type Clash } from '../shared/violence';
-import type { DecoId, GameState, NpcId, RelationChange, SlotId } from '../shared/types';
+import { clashFor, moodOf, resolveFight, resolveMurder, resolveSlap, WEAPONS, type Clash } from '../shared/violence';
+import type { DecoId, FishId, GameState, NpcId, RelationChange, SlotId } from '../shared/types';
 import { NPC_IDS } from '../shared/types';
 import { simulate, talk } from './api';
 import { loadState, resetSave, saveState, TIPS_KEY } from './game/save';
-import { createWorld, HOMES, type PlayerSkin } from './game/world';
-import { lookSpec, portraitDataUrl, SPRITES, drawSheet } from './render/sprites';
+import { BUILDINGS, type BuildingId } from './game/map';
+import { createWorld, doorTile, HOMES, type FishSpot, type PlayerSkin } from './game/world';
+import { createInterior } from './interior/interior';
+import type { Action } from './interior/layouts';
+import { drawIcon } from './interior/paint';
+import { fishIconUrl } from './render/fishArt';
+import { lookSpec, portraitDataUrl, SPRITES, drawSheet, type SpriteSpec } from './render/sprites';
 import { createQualityGovernor, createStage, type Quality } from './render/stage';
 import { createDialogue, type Chip } from './ui/dialogue';
 import { el } from './ui/dom';
@@ -25,7 +32,7 @@ import { createHud } from './ui/hud';
 import { runOnboarding, type Profile } from './ui/onboarding';
 import { createTips } from './ui/tips';
 import { playIntro } from './game/intro';
-import { bang, flash, sheet, showDeath, showGazette, toast } from './ui/overlays';
+import { bang, flash, sheet, showCatch, showDeath, showGazette, toast } from './ui/overlays';
 import { unlockAudioOnGesture } from './voice';
 
 const ABSENCE_HOURS = 8;
@@ -48,7 +55,9 @@ let busy = false;
 const portraits = Object.fromEntries(NPC_IDS.map((id) => [id, portraitDataUrl(drawSheet(SPRITES[id]))])) as Record<NpcId, string>;
 const hud = createHud(portraits, (id) => startTalk(id), () => void absence(), () => openBag());
 const dialogue = createDialogue(portraits, (text) => void onPlayerLine(text), () => endTalk());
-ui.append(hud.root, dialogue.root);
+const interior = createInterior({ onAction: (a) => onInteriorAction(a), onExit: (id) => leaveBuilding(id) });
+ui.append(interior.root, hud.root, dialogue.root);
+let lookKey = '';
 const tips = createTips(ui);
 
 function commit(next: GameState): void {
@@ -56,6 +65,8 @@ function commit(next: GameState): void {
   saveState(state);
   hud.render(state);
   world.syncDecor(state);
+  interior.refresh(state);
+  syncLook();
   world.setMoods({ gaston: moodOf(state.npcs.gaston.relation), josette: moodOf(state.npcs.josette.relation), marius: moodOf(state.npcs.marius.relation) });
 }
 
@@ -72,11 +83,13 @@ function showChange(change: RelationChange | null): void {
 function chipsFor(npc: NpcId, suggestions: string[]): Chip[] {
   const chips: Chip[] = suggestions.slice(0, 3).map((s) => ({ label: s, action: () => void onPlayerLine(s) }));
   if (npc === 'gaston') chips.unshift({ label: '💰 Marchander', action: () => openShop() });
+  if (state.fish.length > 0) chips.unshift({ label: npc === 'gaston' ? '🐟 Vendre un poisson' : '🐟 Offrir un poisson', action: () => openFishGift(npc) });
   return chips;
 }
 
 function startTalk(npc: NpcId, initiated = false): void {
   if (busy || dialogue.current() === npc) return;
+  if (fishing) stopFishing();
   dialogue.close();
   deal = null;
   const open = (): void => {
@@ -88,6 +101,11 @@ function startTalk(npc: NpcId, initiated = false): void {
     void dialogue.say(line, confront ? 'mefiance' : state.npcs[npc].emotion);
     dialogue.setChips(chipsFor(npc, confront ? CONFRONT_SUGGESTIONS : defaultSuggestions(npc)));
   };
+  if (interior.isOpen()) {
+    const here = interior.current();
+    if (here && here in SHOP_OWNER && SHOP_OWNER[here as ShopId] === npc) return open();
+    return toast(ui!, `${CHARACTERS[npc].name} n’est pas ici.`, 'info');
+  }
   if (initiated) world.npcSeekPlayer(npc, open);
   else world.approachNpc(npc, open);
 }
@@ -133,6 +151,15 @@ async function onPlayerLine(text: string): Promise<void> {
     return;
   }
   dialogue.setChips([]);
+  if (clash === 'slap') {
+    const line = dialogue.say(result.reply, 'colere');
+    await new Promise((r) => setTimeout(r, 500));
+    await slap(npc);
+    await line;
+    busy = false;
+    dialogue.setChips(chipsFor(npc, result.suggestions));
+    return;
+  }
   await dialogue.say(result.reply, 'colere');
   await new Promise((r) => setTimeout(r, 900));
   await runClash(npc, clash);
@@ -140,6 +167,7 @@ async function onPlayerLine(text: string): Promise<void> {
 
 // ---------- Fights & murders ----------
 
+const SLAPS = ['PAF !', 'CLAC !', 'BAFFE !', 'TAC !', 'PIF !'];
 const BANGS = ['POW !', 'BAM !', 'KRAK !', 'SBAF !', 'AÏE !', 'BONK !', 'TCHAC !', 'OUILLE !'];
 const AFTER_FIGHT: Record<NpcId, string> = {
   gaston: 'Pfff… T’as une sacrée droite, mon ami. Bon. On est quittes. Pour cette fois.',
@@ -152,9 +180,34 @@ const LAST_WORDS: Record<NpcId, string> = {
   marius: '… La mer reprend toujours ce qu’on lui doit.',
 };
 
+/** Warning shot under 35 %: a quick slap, the conversation goes on. */
+async function slap(npc: NpcId): Promise<void> {
+  const hit = (): void => bang(ui!, SLAPS[state.nextId % SLAPS.length] ?? 'PAF !');
+  if (interior.isOpen()) {
+    hit();
+    interior.root.classList.remove('slapped');
+    void interior.root.offsetWidth;
+    interior.root.classList.add('slapped');
+    await new Promise((r) => setTimeout(r, 450));
+  } else await world.slap(npc, hit);
+  commit(resolveSlap(state, npc));
+  toast(ui!, `🖐️ ${CHARACTERS[npc].name} t’a collé une baffe !`, 'bad');
+}
+
 async function runClash(npc: NpcId, clash: Clash): Promise<void> {
+  if (clash === 'slap') {
+    busy = true;
+    await slap(npc);
+    busy = false;
+    return;
+  }
   busy = true;
   endTalk();
+  const inside = interior.current();
+  if (inside) {
+    interior.exit();
+    leaveBuilding(inside);
+  }
   world.setFrozen(npc);
   if (clash === 'fight') await fight(npc);
   else await murder(npc);
@@ -254,6 +307,155 @@ async function haggleLine(text: string): Promise<void> {
   await dialogue.say(outcome.line, 'joie');
 }
 
+// ---------- Houses & shops ----------
+
+const OWNER_SAYS: Record<NpcId, string[]> = {
+  gaston: ['Excellent choix ! Enfin, tous mes choix sont excellents.', 'Vendu ! Et sans garantie, comme d’habitude.', 'Tu repasses quand tu veux, ton porte-monnaie aussi.'],
+  josette: ['Oh, ça t’ira à ravir mon chou ! Je le dirai à tout le monde.', 'Tricoté avec amour. Et un peu de ragots.', 'Tout le village va en parler, crois-moi !'],
+  marius: ['… Prends-en soin. La mer, elle, ne rend rien.', '… Bon choix. Mon père aurait approuvé.', '… Hm. Ça te va.'],
+};
+
+function playerSpec(): SpriteSpec {
+  const look = lookOf(state);
+  const base = lookSpec(state.look ?? DEFAULT_LOOK, !look.shirt);
+  const spec: SpriteSpec = look.shirt ? { ...base, shirt: look.shirt } : base;
+  if (look.scarf) spec.scarf = look.scarf;
+  else delete spec.scarf;
+  if (look.hat) {
+    spec.hairStyle = look.hat.style;
+    spec.hat = look.hat.color;
+  }
+  return spec;
+}
+
+function syncLook(force = false): void {
+  const next = JSON.stringify([state.outfit, state.look]);
+  if (next === lookKey && !force) return;
+  lookKey = next;
+  const spec = playerSpec();
+  world.setPlayerSpec(spec);
+  interior.setPlayerSheet(drawSheet(spec));
+}
+
+function enterBuilding(id: BuildingId): void {
+  if (busy || interior.isOpen()) return;
+  if (fishing) stopFishing();
+  endTalk();
+  held.clear();
+  interior.enter(id, state);
+}
+
+function leaveBuilding(id: BuildingId): void {
+  endTalk();
+  held.clear();
+  const b = BUILDINGS.find((x) => x.id === id);
+  if (b) world.teleportPlayer(doorTile(b));
+}
+
+const iconCache = new Map<string, string>();
+function iconUrl(id: keyof typeof SHOP_ITEMS): string {
+  const hit = iconCache.get(id);
+  if (hit) return hit;
+  const c = document.createElement('canvas');
+  c.width = c.height = 40;
+  const ctx = c.getContext('2d');
+  if (!ctx) return '';
+  drawIcon(ctx, SHOP_ITEMS[id].icon, SHOP_ITEMS[id].color, 4, 4, 32, 32);
+  const url = c.toDataURL();
+  iconCache.set(id, url);
+  return url;
+}
+
+function onInteriorAction(a: Action): void {
+  if (busy || ui!.querySelector('.sheet-back')) return;
+  switch (a.kind) {
+    case 'talk':
+      return startTalk(a.npc);
+    case 'shelf':
+      return openStock(a.shop, a.levels, a.title);
+    case 'locked': {
+      const l = ISLAND_LEVELS.find((x) => x.level === a.level);
+      return toast(ui!, `🔒 Arrive quand l’île sera « ${l?.name ?? ''} » (★${l?.min ?? 0}) · ★${state.islandValue} actuellement`, 'info');
+    }
+    case 'wardrobe':
+      return openWardrobe();
+    case 'bed':
+      interior.exit();
+      return void absence();
+    case 'board':
+      return openBoard();
+    case 'deco':
+      startTalk('gaston');
+      setTimeout(() => openShop(), 300);
+      return;
+    case 'say':
+      return toast(ui!, a.text, 'info');
+  }
+}
+
+function openStock(shop: ShopId, levels: number[], title: string): void {
+  const owner = SHOP_OWNER[shop];
+  const entries = stockOf(state, shop).filter((e) => levels.includes(e.item.level));
+  sheet(
+    ui!,
+    `${title} · ${CHARACTERS[owner].name}`,
+    entries.map((e) => ({
+      label: e.item.name,
+      icon: iconUrl(e.item.id),
+      detail: e.owned ? (e.item.slot ? 'À toi · armoire' : 'Déjà chez toi') : e.locked ? `🔒 île niv. ${e.item.level}` : `${e.price} 🪙 · ${e.item.slot ? 'se porte' : `★${e.item.prestige}`}`,
+      disabled: e.owned || e.locked || state.coins < e.price,
+      action: () => buyShopItem(e.item.id),
+    })),
+    'Rayon vide.',
+  );
+}
+
+function buyShopItem(id: keyof typeof SHOP_ITEMS): void {
+  const levelBefore = islandLevel(state.islandValue).level;
+  const res = buyItem(state, id, islandValue);
+  if (!res.ok) return toast(ui!, res.reason === 'coins' ? 'Pas assez de pièces…' : 'Indisponible.', 'bad');
+  commit(res.state);
+  const it = SHOP_ITEMS[id];
+  const owner = SHOP_OWNER[it.shop];
+  toast(ui!, `${it.name} −${res.price} 🪙 ${it.slot ? '· tu le portes !' : `→ chez toi · ★${state.islandValue}`}`, 'good');
+  const lines = OWNER_SAYS[owner];
+  setTimeout(() => toast(ui!, `${CHARACTERS[owner].name} : « ${lines[state.nextId % lines.length] ?? ''} »`, 'info'), 1300);
+  const lvl = islandLevel(state.islandValue);
+  if (lvl.level > levelBefore) setTimeout(() => toast(ui!, `🎉 L’île devient « ${lvl.name} » ! Les boutiques s’agrandissent.`, 'good'), 2700);
+}
+
+function openWardrobe(): void {
+  const clothes = state.owned.filter((id) => SHOP_ITEMS[id].slot);
+  sheet(
+    ui!,
+    'Garde-robe',
+    clothes.map((id) => ({
+      label: SHOP_ITEMS[id].name,
+      icon: iconUrl(id),
+      detail: Object.values(state.outfit).includes(id) ? '✔ porté · retirer' : 'porter',
+      action: () => commit(toggleWear(state, id)),
+    })),
+    'Aucun vêtement. Josette et Marius en vendent.',
+  );
+}
+
+function openBoard(): void {
+  const lvl = islandLevel(state.islandValue);
+  const next = nextLevel(state.islandValue);
+  sheet(
+    ui!,
+    `Île « ${lvl.name} » · ★${state.islandValue}`,
+    ISLAND_LEVELS.map((l) => ({
+      label: `${l.level <= lvl.level ? '✔' : '🔒'} Niv. ${l.level} · ${l.name}`,
+      detail: `★${l.min}`,
+      disabled: l.level > lvl.level,
+      action: () => undefined,
+    })),
+    '',
+  );
+  if (next) toast(ui!, `Encore ★${next.min - state.islandValue} pour « ${next.name} » : décore l’île et meuble ta maison !`, 'info');
+}
+
 // ---------- Decoration ----------
 
 function openBag(): void {
@@ -262,9 +464,29 @@ function openBag(): void {
   sheet(
     ui!,
     'Ton sac',
-    [...counts].map(([id, n]) => ({ label: `${CATALOG[id].name}${n > 1 ? ` ×${n}` : ''}`, detail: 'Touche un cercle sur l\u2019île pour le poser', action: () => undefined })),
+    [
+      ...[...counts].map(([id, n]) => ({ label: `${CATALOG[id].name}${n > 1 ? ` ×${n}` : ''}`, detail: 'Touche un cercle sur l\u2019île pour le poser', action: () => undefined })),
+      ...state.owned.filter((id) => SHOP_ITEMS[id].slot).map((id) => ({
+        label: SHOP_ITEMS[id].name,
+        icon: iconUrl(id),
+        detail: Object.values(state.outfit).includes(id) ? '✔ porté' : 'porter',
+        action: () => commit(toggleWear(state, id)),
+      })),
+      ...[...fishCounts()].map(([id, n]) => ({
+        label: `${FISH[id].name}${n > 1 ? ` ×${n}` : ''}`,
+        icon: fishIconUrl(id),
+        detail: `${FISH[id].rarity} · à vendre ou offrir`,
+        action: () => undefined,
+      })),
+    ],
     'Vide. Gaston vend de quoi embellir l\u2019île… à son prix.',
   );
+}
+
+function fishCounts(): Map<FishId, number> {
+  const counts = new Map<FishId, number>();
+  for (const f of state.fish) counts.set(f, (counts.get(f) ?? 0) + 1);
+  return counts;
 }
 
 function openSlot(slot: SlotId): void {
@@ -285,6 +507,119 @@ function place(slot: SlotId, item: DecoId): void {
   toast(ui!, `★ Valeur de l\u2019île : ${state.islandValue}`, 'good');
   result.reactions.forEach((r, i) => setTimeout(() => toast(ui!, `${CHARACTERS[r.npc].name} : « ${r.line} »`, r.delta < 0 ? 'bad' : 'info'), 900 + i * 1400));
   result.changes.forEach((c, i) => setTimeout(() => showChange(c), 1200 + i * 1400));
+}
+
+// ---------- Fishing ----------
+
+type Fishing = { phase: 'walk' } | { phase: 'wait' | 'bite'; spot: FishSpot; t: number };
+const BITE_WINDOW = 0.9;
+let fishing: Fishing | null = null;
+
+const MARIUS_ON_CATCH: Record<string, string> = {
+  rare: '… Pas mal. La chance du débutant. Moi, j’en ai sorti un deux fois plus gros. En 1987.',
+  légendaire: '… Un poulpe doré ?! … Non. Non non non. C’est MON coin, ça. Depuis trente ans.',
+  déchet: '… Une botte. Au moins, t’as pêché quelque chose.',
+};
+
+function fishHere(): FishSpot | null {
+  return world.fishSpot({ x: Math.round(world.playerPos.x), z: Math.round(world.playerPos.z) }, 1);
+}
+
+function goFish(spot: FishSpot): void {
+  if (busy || interior.isOpen()) return;
+  endTalk();
+  if (state.fish.length >= BAG_FISH_MAX) return toast(ui!, `Ton sac est plein de poissons (${BAG_FISH_MAX}). Va les vendre à Gaston !`, 'info');
+  fishing = { phase: 'walk' };
+  world.walkTo(spot.stand, () => {
+    if (fishing?.phase !== 'walk') return;
+    fishing = { phase: 'wait', spot, t: 1.6 + Math.random() * 3 };
+    world.setFishing(spot.spot);
+    toast(ui!, '🎣 Touche l’écran quand le bouchon plonge !', 'info');
+  });
+}
+
+function stopFishing(): void {
+  fishing = null;
+  world.setFishing(null);
+  fishBtn.classList.remove('bite');
+}
+
+function strike(): void {
+  if (!fishing || fishing.phase === 'walk') return;
+  if (fishing.phase === 'wait') {
+    stopFishing();
+    return toast(ui!, 'Trop tôt ! Le poisson a filé…', 'bad');
+  }
+  stopFishing();
+  const id = rollFish(Math.random());
+  const added = addCatch(state, id);
+  if (!added.ok) return toast(ui!, 'Sac plein !', 'bad');
+  commit(added.state);
+  bang(ui!, 'PLOUF !');
+  void showCatch(ui!, fishIconUrl(id, 96), FISH[id].name, FISH[id].rarity, `Dans ton sac · ${state.fish.length}/${BAG_FISH_MAX}`);
+  const comment = MARIUS_ON_CATCH[FISH[id].rarity === 'légendaire' ? 'légendaire' : FISH[id].rarity === 'rare' ? 'rare' : FISH[id].rarity === 'déchet' ? 'déchet' : ''];
+  if (comment) setTimeout(() => toast(ui!, `Marius : « ${comment} »`, 'info'), 2400);
+}
+
+function updateFishing(dt: number): void {
+  const spot = !busy && !interior.isOpen() && !dialogue.isOpen() && (!fishing || fishing.phase === 'walk') ? fishHere() : null;
+  fishBtn.hidden = !(spot || (fishing && fishing.phase !== 'walk'));
+  fishBtn.textContent = fishing && fishing.phase !== 'walk' ? (fishing.phase === 'bite' ? '❗ Ferrer !' : '🎣 …') : '🎣 Pêcher';
+  if (!fishing || fishing.phase === 'walk') return;
+  fishing.t -= dt;
+  if (fishing.phase === 'wait' && fishing.t <= 0) {
+    fishing = { ...fishing, phase: 'bite', t: BITE_WINDOW };
+    world.setFishing(fishing.spot.spot, true);
+    fishBtn.classList.add('bite');
+    bang(ui!, '!');
+  } else if (fishing.phase === 'bite' && fishing.t <= 0) {
+    stopFishing();
+    toast(ui!, 'Raté… il s’est décroché.', 'bad');
+  }
+}
+
+const fishBtn = el('button', 'action fish-btn', '🎣 Pêcher', { type: 'button' });
+fishBtn.hidden = true;
+fishBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (fishing && fishing.phase !== 'walk') return strike();
+  const spot = fishHere();
+  if (spot) goFish(spot);
+});
+
+function openFishGift(npc: NpcId): void {
+  const counts = fishCounts();
+  sheet(
+    ui!,
+    npc === 'gaston' ? 'Vendre à Gaston' : `Offrir à ${CHARACTERS[npc].name}`,
+    [...counts].map(([id, n]) => ({
+      label: `${FISH[id].name}${n > 1 ? ` ×${n}` : ''}`,
+      icon: fishIconUrl(id),
+      detail: npc === 'gaston' ? `${FISH[id].value} 🪙` : FISH[id].rarity,
+      action: () => void offerFish(npc, id),
+    })),
+    'Aucun poisson. Va pêcher au bord de l’eau !',
+  );
+}
+
+async function offerFish(npc: NpcId, id: FishId): Promise<void> {
+  if (busy) return;
+  const before = state.npcs[npc].relation;
+  const out = giveFish(state, npc, id);
+  if (!out) return;
+  dialogue.playerSaid(npc === 'gaston' ? `Tu m’achètes ce ${FISH[id].name.toLowerCase()} ?` : `Tiens, c’est pour toi : ${FISH[id].name.toLowerCase()}.`, state.playerName);
+  commit(out.state);
+  if (out.coins > 0) toast(ui!, `+${out.coins} 🪙 · ${FISH[id].name}`, 'good');
+  showChange(out.change);
+  const clash = clashFor(before, state.npcs[npc].relation);
+  busy = true;
+  dialogue.setChips([]);
+  const line = dialogue.say(out.line, out.change && out.change.delta < 0 ? 'colere' : 'joie');
+  if (clash === 'slap') await slap(npc);
+  await line;
+  busy = false;
+  if (clash && clash !== 'slap') return runClash(npc, clash);
+  dialogue.setChips(chipsFor(npc, defaultSuggestions(npc)));
 }
 
 // ---------- Absence ----------
@@ -315,11 +650,20 @@ const down = new THREE.Vector2();
 canvas.addEventListener('pointerdown', (e) => down.set(e.clientX, e.clientY));
 canvas.addEventListener('pointerup', (e) => {
   if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > 12 || busy) return;
+  if (fishing && fishing.phase !== 'walk') return strike();
+  fishing = null;
   const ndc = new THREE.Vector2((e.clientX / canvas.clientWidth) * 2 - 1, -(e.clientY / canvas.clientHeight) * 2 + 1);
   const target = world.pick(ndc);
   if (!target) return;
   if (target.kind === 'npc') startTalk(target.npc);
-  else if (target.kind === 'slot') {
+  else if (target.kind === 'building') {
+    endTalk();
+    const b = BUILDINGS.find((x) => x.id === target.building);
+    if (b) world.walkTo(doorTile(b), () => enterBuilding(b.id));
+  } else if (target.kind === 'water') {
+    const spot = world.fishSpot(target.tile, 3);
+    if (spot) goFish(spot);
+  } else if (target.kind === 'slot') {
     endTalk();
     const s = SLOTS.find((x) => x.id === target.slot);
     if (s) world.walkTo({ x: Math.round(s.x), z: Math.round(s.z) + 1 }, () => openSlot(target.slot));
@@ -365,8 +709,14 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyE' || e.code === 'Space' || e.code === 'Enter') {
     e.preventDefault();
     if (dialogue.isOpen()) return dialogue.focusInput();
+    if (interior.isOpen()) return interior.interact();
+    if (fishing && fishing.phase !== 'walk') return strike();
+    const door = world.doorHere();
+    if (door && !world.nearestNpc(1.5)) return enterBuilding(door);
     const near = world.nearestNpc(6);
-    if (near) startTalk(near);
+    if (near) return startTalk(near);
+    const spot = fishHere();
+    if (spot) goFish(spot);
   } else if (e.code === 'KeyI' || e.code === 'KeyB') openBag();
 });
 window.addEventListener('keyup', (e) => held.delete(e.code));
@@ -382,7 +732,12 @@ function keyboardMove(dt: number): void {
       dz += v[1];
     }
   }
-  world.move(busy ? 0 : dx, busy ? 0 : dz, dt);
+  if (busy) dx = dz = 0;
+  if (interior.isOpen()) return interior.move(dx, dz, dt);
+  if ((dx || dz) && fishing) stopFishing();
+  world.move(dx, dz, dt);
+  const door = dz < 0 && dx === 0 ? world.doorHere() : null;
+  if (door) enterBuilding(door);
 }
 
 canvas.addEventListener('pointermove', (e) => {
@@ -393,7 +748,7 @@ canvas.addEventListener('pointermove', (e) => {
 });
 
 if (matchMedia('(pointer: fine)').matches) {
-  ui.append(el('div', 'keys-help', 'ZQSD / flèches : marcher · E : parler · Entrée : écrire · I : sac · Échap : fermer · clic : aller / parler'));
+  ui.append(el('div', 'keys-help', 'ZQSD / flèches : marcher · E : parler / pêcher · Entrée : écrire · I : sac · Échap : fermer · clic : aller / parler'));
 }
 
 window.addEventListener('resize', () => stage.resize());
@@ -410,19 +765,24 @@ function frame(): void {
   const dt = Math.min(timer.getDelta(), 0.1);
   const time = timer.getElapsed();
   keyboardMove(dt);
+  updateFishing(dt);
   world.update(dt, time, new Set(npcsWithIntent(state)));
-  stage.follow(world.playerPos, dt);
-  stage.render();
+  if (interior.isOpen()) interior.update(dt, time);
+  else {
+    stage.follow(world.playerPos, dt);
+    stage.render();
+  }
   hud.setFps(governor(dt));
   requestAnimationFrame(frame);
 }
 
+ui.append(fishBtn);
 commit(state);
 stage.resize();
 requestAnimationFrame(frame);
 
 function applyLook(): void {
-  world.setPlayerSpec(lookSpec(state.look ?? DEFAULT_LOOK, true));
+  syncLook(true);
 }
 
 function talkTip(): void {
@@ -482,11 +842,14 @@ declare global {
       clash: (npc: NpcId, kind: Clash) => Promise<void>;
       pos: () => { x: number; z: number };
       homes: typeof HOMES;
+      enter: (id: BuildingId) => void;
       skin: (skin: PlayerSkin) => void;
+      fish: () => FishSpot | null;
+      strike: () => void;
     };
   }
 }
 /** Hooks for the scripted demo recording (see CLAUDE.md §13). */
-window.ragots = { state: () => state, talk: (npc) => startTalk(npc), say: (text) => onPlayerLine(text), absence, clash: runClash, pos: () => ({ x: world.playerPos.x, z: world.playerPos.z }), homes: HOMES, skin: (skin) => (skin === 'castaway' ? world.setPlayerSkin(skin) : applyLook()) };
+window.ragots = { state: () => state, talk: (npc) => startTalk(npc), say: (text) => onPlayerLine(text), absence, clash: runClash, pos: () => ({ x: world.playerPos.x, z: world.playerPos.z }), homes: HOMES, enter: (id) => enterBuilding(id), skin: (skin) => (skin === 'castaway' ? world.setPlayerSkin(skin) : applyLook()), fish: () => { const spot = world.fishSpot({ x: Math.round(world.playerPos.x), z: Math.round(world.playerPos.z) }, 8); if (spot) goFish(spot); return spot; }, strike };
 if (params.get('skin') === 'castaway') world.setPlayerSkin('castaway');
 
