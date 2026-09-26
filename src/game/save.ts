@@ -9,7 +9,7 @@ export function loadState(): GameState {
   try {
     const parsed: unknown = JSON.parse(raw);
     if (typeof parsed === 'object' && parsed !== null && 'version' in parsed && parsed.version === 1 && 'decor' in parsed) {
-      return parsed as GameState;
+      return { ...createInitialState(), ...(parsed as GameState) };
     }
     console.warn('[save] incompatible save, starting fresh');
   } catch (err) {

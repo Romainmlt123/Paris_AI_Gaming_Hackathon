@@ -37,6 +37,7 @@ export interface SheetItem {
   label: string;
   detail: string;
   disabled?: boolean;
+  icon?: string;
   action: () => void;
 }
 
@@ -53,6 +54,7 @@ export function sheet(host: HTMLElement, title: string, items: SheetItem[], empt
       item.action();
     });
     b.disabled = item.disabled ?? false;
+    if (item.icon) b.append(el('img', 'sheet-icon', '', { src: item.icon, alt: '' }));
     b.append(el('span', 'sheet-label', item.label), el('span', 'sheet-detail', item.detail));
     panel.append(b);
   }

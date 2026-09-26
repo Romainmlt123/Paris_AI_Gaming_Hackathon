@@ -2,8 +2,9 @@ import '@fontsource/pixelify-sans/400.css';
 import '@fontsource/pixelify-sans/700.css';
 import * as THREE from 'three';
 import { CHARACTERS } from '../shared/characters';
-import { buy, CATALOG, haggle, placeDeco, SLOTS, startDeal, type Deal } from '../shared/economy';
+import { buy, CATALOG, haggle, islandValue, placeDeco, SLOTS, startDeal, type Deal } from '../shared/economy';
 import { CONFRONT_SUGGESTIONS, openerLine } from '../shared/opener';
+import { buyItem, islandLevel, ISLAND_LEVELS, lookOf, nextLevel, SHOP_ITEMS, SHOP_OWNER, stockOf, toggleWear, type ShopId } from '../shared/shop';
 import { applySimResult, buildSimRequest } from '../shared/simulate';
 import { applyTalkResult, buildTalkContext, npcsWithIntent } from '../shared/state';
 import { defaultSuggestions } from '../shared/fallback';
@@ -12,8 +13,12 @@ import type { DecoId, GameState, NpcId, RelationChange, SlotId } from '../shared
 import { NPC_IDS } from '../shared/types';
 import { simulate, talk } from './api';
 import { loadState, resetSave, saveState } from './game/save';
-import { createWorld, HOMES } from './game/world';
-import { portraitDataUrl, SPRITES, drawSheet } from './render/sprites';
+import { BUILDINGS, type BuildingId } from './game/map';
+import { createWorld, doorTile, HOMES } from './game/world';
+import { createInterior } from './interior/interior';
+import type { Action } from './interior/layouts';
+import { drawIcon } from './interior/paint';
+import { portraitDataUrl, SPRITES, drawSheet, type SpriteSpec } from './render/sprites';
 import { createQualityGovernor, createStage, type Quality } from './render/stage';
 import { createDialogue, type Chip } from './ui/dialogue';
 import { el } from './ui/dom';
@@ -41,13 +46,17 @@ let busy = false;
 const portraits = Object.fromEntries(NPC_IDS.map((id) => [id, portraitDataUrl(drawSheet(SPRITES[id]))])) as Record<NpcId, string>;
 const hud = createHud(portraits, (id) => startTalk(id), () => void absence(), () => openBag());
 const dialogue = createDialogue(portraits, (text) => void onPlayerLine(text), () => endTalk());
-ui.append(hud.root, dialogue.root);
+const interior = createInterior({ onAction: (a) => onInteriorAction(a), onExit: (id) => leaveBuilding(id) });
+ui.append(interior.root, hud.root, dialogue.root);
+let lookKey = '';
 
 function commit(next: GameState): void {
   state = next;
   saveState(state);
   hud.render(state);
   world.syncDecor(state);
+  interior.refresh(state);
+  syncLook();
   world.setMoods({ gaston: moodOf(state.npcs.gaston.relation), josette: moodOf(state.npcs.josette.relation), marius: moodOf(state.npcs.marius.relation) });
 }
 
@@ -79,7 +88,8 @@ function startTalk(npc: NpcId, initiated = false): void {
     void dialogue.say(line, confront ? 'mefiance' : state.npcs[npc].emotion);
     dialogue.setChips(chipsFor(npc, confront ? CONFRONT_SUGGESTIONS : defaultSuggestions(npc)));
   };
-  if (initiated) world.npcSeekPlayer(npc, open);
+  if (interior.isOpen()) open();
+  else if (initiated) world.npcSeekPlayer(npc, open);
   else world.approachNpc(npc, open);
 }
 
@@ -143,6 +153,11 @@ const LAST_WORDS: Record<NpcId, string> = {
 async function runClash(npc: NpcId, clash: Clash): Promise<void> {
   busy = true;
   endTalk();
+  const inside = interior.current();
+  if (inside) {
+    interior.exit();
+    leaveBuilding(inside);
+  }
   world.setFrozen(npc);
   if (clash === 'fight') await fight(npc);
   else await murder(npc);
@@ -242,6 +257,151 @@ async function haggleLine(text: string): Promise<void> {
   await dialogue.say(outcome.line, 'joie');
 }
 
+// ---------- Houses & shops ----------
+
+const OWNER_SAYS: Record<NpcId, string[]> = {
+  gaston: ['Excellent choix ! Enfin, tous mes choix sont excellents.', 'Vendu ! Et sans garantie, comme d’habitude.', 'Tu repasses quand tu veux, ton porte-monnaie aussi.'],
+  josette: ['Oh, ça t’ira à ravir mon chou ! Je le dirai à tout le monde.', 'Tricoté avec amour. Et un peu de ragots.', 'Tout le village va en parler, crois-moi !'],
+  marius: ['… Prends-en soin. La mer, elle, ne rend rien.', '… Bon choix. Mon père aurait approuvé.', '… Hm. Ça te va.'],
+};
+
+function lookSpec(): SpriteSpec {
+  const look = lookOf(state);
+  const spec: SpriteSpec = { ...SPRITES.player, shirt: look.shirt ?? SPRITES.player.shirt };
+  if (look.scarf) spec.scarf = look.scarf;
+  if (look.hat) {
+    spec.hairStyle = look.hat.style;
+    spec.hat = look.hat.color;
+  }
+  return spec;
+}
+
+function syncLook(): void {
+  const next = JSON.stringify(state.outfit);
+  if (next === lookKey) return;
+  lookKey = next;
+  const spec = lookSpec();
+  world.setPlayerSpec(spec);
+  interior.setPlayerSheet(drawSheet(spec));
+}
+
+function enterBuilding(id: BuildingId): void {
+  if (busy || interior.isOpen()) return;
+  endTalk();
+  held.clear();
+  interior.enter(id, state);
+}
+
+function leaveBuilding(id: BuildingId): void {
+  endTalk();
+  held.clear();
+  const b = BUILDINGS.find((x) => x.id === id);
+  if (b) world.teleportPlayer(doorTile(b));
+}
+
+const iconCache = new Map<string, string>();
+function iconUrl(id: keyof typeof SHOP_ITEMS): string {
+  const hit = iconCache.get(id);
+  if (hit) return hit;
+  const c = document.createElement('canvas');
+  c.width = c.height = 40;
+  const ctx = c.getContext('2d');
+  if (!ctx) return '';
+  drawIcon(ctx, SHOP_ITEMS[id].icon, SHOP_ITEMS[id].color, 4, 4, 32, 32);
+  const url = c.toDataURL();
+  iconCache.set(id, url);
+  return url;
+}
+
+function onInteriorAction(a: Action): void {
+  if (busy || ui!.querySelector('.sheet-back')) return;
+  switch (a.kind) {
+    case 'talk':
+      return startTalk(a.npc);
+    case 'shelf':
+      return openStock(a.shop, a.levels, a.title);
+    case 'locked': {
+      const l = ISLAND_LEVELS.find((x) => x.level === a.level);
+      return toast(ui!, `🔒 Arrive quand l’île sera « ${l?.name ?? ''} » (★${l?.min ?? 0}) · ★${state.islandValue} actuellement`, 'info');
+    }
+    case 'wardrobe':
+      return openWardrobe();
+    case 'bed':
+      return void absence();
+    case 'board':
+      return openBoard();
+    case 'deco':
+      startTalk('gaston');
+      setTimeout(() => openShop(), 300);
+      return;
+    case 'say':
+      return toast(ui!, a.text, 'info');
+  }
+}
+
+function openStock(shop: ShopId, levels: number[], title: string): void {
+  const owner = SHOP_OWNER[shop];
+  const entries = stockOf(state, shop).filter((e) => levels.includes(e.item.level));
+  sheet(
+    ui!,
+    `${title} · ${CHARACTERS[owner].name}`,
+    entries.map((e) => ({
+      label: e.item.name,
+      icon: iconUrl(e.item.id),
+      detail: e.owned ? (e.item.slot ? 'À toi · armoire' : 'Déjà chez toi') : e.locked ? `🔒 île niv. ${e.item.level}` : `${e.price} 🪙 · ${e.item.slot ? 'se porte' : `★${e.item.prestige}`}`,
+      disabled: e.owned || e.locked || state.coins < e.price,
+      action: () => buyShopItem(e.item.id),
+    })),
+    'Rayon vide.',
+  );
+}
+
+function buyShopItem(id: keyof typeof SHOP_ITEMS): void {
+  const levelBefore = islandLevel(state.islandValue).level;
+  const res = buyItem(state, id, islandValue);
+  if (!res.ok) return toast(ui!, res.reason === 'coins' ? 'Pas assez de pièces…' : 'Indisponible.', 'bad');
+  commit(res.state);
+  const it = SHOP_ITEMS[id];
+  const owner = SHOP_OWNER[it.shop];
+  toast(ui!, `${it.name} −${res.price} 🪙 ${it.slot ? '· tu le portes !' : `→ chez toi · ★${state.islandValue}`}`, 'good');
+  const lines = OWNER_SAYS[owner];
+  setTimeout(() => toast(ui!, `${CHARACTERS[owner].name} : « ${lines[state.nextId % lines.length] ?? ''} »`, 'info'), 1300);
+  const lvl = islandLevel(state.islandValue);
+  if (lvl.level > levelBefore) setTimeout(() => toast(ui!, `🎉 L’île devient « ${lvl.name} » ! Les boutiques s’agrandissent.`, 'good'), 2700);
+}
+
+function openWardrobe(): void {
+  const clothes = state.owned.filter((id) => SHOP_ITEMS[id].slot);
+  sheet(
+    ui!,
+    'Garde-robe',
+    clothes.map((id) => ({
+      label: SHOP_ITEMS[id].name,
+      icon: iconUrl(id),
+      detail: Object.values(state.outfit).includes(id) ? '✔ porté · retirer' : 'porter',
+      action: () => commit(toggleWear(state, id)),
+    })),
+    'Aucun vêtement. Josette et Marius en vendent.',
+  );
+}
+
+function openBoard(): void {
+  const lvl = islandLevel(state.islandValue);
+  const next = nextLevel(state.islandValue);
+  sheet(
+    ui!,
+    `Île « ${lvl.name} » · ★${state.islandValue}`,
+    ISLAND_LEVELS.map((l) => ({
+      label: `${l.level <= lvl.level ? '✔' : '🔒'} Niv. ${l.level} · ${l.name}`,
+      detail: `★${l.min}`,
+      disabled: l.level > lvl.level,
+      action: () => undefined,
+    })),
+    '',
+  );
+  if (next) toast(ui!, `Encore ★${next.min - state.islandValue} pour « ${next.name} » : décore l’île et meuble ta maison !`, 'info');
+}
+
 // ---------- Decoration ----------
 
 function openBag(): void {
@@ -250,7 +410,15 @@ function openBag(): void {
   sheet(
     ui!,
     'Ton sac',
-    [...counts].map(([id, n]) => ({ label: `${CATALOG[id].name}${n > 1 ? ` ×${n}` : ''}`, detail: 'Touche un cercle sur l\u2019île pour le poser', action: () => undefined })),
+    [
+      ...[...counts].map(([id, n]) => ({ label: `${CATALOG[id].name}${n > 1 ? ` ×${n}` : ''}`, detail: 'Touche un cercle sur l\u2019île pour le poser', action: () => undefined })),
+      ...state.owned.filter((id) => SHOP_ITEMS[id].slot).map((id) => ({
+        label: SHOP_ITEMS[id].name,
+        icon: iconUrl(id),
+        detail: Object.values(state.outfit).includes(id) ? '✔ porté' : 'porter',
+        action: () => commit(toggleWear(state, id)),
+      })),
+    ],
     'Vide. Gaston vend de quoi embellir l\u2019île… à son prix.',
   );
 }
@@ -306,7 +474,11 @@ canvas.addEventListener('pointerup', (e) => {
   const target = world.pick(ndc);
   if (!target) return;
   if (target.kind === 'npc') startTalk(target.npc);
-  else if (target.kind === 'slot') {
+  else if (target.kind === 'building') {
+    endTalk();
+    const b = BUILDINGS.find((x) => x.id === target.building);
+    if (b) world.walkTo(doorTile(b), () => enterBuilding(b.id));
+  } else if (target.kind === 'slot') {
     endTalk();
     const s = SLOTS.find((x) => x.id === target.slot);
     if (s) world.walkTo({ x: Math.round(s.x), z: Math.round(s.z) + 1 }, () => openSlot(target.slot));
@@ -352,6 +524,9 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyE' || e.code === 'Space' || e.code === 'Enter') {
     e.preventDefault();
     if (dialogue.isOpen()) return dialogue.focusInput();
+    if (interior.isOpen()) return interior.interact();
+    const door = world.doorHere();
+    if (door && !world.nearestNpc(1.5)) return enterBuilding(door);
     const near = world.nearestNpc(6);
     if (near) startTalk(near);
   } else if (e.code === 'KeyI' || e.code === 'KeyB') openBag();
@@ -369,7 +544,11 @@ function keyboardMove(dt: number): void {
       dz += v[1];
     }
   }
-  world.move(busy ? 0 : dx, busy ? 0 : dz, dt);
+  if (busy) dx = dz = 0;
+  if (interior.isOpen()) return interior.move(dx, dz, dt);
+  world.move(dx, dz, dt);
+  const door = dz < 0 && dx === 0 ? world.doorHere() : null;
+  if (door) enterBuilding(door);
 }
 
 canvas.addEventListener('pointermove', (e) => {
@@ -398,8 +577,11 @@ function frame(): void {
   const time = timer.getElapsed();
   keyboardMove(dt);
   world.update(dt, time, new Set(npcsWithIntent(state)));
-  stage.follow(world.playerPos, dt);
-  stage.render();
+  if (interior.isOpen()) interior.update(dt, time);
+  else {
+    stage.follow(world.playerPos, dt);
+    stage.render();
+  }
   hud.setFps(governor(dt));
   requestAnimationFrame(frame);
 }
@@ -418,8 +600,9 @@ declare global {
       clash: (npc: NpcId, kind: Clash) => Promise<void>;
       pos: () => { x: number; z: number };
       homes: typeof HOMES;
+      enter: (id: BuildingId) => void;
     };
   }
 }
 /** Hooks for the scripted demo recording (see CLAUDE.md §13). */
-window.ragots = { state: () => state, talk: (npc) => startTalk(npc), say: (text) => onPlayerLine(text), absence, clash: runClash, pos: () => ({ x: world.playerPos.x, z: world.playerPos.z }), homes: HOMES };
+window.ragots = { state: () => state, talk: (npc) => startTalk(npc), say: (text) => onPlayerLine(text), absence, clash: runClash, pos: () => ({ x: world.playerPos.x, z: world.playerPos.z }), homes: HOMES, enter: (id) => enterBuilding(id) };

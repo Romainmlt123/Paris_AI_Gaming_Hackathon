@@ -9,11 +9,11 @@ import { createBuildings } from '../render/buildings';
 import { createDeco, slotMarker } from '../render/decor';
 import { createBushes, createFlowers, createRocks, createTrees, type Swaying } from '../render/props';
 import { createGrass } from '../render/grass';
-import { SPRITES } from '../render/sprites';
+import { SPRITES, type SpriteSpec } from '../render/sprites';
 import type { Stage } from '../render/stage';
 import { createTerrain, type Terrain } from '../render/terrain';
 import { createWater, type Water } from '../render/water';
-import { canStep, findPath, generateMap, kindAt, nearestWalkable, surfaceHeight, type Tile, type TileMap } from './map';
+import { canStep, findPath, generateMap, kindAt, nearestWalkable, surfaceHeight, type Building, type BuildingId, type Tile, type TileMap } from './map';
 
 const SPEED = 3.2;
 const NPC_SPEED = 1.4;
@@ -41,7 +41,16 @@ export const HOMES: Record<NpcId, Tile> = {
   marius: { x: 14, z: 24 },
 };
 
-export type TapTarget = { kind: 'npc'; npc: NpcId } | { kind: 'slot'; slot: SlotId } | { kind: 'ground'; tile: Tile };
+export type TapTarget =
+  | { kind: 'npc'; npc: NpcId }
+  | { kind: 'slot'; slot: SlotId }
+  | { kind: 'building'; building: BuildingId }
+  | { kind: 'ground'; tile: Tile };
+
+/** Walkable tile right in front of a building's door. */
+export function doorTile(b: Building): Tile {
+  return { x: b.x + Math.round((b.w - 1) / 2), z: b.z + b.d };
+}
 
 export interface World {
   map: TileMap;
@@ -68,6 +77,9 @@ export interface World {
   /** The NPC lunges with its weapon; `onHit` fires on impact, then the player's ghost floats away. */
   murder(id: NpcId, onHit: () => void): Promise<void>;
   revive(): void;
+  setPlayerSpec(spec: SpriteSpec): void;
+  /** Building whose door the player stands in front of. */
+  doorHere(): BuildingId | null;
 }
 
 function tileY(map: TileMap, x: number, z: number): number {
@@ -121,7 +133,9 @@ export function createWorld(stage: Stage): World {
   const grass = createGrass(map);
   let grassQuality = stage.quality;
   grass.setQuality(grassQuality);
-  stage.scene.add(terrain.group, water.mesh, trees.group, grass.mesh, createBushes(map), createRocks(map), createFlowers(map), createBuildings(map));
+  stage.scene.add(terrain.group, water.mesh, trees.group, grass.mesh, createBushes(map), createRocks(map), createFlowers(map));
+  const buildings = createBuildings(map);
+  stage.scene.add(buildings);
 
   const player = makeActor(createActorView(SPRITES.player, 'player'), { x: 12, z: 20 }, map, SPEED);
   stage.scene.add(player.view.root);
@@ -234,6 +248,11 @@ export function createWorld(stage: Stage): World {
         const s = SLOTS.find((x) => x.id === slot);
         if (s) return { kind: 'slot', slot: s.id };
       }
+      const hitBuilding = raycaster.intersectObject(buildings, true)[0];
+      for (let o: THREE.Object3D | null = hitBuilding?.object ?? null; o; o = o.parent) {
+        const b = map.buildings.find((x) => x.id === o?.userData['building']);
+        if (b) return { kind: 'building', building: b.id };
+      }
       const hitGround = raycaster.intersectObjects(terrain.pickables, false)[0];
       if (hitGround && hitGround.instanceId !== undefined) {
         const tile = terrain.tileOf(hitGround.object, hitGround.instanceId);
@@ -314,6 +333,16 @@ export function createWorld(stage: Stage): World {
         grassQuality = stage.quality;
         grass.setQuality(grassQuality);
       }
+    },
+    setPlayerSpec(spec) {
+      player.view.setSpec(spec);
+    },
+    doorHere() {
+      const t = roundTile(player.pos);
+      return map.buildings.find((b) => {
+        const d = doorTile(b);
+        return d.x === t.x && d.z === t.z;
+      })?.id ?? null;
     },
     teleportPlayer(tile) {
       player.path = [];

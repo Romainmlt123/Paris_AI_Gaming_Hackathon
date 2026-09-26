@@ -1,6 +1,7 @@
 import { classifyMessage } from './fallback';
 import { applyRelationDelta, clamp, tierOf } from './relations';
 import { pick, hashString } from './rng';
+import { homePrestige } from './shop';
 import type { DecoId, GameState, NpcId, RelationChange, SlotId } from './types';
 
 export interface Deco {
@@ -31,7 +32,7 @@ export const SLOTS: readonly { id: SlotId; name: string; x: number; z: number }[
 export function islandValue(state: GameState): number {
   let total = 0;
   for (const deco of Object.values(state.decor)) if (deco) total += CATALOG[deco].prestige;
-  return total;
+  return total + homePrestige(state);
 }
 
 // ---------- Haggling with Gaston ----------

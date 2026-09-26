@@ -71,3 +71,12 @@ Mémoire du projet : fait, reste, décisions, pièges.
   - Marius `RyPxucblPbKsz0Xp` : vieux pêcheur provençal, lent, grave, soupirs.
 - Émotion → `padding_bonus`/`temp` (colère/joie plus vite, tristesse plus lent). `…` → `<break time="0.5s" />`.
 - Bouton 🔊/🔇 dans le HUD (localStorage `ragots.sound`).
+
+## Intérieurs & boutiques (src/interior/, shared/shop.ts)
+- Tap sur un bâtiment (ou flèche haut / E devant la porte) → marche jusqu'à la porte puis intérieur 2D vue de dessus (canvas 384×352, grille 12×11, pixel-art procédural, pas d'asset).
+- Sortie : bouton 🚪 ou revenir sur le paillasson. Tap sol = BFS local, tap meuble/rayon = s'approche + interagit.
+- Échoppe (Gaston) : meubles. Boulangerie (Josette) : tricots/vêtements + cabine. Cabane (Marius) : marin & nautique. Mairie : tableau de progression. Maison : lit (dormir), armoire (garde-robe), meubles achetés posés sur des emplacements fixes.
+- Niveaux d'île par valeur ★ : Hameau 0, Village 150, Port de plaisance 450. Les rayons verrouillés affichent « Niv.N » sur fond hachuré.
+- Prix × relation au propriétaire (Ennemi 1,5 → Confident 0,8). Meuble = prestige ajouté à `islandValue` (via `homePrestige`). Vêtement porté immédiatement (slots hat/top/scarf), sprite joueur redessiné (`setSpec`).
+- Sauvegarde : `owned`, `outfit` ; les vieilles sauvegardes sont complétées par `createInitialState()`.
+- Hook démo : `ragots.enter('echoppe' | 'boulangerie' | 'cabane' | 'mairie' | 'maison')`.

@@ -118,6 +118,7 @@ function buildingMesh(b: Building, groundY: number): THREE.Group {
   }
   if (b.id === 'mairie') g.add(flagPole(w, style.height));
   g.position.set(b.x + (b.w - 1) / 2, groundY, b.z + (b.d - 1) / 2);
+  g.userData['building'] = b.id;
   return g;
 }
 

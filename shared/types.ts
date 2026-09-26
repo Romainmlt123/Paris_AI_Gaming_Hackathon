@@ -52,6 +52,12 @@ export interface RelationChange {
 export type DecoId = 'parterre' | 'banc' | 'lampadaire' | 'fontaine' | 'statue';
 export type SlotId = 'placette' | 'falaise' | 'ponton' | 'mairie' | 'boulangerie';
 
+export type ShopItemId =
+  | 'tabouret' | 'tapis' | 'table' | 'lampe' | 'plante' | 'fauteuil' | 'bibliotheque' | 'canape' | 'lustre' | 'piano' | 'trone'
+  | 'echarpe' | 'beret' | 'pompon' | 'pull' | 'gala'
+  | 'mariniere' | 'bonnet' | 'bouee' | 'cire' | 'aquarium' | 'capitaine' | 'voilier';
+export type OutfitSlot = 'hat' | 'top' | 'scarf';
+
 export interface GameState {
   version: 1;
   nextId: number;
@@ -62,6 +68,9 @@ export interface GameState {
   islandValue: number;
   inventory: DecoId[];
   decor: Record<SlotId, DecoId | null>;
+  /** Furniture and clothes bought in the island shops. */
+  owned: ShopItemId[];
+  outfit: Record<OutfitSlot, ShopItemId | null>;
   npcs: Record<NpcId, NpcState>;
   /** Affinity between NPCs, keyed by `bondKey`. 0..100. */
   bonds: Record<string, number>;
