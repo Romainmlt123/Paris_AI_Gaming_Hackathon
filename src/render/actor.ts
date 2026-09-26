@@ -133,8 +133,11 @@ export function createActorView(spec: SpriteSpec, name: string): ActorView {
       const frame = walking ? 1 + (Math.floor(time * 8) % 2) : 0;
       setFrame(tex, frame, facing);
       sprite.scale.x = flip ? -1 : 1;
-      censor.mesh.visible = naked && facing === 'down' && !down;
+      censor.mesh.visible = naked && facing !== 'up' && !down;
       if (censor.mesh.visible) {
+        const side = facing === 'side';
+        censor.mesh.scale.x = side ? 0.55 : 1;
+        censor.mesh.position.x = side ? (flip ? -0.15 : 0.15) : 0;
         censor.update(time);
         censor.mesh.position.y = 0.36 - (walking ? 0.03 : 0);
       }

@@ -10,7 +10,7 @@ import { createLife } from '../render/life';
 import { createDeco, slotMarker } from '../render/decor';
 import { createBushes, createFlowers, createRocks, createTrees, type Swaying } from '../render/props';
 import { createGrass } from '../render/grass';
-import { SPRITES, type SpriteSpec } from '../render/sprites';
+import { SPRITES, type Facing, type SpriteSpec } from '../render/sprites';
 import type { Stage } from '../render/stage';
 import { createTerrain, type Terrain } from '../render/terrain';
 import { createWater, type Water } from '../render/water';
@@ -27,7 +27,7 @@ interface Actor {
   view: ActorView;
   pos: THREE.Vector3;
   path: Tile[];
-  facing: 'down' | 'up';
+  facing: Facing;
   flip: boolean;
   speed: number;
   onArrive: (() => void) | null;
@@ -121,7 +121,7 @@ export interface World {
   placeNpc(id: NpcId, tile: Tile): void;
   /** Scripted walk; resolves on arrival (or immediately if unreachable). */
   walk(who: 'player' | NpcId, tile: Tile, speed?: number): Promise<void>;
-  face(who: 'player' | NpcId, facing: 'down' | 'up', flip?: boolean): void;
+  face(who: 'player' | NpcId, facing: Facing, flip?: boolean): void;
   setPlayerDown(down: boolean): void;
   /** Shows a raft at `pos` (null hides it); while `riding`, the player stands on it. */
   setRaft(pos: THREE.Vector3 | null, riding: boolean): void;
@@ -178,8 +178,7 @@ function stepActor(actor: Actor, map: TileMap, dt: number, time: number): void {
       actor.pos.x += (dx / dist) * step;
       actor.pos.z += (dz / dist) * step;
     }
-    if (Math.abs(dz) > 0.01) actor.facing = dz < 0 ? 'up' : 'down';
-    if (Math.abs(dx) > 0.01) actor.flip = dx < 0;
+    turn(actor, dx, dz);
     if (actor.path.length === 0 && actor.onArrive) {
       const cb = actor.onArrive;
       actor.onArrive = null;
@@ -190,6 +189,14 @@ function stepActor(actor: Actor, map: TileMap, dt: number, time: number): void {
   actor.pos.y += (targetY - actor.pos.y) * Math.min(1, dt * 12);
   actor.view.root.position.copy(actor.pos);
   actor.view.setPose(actor.path.length > 0 || actor.manual, actor.facing, actor.flip, time);
+}
+
+/** Profile when moving mostly sideways, otherwise front/back. */
+function turn(actor: Actor, dx: number, dz: number): void {
+  if (Math.abs(dx) < 0.01 && Math.abs(dz) < 0.01) return;
+  if (Math.abs(dx) > Math.abs(dz) * 1.2) actor.facing = 'side';
+  else actor.facing = dz < 0 ? 'up' : 'down';
+  if (Math.abs(dx) > 0.01) actor.flip = dx < 0;
 }
 
 const WATER_Y = -0.1;
@@ -526,10 +533,8 @@ export function createWorld(stage: Stage): World {
       const n = npc(id);
       const dx = n.pos.x - player.pos.x;
       const dz = n.pos.z - player.pos.z;
-      player.flip = dx < -0.1;
-      player.facing = dz < -0.3 ? 'up' : 'down';
-      n.flip = dx > 0.1;
-      n.facing = dz > 0.3 ? 'up' : 'down';
+      turn(player, dx, dz);
+      turn(n, -dx, -dz);
     },
     syncDecor(state) {
       for (const slot of SLOTS) {
@@ -616,8 +621,7 @@ export function createWorld(stage: Stage): World {
       };
       tryAxis(player.pos.x + dx * step, player.pos.z);
       tryAxis(player.pos.x, player.pos.z + dz * step);
-      if (Math.abs(dz) > 0.01) player.facing = dz < 0 ? 'up' : 'down';
-      if (Math.abs(dx) > 0.01) player.flip = dx < 0;
+      turn(player, dx, dz);
     },
     nearestNpc(range) {
       let best: NpcId | null = null;
@@ -772,8 +776,7 @@ export function createWorld(stage: Stage): World {
         player.path = [];
         const dx = spot.x - player.pos.x;
         const dz = spot.z - player.pos.z;
-        if (Math.abs(dx) > 0.1) player.flip = dx < 0;
-        player.facing = dz < -0.3 ? 'up' : 'down';
+        turn(player, dx, dz);
       }
     },
     revive() {
