@@ -47,6 +47,7 @@ function bubbleSprite(): THREE.Sprite {
 const MOSAIC_COLS = 6;
 const MOSAIC_ROWS = 4;
 const MOSAIC_SHADE = new THREE.Color('#7a4c3e');
+const MOSAIC_LIGHT = new THREE.Color('#fff0e0');
 
 /** Discreet square-block censor mosaic in muted skin tones, slowly shuffling. */
 function censorMosaic(skin: string): { mesh: THREE.Mesh; update(time: number): void; setSkin(skin: string): void } {
@@ -63,13 +64,14 @@ function censorMosaic(skin: string): { mesh: THREE.Mesh; update(time: number): v
   let base = new THREE.Color(skin);
   const draw = (): void => {
     for (let y = 0; y < MOSAIC_ROWS; y++) for (let x = 0; x < MOSAIC_COLS; x++) {
-      ctx.fillStyle = base.clone().lerp(MOSAIC_SHADE, 0.1 + Math.random() * 0.38).getStyle();
+      const k = Math.random();
+      ctx.fillStyle = (k < 0.25 ? base.clone().lerp(MOSAIC_LIGHT, 0.35 * k * 4) : base.clone().lerp(MOSAIC_SHADE, 0.1 + (k - 0.25) * 0.7)).getStyle();
       ctx.fillRect(x, y, 1, 1);
     }
     tex.needsUpdate = true;
   };
   draw();
-  const w = 0.38;
+  const w = 0.42;
   const h = (w * MOSAIC_ROWS) / MOSAIC_COLS;
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshLambertMaterial({ map: tex }));
   mesh.position.set(0, 0.36, 0.02);
