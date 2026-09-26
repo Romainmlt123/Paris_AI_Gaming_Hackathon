@@ -79,6 +79,7 @@ function chipsFor(npc: NpcId, suggestions: string[]): Chip[] {
 function startTalk(npc: NpcId, initiated = false): void {
   if (busy || dialogue.current() === npc) return;
   seeking = null;
+  world.stopSeeking();
   dialogue.close();
   deal = null;
   const open = (): void => {

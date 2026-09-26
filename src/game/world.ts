@@ -17,7 +17,10 @@ import { canStep, findPath, generateMap, kindAt, nearestWalkable, surfaceHeight,
 
 const SPEED = 3.2;
 const NPC_SPEED = 1.4;
-const SEEK_TRIES = 4;
+const SEEK_SPEED = 3;
+const SEEK_REACH = 1.6;
+const SEEK_GIVE_UP_SEC = 60;
+const REPATH_SEC = 0.4;
 
 interface Actor {
   view: ActorView;
@@ -35,6 +38,10 @@ interface Npc extends Actor {
   home: Tile;
   anchor: Tile;
   idle: number;
+  /** Set while the NPC is catching up with the player; fires once it is next to them (or gives up). */
+  seek: (() => void) | null;
+  seekLeft: number;
+  repath: number;
 }
 
 export const HOMES: Record<NpcId, Tile> = {
@@ -61,6 +68,8 @@ export interface World {
   /** Distance in tiles from an NPC to the player, or to another NPC. */
   distance(id: NpcId, other?: NpcId): number;
   isBusy(id: NpcId): boolean;
+  /** Cancels every NPC currently chasing the player. */
+  stopSeeking(): void;
   /** The player is walking toward something with an arrival callback (e.g. an NPC to talk to). */
   playerHasErrand(): boolean;
   facePlayerToward(id: NpcId): void;
@@ -139,7 +148,7 @@ export function createWorld(stage: Stage): World {
   stage.scene.add(player.view.root);
   const npcs = new Map<NpcId, Npc>();
   for (const id of NPC_IDS) {
-    const npc: Npc = { ...makeActor(createActorView(SPRITES[id], id), HOMES[id], map, NPC_SPEED), id, home: HOMES[id], anchor: HOMES[id], idle: 1 + Math.random() * 2 };
+    const npc: Npc = { ...makeActor(createActorView(SPRITES[id], id), HOMES[id], map, NPC_SPEED), id, home: HOMES[id], anchor: HOMES[id], seek: null, seekLeft: 0, repath: 0, idle: 1 + Math.random() * 2 };
     npcs.set(id, npc);
     stage.scene.add(npc.view.root);
   }
@@ -217,8 +226,27 @@ export function createWorld(stage: Stage): World {
     return nearestWalkable(map, t.x, t.z, 2);
   }
 
+  function endSeek(n: Npc): void {
+    const cb = n.seek;
+    n.seek = null;
+    n.speed = NPC_SPEED;
+    n.path = [];
+    cb?.();
+  }
+
+  function follow(n: Npc, dt: number): void {
+    if (!n.seek || frozen === n.id) return;
+    n.seekLeft -= dt;
+    if (n.seekLeft <= 0 || Math.hypot(n.pos.x - player.pos.x, n.pos.z - player.pos.z) <= SEEK_REACH) return endSeek(n);
+    n.repath -= dt;
+    if (n.repath > 0 && n.path.length > 0) return;
+    n.repath = REPATH_SEC;
+    const spot = besideTile(player.pos, n.pos);
+    if (spot) route(n, spot, null);
+  }
+
   function wander(n: Npc, dt: number): void {
-    if (n.path.length > 0 || frozen === n.id) return;
+    if (n.path.length > 0 || frozen === n.id || n.seek) return;
     n.idle -= dt;
     if (n.idle > 0) return;
     n.idle = 2 + Math.random() * 4;
@@ -269,14 +297,20 @@ export function createWorld(stage: Stage): World {
     npcSeekPlayer(id, onArrive) {
       const n = npc(id);
       frozen = null;
-      let tries = 0;
-      const chase = (): void => {
-        const close = Math.hypot(n.pos.x - player.pos.x, n.pos.z - player.pos.z) <= 1.6;
-        const spot = close ? null : besideTile(player.pos, n.pos);
-        if (!spot || tries++ >= SEEK_TRIES || !route(n, spot, chase)) onArrive();
-      };
-      player.path = [];
-      chase();
+      n.path = [];
+      n.onArrive = null;
+      n.seek = onArrive;
+      n.seekLeft = SEEK_GIVE_UP_SEC;
+      n.repath = 0;
+      n.speed = SEEK_SPEED;
+    },
+    stopSeeking() {
+      for (const n of npcs.values()) {
+        if (!n.seek) continue;
+        n.seek = null;
+        n.speed = NPC_SPEED;
+        n.path = [];
+      }
     },
     setFrozen(id) {
       frozen = id;
@@ -293,7 +327,8 @@ export function createWorld(stage: Stage): World {
       return player.onArrive !== null;
     },
     isBusy(id) {
-      return frozen === id || npc(id).onArrive !== null;
+      const n = npc(id);
+      return frozen === id || n.onArrive !== null || n.seek !== null;
     },
     facePlayerToward(id) {
       const n = npc(id);
@@ -328,6 +363,7 @@ export function createWorld(stage: Stage): World {
       }
       stepActor(player, map, dt, time);
       for (const n of npcs.values()) {
+        follow(n, dt);
         wander(n, dt);
         stepActor(n, map, dt, time);
         n.view.setBubble(intents.has(n.id), time);
