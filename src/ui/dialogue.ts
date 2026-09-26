@@ -84,7 +84,7 @@ export function createDialogue(portraits: Record<NpcId, string>, onSend: (text: 
     mic.dataset['mode'] = mode;
     mic.textContent = mode === 'rec' ? '■' : mode === 'wait' ? '…' : '🎤';
     mic.disabled = mode === 'wait';
-    input.placeholder = mode === 'rec' ? 'Je t\u2019écoute… (touche ■ pour finir)' : mode === 'wait' ? 'Transcription…' : 'Écris ta réplique…';
+    input.placeholder = mode === 'rec' ? 'Connexion au micro…' : mode === 'wait' ? 'Transcription…' : 'Écris ta réplique…';
   };
   const cancelRecording = (): void => {
     if (recording || mic.dataset['mode'] === 'rec') input.value = '';
@@ -125,6 +125,10 @@ export function createDialogue(portraits: Record<NpcId, string>, onSend: (text: 
       },
       (live) => {
         if (session === micSession) input.value = live.slice(0, MAX_LINE);
+      },
+      (live) => {
+        if (session !== micSession || mic.dataset['mode'] !== 'rec') return;
+        input.placeholder = live ? 'Parle, je t\u2019écris en direct… (■ pour finir)' : 'Je t\u2019écoute… (texte à la fin, ■ pour finir)';
       },
     )
       .then((rec) => {
