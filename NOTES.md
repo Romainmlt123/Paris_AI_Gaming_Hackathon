@@ -9,10 +9,11 @@ Mémoire du projet : fait, reste, décisions, pièges.
 - `/api/talk` et `/api/simulate` : Gemini (`gemini-3.8-flash`, JSON mode, timeout 7 s / 9 s), repli systématique.
 - Rendu HD-2D : île en tuiles instanciées (carte procédurale 24×30 + A*), eau shader (écume, dégradé), arbres/rochers/fleurs, 5 bâtiments, sprites pixel art générés en canvas avec vraies ombres (customDepthMaterial), bloom + tilt-shift, 3 niveaux de qualité + gouverneur fps.
 - UI DOM : HUD (jour, ★ valeur, pièces, 3 jauges), dialogue typewriter + suggestions + saisie au-dessus du clavier (`--kb` via visualViewport), récap d'absence, toasts, bottom sheets (sac, échoppe, slots).
+- Branche `dev-Nassim` (game design) : récolte one-tap (🐚/🍎/🦪, respawn quotidien) revendue à Gaston en marchandage inversé ; poser une déco crée un fait (rumeur flatteuse qui circule) ; contester une rumeur (« C'est exagéré ! ») — le code tranche selon `distortion >= 2` ; récompenses de palier persistantes (`shared/perks.ts`) ; gains positifs dégressifs par habitant et par jour (1, 1, ½, ¼, 0) ; l'absence joue le cycle jour/nuit (`stage.setClock`) pendant la simulation.
 - Démo section 12 jouable de bout en bout, vérifiée en Playwright 390×844. Hooks `window.ragots` pour l'enregistrement scripté.
 
 ## Reste
-- Voix Gradium (TTS habitants), activités (pêche, cueillette), objets à montrer/offrir.
+- Voix Gradium (TTS habitants), activités (pêche), objets à montrer/offrir.
 - Lumière plus « fin de journée » (teinte, ombre de feuillage mouvante), portraits expressifs.
 - Perf réelle sur téléphone (le headless tourne en SwiftShader ≈ 10-15 fps, non représentatif).
 
@@ -22,6 +23,8 @@ Mémoire du projet : fait, reste, décisions, pièges.
 - Sprites générés par code (canvas) : 100 % originaux, zéro asset externe.
 - La simulation d'absence fusionne IA + règles (`mergeSim`) : la rumeur Marius → Josette est garantie même si l'IA l'omet.
 - L'habitant qui vient parler en premier après le récap = premier « veut te parler » du récap (Josette dans la démo).
+- Contestation : l'IA ne décide jamais si une rumeur est exagérée. `judgeContest` compare la rumeur au fait ; le verdict est imposé au prompt et au fallback.
+- Lumière pilotée par `state.clock` : l'île reste lisible la nuit (clair de lune, pas du noir).
 - `?reset` efface la sauvegarde, `?q=low|mid|high` force la qualité.
 
 ## Pièges
@@ -29,3 +32,4 @@ Mémoire du projet : fait, reste, décisions, pièges.
 - Le secret Devin s'appelle `GOOGLE_STUDIO_KEY` : `server/gemini.ts` accepte aussi `GEMINI_API_KEY`.
 - InstancedMesh + BoxGeometry : passer UN matériau (pas un tableau d'un seul), sinon 5 faces sur 6 disparaissent.
 - Les emojis n'apparaissent pas en headless (pas de police emoji), OK sur téléphone.
+- Nuit : `nightness(minutes)` (stage) pilote eau (uNight : bleu nuit, reflets d'étoiles, reflet de lune), halos des fenêtres/lampadaires, lucioles et thème HUD `body.is-night` (cards bleu nuit). La fin d'après-midi (≤ 19h30) est inchangée.

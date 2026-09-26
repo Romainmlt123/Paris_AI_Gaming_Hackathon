@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { Building, BuildingId, TileMap } from '../game/map';
 import { kindAt, surfaceHeight } from '../game/map';
+import { halo } from './night';
 import { awning, P, planks, plaster, roofTiles, signTexture, stoneWall } from './textures';
 
 interface Style {
@@ -49,7 +50,11 @@ function roof(w: number, d: number, color: string): THREE.Mesh {
 
 function windowMesh(): THREE.Mesh {
   const mat = new THREE.MeshStandardMaterial({ color: P.window, emissive: P.window, emissiveIntensity: 0.9 });
+  mat.userData['glow'] = 0.9;
   const m = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.3, 0.05), mat);
+  const light = halo(0xffb65c, 1.3);
+  light.position.z = 0.12;
+  m.add(light);
   const frame = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.38, 0.03), new THREE.MeshLambertMaterial({ color: P.plankDark }));
   frame.position.z = -0.015;
   m.add(frame);

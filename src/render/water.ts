@@ -47,17 +47,27 @@ const fragment = /* glsl */ `
   uniform vec3 uDeep;
   uniform vec3 uShallow;
   uniform vec3 uFoam;
+  uniform float uNight;
   varying vec2 vShoreUv;
   varying vec2 vWorld;
   void main() {
     float land = texture2D(uShore, clamp(vShoreUv, 0.0, 1.0)).r;
     float ripple = sin(vWorld.x * 1.7 + uTime * 0.9) * sin(vWorld.y * 1.3 - uTime * 0.7);
-    vec3 col = mix(uDeep, uShallow, smoothstep(0.02, 0.55, land + ripple * 0.03));
+    vec3 deep = mix(uDeep, vec3(0.012, 0.03, 0.11), uNight);
+    vec3 shallow = mix(uShallow, vec3(0.04, 0.12, 0.28), uNight);
+    vec3 foam = mix(uFoam, vec3(0.45, 0.55, 0.85), uNight);
+    vec3 col = mix(deep, shallow, smoothstep(0.02, 0.55, land + ripple * 0.03));
     float edge = smoothstep(0.42, 0.5, land);
-    col = mix(col, uFoam, edge * 0.9);
+    col = mix(col, foam, edge * 0.9);
     float band = smoothstep(0.2, 0.28, land) * (1.0 - smoothstep(0.36, 0.42, land));
     float wave = step(0.55, sin(land * 60.0 - uTime * 1.8) * 0.5 + 0.5);
-    col = mix(col, uFoam, band * wave * 0.55);
+    col = mix(col, foam, band * wave * 0.55);
+    vec2 cell = floor(vWorld * 2.0);
+    float h = fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453);
+    float star = step(0.985, h) * smoothstep(0.1, 0.0, length(fract(vWorld * 2.0) - 0.5)) * (0.5 + 0.5 * sin(uTime * 3.0 + h * 40.0));
+    float glade = exp(-pow((vWorld.x - 18.0) / 1.4, 2.0) - pow((vWorld.y - 36.0) / 6.0, 2.0));
+    float shimmer = 0.6 + 0.4 * sin(vWorld.y * 7.0 + uTime * 2.0 + ripple * 3.0);
+    col += vec3(0.85, 0.9, 1.0) * uNight * (1.0 - land) * (star * 0.8 + glade * shimmer * 0.45);
     gl_FragColor = vec4(col, 0.93);
     #include <colorspace_fragment>
   }
@@ -66,6 +76,7 @@ const fragment = /* glsl */ `
 export interface Water {
   mesh: THREE.Mesh;
   update(time: number): void;
+  setNight(night: number): void;
 }
 
 export function createWater(map: TileMap): Water {
@@ -77,6 +88,7 @@ export function createWater(map: TileMap): Water {
     uDeep: { value: new THREE.Color(P.waterDeep) },
     uShallow: { value: new THREE.Color(P.waterShallow) },
     uFoam: { value: new THREE.Color(P.foam) },
+    uNight: { value: 0 },
   };
   const material = new THREE.ShaderMaterial({ uniforms, vertexShader: vertex, fragmentShader: fragment, transparent: true });
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), material);
@@ -87,6 +99,9 @@ export function createWater(map: TileMap): Water {
     mesh,
     update(time) {
       uniforms.uTime.value = time;
+    },
+    setNight(night) {
+      uniforms.uNight.value = night;
     },
   };
 }

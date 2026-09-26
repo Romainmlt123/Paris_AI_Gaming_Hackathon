@@ -48,7 +48,7 @@ export function simulateFallback(state: GameState, hours: number): SimResult {
         if (!known) continue;
         for (const to of NPC_IDS) {
           if (to === from || rumorOf(working, to, fact.id) || !canSpread(working, from, to)) continue;
-          const text = distortRumor(known.text, known.distortion + 1);
+          const text = distortRumor(known.text, known.distortion + 1, fact.severity);
           const moved = transferRumor(working, from, to, fact.id, text);
           if (!moved.rumor) continue;
           working = moved.state;

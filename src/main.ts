@@ -2,7 +2,10 @@ import '@fontsource/pixelify-sans/400.css';
 import '@fontsource/pixelify-sans/700.css';
 import * as THREE from 'three';
 import { CHARACTERS } from '../shared/characters';
-import { buy, CATALOG, haggle, placeDeco, SLOTS, startDeal, type Deal } from '../shared/economy';
+import { BLACKMAIL_CHIP, buy, CATALOG, haggle, placeDeco, SLOTS, startDeal, type Deal } from '../shared/economy';
+import { judgeContest } from '../shared/contest';
+import { collect, FORAGE, FORAGE_IDS, haggleSale, pocketCount, pocketText, refreshForage, sellHarvest, startSale, type Sale } from '../shared/forage';
+import { perkToast, unlockPerks, type Perk } from '../shared/perks';
 import { CONFRONT_SUGGESTIONS, openerLine } from '../shared/opener';
 import { applySimResult, buildSimRequest } from '../shared/simulate';
 import { applyTalkResult, buildTalkContext, npcsWithIntent } from '../shared/state';
@@ -19,6 +22,7 @@ import { createHud } from './ui/hud';
 import { sheet, showRecap, toast } from './ui/overlays';
 
 const ABSENCE_HOURS = 8;
+const CYCLE_MS = 4200;
 const params = new URLSearchParams(location.search);
 if (params.has('reset')) resetSave();
 
@@ -32,6 +36,7 @@ const stage = createStage(canvas, initialQuality);
 const world = createWorld(stage);
 let state: GameState = loadState();
 let deal: Deal | null = null;
+let sale: Sale | null = null;
 let busy = false;
 
 const portraits = Object.fromEntries(NPC_IDS.map((id) => [id, portraitDataUrl(drawSheet(SPRITES[id]))])) as Record<NpcId, string>;
@@ -44,6 +49,23 @@ function commit(next: GameState): void {
   saveState(state);
   hud.render(state);
   world.syncDecor(state);
+  world.syncForage(state);
+  world.setNight(stage.night);
+}
+
+/** Grants tier rewards reached by these NPCs; returns what the NPC should say about it. */
+function grantPerks(npcs: readonly NpcId[]): Perk[] {
+  let next = state;
+  const granted: Perk[] = [];
+  for (const npc of npcs) {
+    const r = unlockPerks(next, npc);
+    next = r.state;
+    granted.push(...r.perks);
+  }
+  if (granted.length === 0) return [];
+  commit(next);
+  granted.forEach((p, i) => setTimeout(() => toast(ui!, perkToast(p), 'good'), 1600 + i * 1600));
+  return granted;
 }
 
 function showChange(change: RelationChange | null): void {
@@ -58,7 +80,10 @@ function showChange(change: RelationChange | null): void {
 
 function chipsFor(npc: NpcId, suggestions: string[]): Chip[] {
   const chips: Chip[] = suggestions.slice(0, 3).map((s) => ({ label: s, action: () => void onPlayerLine(s) }));
-  if (npc === 'gaston') chips.unshift({ label: '💰 Marchander', action: () => openShop() });
+  if (npc === 'gaston') {
+    if (pocketCount(state) > 0) chips.unshift({ label: `🧺 Vendre ${pocketText(state)}`, action: () => beginSale() });
+    chips.unshift({ label: '💰 Marchander', action: () => openShop() });
+  }
   return chips;
 }
 
@@ -66,6 +91,7 @@ function startTalk(npc: NpcId, initiated = false): void {
   if (busy || dialogue.current() === npc) return;
   dialogue.close();
   deal = null;
+  sale = null;
   const open = (): void => {
     world.facePlayerToward(npc);
     dialogue.open(npc, state.npcs[npc].relation);
@@ -92,6 +118,7 @@ function endTalk(): void {
   dialogue.close();
   world.setFrozen(null);
   deal = null;
+  sale = null;
 }
 
 async function onPlayerLine(text: string): Promise<void> {
@@ -99,17 +126,21 @@ async function onPlayerLine(text: string): Promise<void> {
   if (!npc || busy) return;
   dialogue.playerSaid(text);
   if (deal && npc === 'gaston') return haggleLine(text);
+  if (sale && npc === 'gaston') return saleLine(text);
   busy = true;
   dialogue.thinking(true);
-  const result = await talk(npc, text, buildTalkContext(state, npc));
-  const applied = applyTalkResult(state, npc, text, result);
+  const verdict = judgeContest(state, npc, text);
+  const result = await talk(npc, text, buildTalkContext(state, npc, verdict));
+  const applied = applyTalkResult(state, npc, text, result, verdict);
   commit(applied.state);
+  const perks = grantPerks([npc]);
   hud.setAiStatus(result.source === 'ai' ? '' : 'IA hors ligne · répliques de secours');
   dialogue.thinking(false);
   busy = false;
   showChange(applied.change);
   dialogue.setChips(chipsFor(npc, result.suggestions));
   await dialogue.say(result.reply, result.emotion);
+  for (const perk of perks) if (dialogue.current() === npc) await dialogue.say(perk.line, 'joie');
 }
 
 // ---------- Haggling with Gaston ----------
@@ -137,7 +168,9 @@ function dealChips(): void {
   if (!deal) return;
   const d = deal;
   const offer = Math.round((d.floor * 0.95) / 10) * 10;
+  const blackmail: Chip[] = state.perks.includes('josette-copain') && !d.blackmailed ? [{ label: `🤫 ${BLACKMAIL_CHIP}`, action: () => void onPlayerLine(BLACKMAIL_CHIP) }] : [];
   dialogue.setChips([
+    ...blackmail,
     { label: `Je t\u2019en donne ${offer}`, action: () => void onPlayerLine(`Je t\u2019en donne ${offer}`) },
     { label: 'T\u2019as l\u2019œil pour les affaires !', action: () => void onPlayerLine('T\u2019as l\u2019œil pour les affaires !') },
     { label: `✔ Payer ${d.ask}`, action: () => void onPlayerLine(`${d.ask}`) },
@@ -153,7 +186,7 @@ function cancelDeal(): void {
 
 async function haggleLine(text: string): Promise<void> {
   if (!deal) return;
-  const { deal: next, outcome } = haggle(deal, text);
+  const { deal: next, outcome } = haggle(deal, text, state.perks.includes('josette-copain'));
   if (outcome.kind !== 'accept') {
     deal = next;
     dealChips();
@@ -172,6 +205,60 @@ async function haggleLine(text: string): Promise<void> {
   await dialogue.say(outcome.line, 'joie');
 }
 
+// ---------- Selling the harvest to Gaston ----------
+
+function beginSale(): void {
+  sale = startSale(state);
+  if (!sale) return;
+  void dialogue.say(`Voyons ça… ${pocketText(state)}. Bof. Je t\u2019en donne ${sale.offer}, et c\u2019est généreux.`, 'mefiance');
+  saleChips();
+}
+
+function saleChips(): void {
+  if (!sale) return;
+  const s = sale;
+  const ask = Math.round((s.offer * 1.45) / 10) * 10;
+  dialogue.setChips([
+    { label: `J\u2019en veux ${ask}`, action: () => void onPlayerLine(`J\u2019en veux ${ask}`) },
+    { label: 'Tu es le roi du commerce !', action: () => void onPlayerLine('Tu es le roi du commerce !') },
+    { label: `✔ Vendre ${s.offer}`, action: () => void onPlayerLine(`${s.offer}`) },
+    { label: '✕ Garder', action: () => cancelSale() },
+  ]);
+}
+
+function cancelSale(): void {
+  sale = null;
+  void dialogue.say('Garde tes cailloux. Tu reviendras.', 'amuse');
+  dialogue.setChips(chipsFor('gaston', defaultSuggestions('gaston')));
+}
+
+async function saleLine(text: string): Promise<void> {
+  if (!sale) return;
+  const { sale: next, outcome } = haggleSale(sale, text);
+  if (outcome.kind !== 'accept') {
+    sale = next;
+    saleChips();
+    await dialogue.say(outcome.line, outcome.kind === 'offended' ? 'colere' : 'amuse');
+    return;
+  }
+  commit(sellHarvest(state, outcome.price));
+  sale = null;
+  toast(ui!, `Récolte vendue +${outcome.price} 🪙`, 'good');
+  dialogue.setChips(chipsFor('gaston', defaultSuggestions('gaston')));
+  await dialogue.say(outcome.line, 'joie');
+}
+
+function pickUp(spot: string): void {
+  const r = collect(state, spot);
+  if (!r.ok) {
+    if (r.reason === 'full') toast(ui!, 'Tes poches débordent ! Va revendre ta récolte à Gaston.', 'bad');
+    return;
+  }
+  commit(r.state);
+  const item = FORAGE[r.item];
+  toast(ui!, `${item.icon} +1 ${item.name} · Gaston t\u2019en donnera ~${item.value} 🪙`, 'good');
+}
+
 // ---------- Decoration ----------
 
 function openBag(): void {
@@ -180,8 +267,11 @@ function openBag(): void {
   sheet(
     ui!,
     'Ton sac',
-    [...counts].map(([id, n]) => ({ label: `${CATALOG[id].name}${n > 1 ? ` ×${n}` : ''}`, detail: 'Touche un cercle sur l\u2019île pour le poser', action: () => undefined })),
-    'Vide. Gaston vend de quoi embellir l\u2019île… à son prix.',
+    [
+      ...[...counts].map(([id, n]) => ({ label: `${CATALOG[id].name}${n > 1 ? ` ×${n}` : ''}`, detail: 'Touche un cercle sur l\u2019île pour le poser', action: () => undefined })),
+      ...FORAGE_IDS.filter((id) => state.pocket[id] > 0).map((id) => ({ label: `${FORAGE[id].icon} ${FORAGE[id].name} ×${state.pocket[id]}`, detail: 'À revendre à Gaston', action: () => undefined })),
+    ],
+    'Vide. Ramasse coquillages et pommes, Gaston te les rachète… à son prix.',
   );
 }
 
@@ -203,23 +293,52 @@ function place(slot: SlotId, item: DecoId): void {
   toast(ui!, `★ Valeur de l\u2019île : ${state.islandValue}`, 'good');
   result.reactions.forEach((r, i) => setTimeout(() => toast(ui!, `${CHARACTERS[r.npc].name} : « ${r.line} »`, r.delta < 0 ? 'bad' : 'info'), 900 + i * 1400));
   result.changes.forEach((c, i) => setTimeout(() => showChange(c), 1200 + i * 1400));
+  grantPerks(result.changes.map((c) => c.npc));
+  setTimeout(() => toast(ui!, '👂 Ça va jaser sur l\u2019île…', 'info'), 1200 + result.reactions.length * 1400);
 }
 
 // ---------- Absence ----------
+
+function applyClock(minutes: number): void {
+  stage.setClock(minutes);
+  world.setNight(stage.night);
+  document.body.style.setProperty('--night', stage.night.toFixed(2));
+  document.body.classList.toggle('is-night', stage.night > 0.5);
+}
+
+/** Plays the clock forward on the island's lights: sunset, night, dawn… whatever the 8 hours cross. */
+function playCycle(day: number, from: number, hours: number): Promise<void> {
+  return new Promise((resolve) => {
+    const start = performance.now();
+    const step = (now: number): void => {
+      const t = Math.min(1, (now - start) / CYCLE_MS);
+      const eased = t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
+      const minutes = from + eased * hours * 60;
+      applyClock(minutes);
+      hud.showTime(day + Math.floor(minutes / (24 * 60)), minutes);
+      if (t < 1) requestAnimationFrame(step);
+      else resolve();
+    };
+    requestAnimationFrame(step);
+  });
+}
 
 async function absence(): Promise<void> {
   if (busy) return;
   busy = true;
   endTalk();
-  document.body.classList.add('night');
+  hud.setSleeping(true);
   hud.setAiStatus('Le temps passe sur l\u2019île…');
   const before = state;
-  const result = await simulate(before, buildSimRequest(before, ABSENCE_HOURS));
-  const { state: next, recap } = applySimResult(before, result, ABSENCE_HOURS);
+  const [result] = await Promise.all([simulate(before, buildSimRequest(before, ABSENCE_HOURS)), playCycle(before.day, before.clock, ABSENCE_HOURS)]);
+  const { state: after, recap } = applySimResult(before, result, ABSENCE_HOURS);
+  const next = refreshForage(after, world.forageCandidates);
   commit(next);
+  applyClock(next.clock);
   world.teleportPlayer({ x: 12, z: 20 });
   hud.setAiStatus('');
-  document.body.classList.remove('night');
+  hud.setSleeping(false);
+  if (next.forageDay !== before.forageDay) recap.push({ kind: 'talk', npc: null, text: 'La mer a déposé de nouveaux coquillages sur la plage.' });
   await showRecap(ui!, recap, ABSENCE_HOURS);
   busy = false;
   const first = recap.find((e) => e.kind === 'intent')?.npc;
@@ -236,6 +355,11 @@ canvas.addEventListener('pointerup', (e) => {
   const target = world.pick(ndc);
   if (!target) return;
   if (target.kind === 'npc') startTalk(target.npc);
+  else if (target.kind === 'forage') {
+    endTalk();
+    const spot = target.spot;
+    world.walkTo(target.tile, () => pickUp(spot));
+  }
   else if (target.kind === 'slot') {
     endTalk();
     const s = SLOTS.find((x) => x.id === target.slot);
@@ -266,7 +390,9 @@ function frame(): void {
   requestAnimationFrame(frame);
 }
 
+state = refreshForage(state, world.forageCandidates);
 commit(state);
+applyClock(state.clock);
 stage.resize();
 requestAnimationFrame(frame);
 

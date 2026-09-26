@@ -52,6 +52,24 @@ export interface RelationChange {
 export type DecoId = 'parterre' | 'banc' | 'lampadaire' | 'fontaine' | 'statue';
 export type SlotId = 'placette' | 'falaise' | 'ponton' | 'mairie' | 'boulangerie';
 
+export type ForageId = 'coquillage' | 'pomme' | 'perle';
+
+/** Something to pick up on the island. Respawned every morning. */
+export interface ForageSpot {
+  id: string;
+  item: ForageId;
+  x: number;
+  z: number;
+}
+
+export type PerkId = 'gaston-copain' | 'gaston-confident' | 'josette-copain' | 'marius-copain' | 'marius-confident';
+
+/** Positive relation gains already received today, per NPC (diminishing returns). */
+export interface Praise {
+  day: number;
+  count: number;
+}
+
 export interface GameState {
   version: 1;
   nextId: number;
@@ -61,6 +79,12 @@ export interface GameState {
   coins: number;
   islandValue: number;
   inventory: DecoId[];
+  pocket: Record<ForageId, number>;
+  forage: ForageSpot[];
+  /** Day the forage spots were last respawned. */
+  forageDay: number;
+  perks: PerkId[];
+  praise: Record<NpcId, Praise>;
   decor: Record<SlotId, DecoId | null>;
   npcs: Record<NpcId, NpcState>;
   /** Affinity between NPCs, keyed by `bondKey`. 0..100. */
@@ -92,6 +116,16 @@ export interface KnownRumor {
   source: NpcId | 'vu';
   aboutPlayer: boolean;
   severity: number;
+  distortion: number;
+}
+
+/** Code-side ruling when the player contests a rumor. The AI narrates it, it does not decide it. */
+export interface ContestVerdict {
+  upheld: boolean;
+  factId: string;
+  rumor: string;
+  truth: string;
+  source: NpcId | 'vu';
 }
 
 export interface TalkContext {
@@ -104,6 +138,7 @@ export interface TalkContext {
   intent: string | null;
   day: number;
   islandValue: number;
+  verdict: ContestVerdict | null;
 }
 
 export interface TalkRequest {

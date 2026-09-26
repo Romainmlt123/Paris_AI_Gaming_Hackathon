@@ -29,13 +29,23 @@ Règles :
 {"reply": string, "emotion": un de ${EMOTIONS.join('|')}, "relationDelta": entier entre -20 et +10 (variation de ton affection pour le joueur suite à SA réplique), "reason": string courte à la 2e personne expliquant la variation (ex. « Tu l'as traité de radin »), "events": [{"text": fait objectif à la 3e personne sur ce que le joueur vient de faire, seulement si c'est marquant (insulte, mensonge, promesse, cadeau, confidence), "severity": entier -3..3}], "intent": null ou une intention courte pour la suite, "suggestions": 3 répliques courtes (max 40 caractères) que le joueur pourrait dire ensuite, variées (une gentille, une neutre/curieuse, une provocante)}`;
 }
 
+/** The game already ruled on the contest; the AI only has to play the ruling. */
+function verdictPrompt(ctx: TalkContext): string {
+  const v = ctx.verdict;
+  if (!v) return '';
+  const heard = v.source === 'vu' ? 'ce que tu as vu' : `ce que t'a raconté ${CHARACTERS[v.source].name}`;
+  return v.upheld
+    ? `DÉCISION DU JEU (impose-la) : le joueur conteste ${heard} (« ${v.rumor} »). La vérité est seulement : « ${v.truth} ». Tu admets que la rumeur a été exagérée, tu t'en étonnes, et tu en veux un peu à celui qui l'a gonflée.\n`
+    : `DÉCISION DU JEU (impose-la) : le joueur prétend que c'est exagéré, mais « ${v.rumor} » est exactement ce qui s'est passé. Tu ne te laisses pas avoir et tu le lui fais remarquer.\n`;
+}
+
 function contextPrompt(message: string, ctx: TalkContext): string {
   const rumors = ctx.knownRumors.length
     ? ctx.knownRumors.map((r) => `- ${r.source === 'vu' ? 'Vu de tes yeux' : `Entendu de ${CHARACTERS[r.source].name}`} : ${r.text}`).join('\n')
     : '- (rien de spécial)';
   const memories = ctx.memories.length ? ctx.memories.map((m) => `- ${m}`).join('\n') : '- (première vraie discussion)';
   const history = ctx.history.map((l) => `${l.who === 'player' ? 'Joueur' : 'Toi'} : ${l.text}`).join('\n');
-  return `Jour ${ctx.day}. Valeur de l'île du joueur : ${ctx.islandValue}.
+  return `${verdictPrompt(ctx)}Jour ${ctx.day}. Valeur de l'île du joueur : ${ctx.islandValue}.
 Ta relation au joueur : ${ctx.relation}/100 (${ctx.tier}). Ton humeur : ${ctx.emotion}.
 ${ctx.intent ? `Tu voulais lui parler de ceci : ${ctx.intent}\n` : ''}Tes souvenirs du joueur :
 ${memories}

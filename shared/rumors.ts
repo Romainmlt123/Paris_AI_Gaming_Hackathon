@@ -69,10 +69,18 @@ const EXAGGERATIONS = [
   'et Josette dit qu\u2019il faudrait en parler au conseil',
 ];
 
-/** Deterministic, code-side distortion used when the AI is unavailable. */
-export function distortRumor(text: string, distortion: number): string {
+const FLATTERING = [
+  'et ça a coûté une fortune',
+  'en or massif, paraît-il',
+  'et toute l\u2019île vient l\u2019admirer',
+  'et il paraît qu\u2019il en commande une deuxième',
+];
+
+/** Deterministic, code-side distortion used when the AI is unavailable. Good news gets inflated too. */
+export function distortRumor(text: string, distortion: number, severity = -1): string {
   const base = text.replace(/[.!]+$/, '');
   if (distortion <= 0) return `${base}.`;
-  const extra = EXAGGERATIONS[(distortion - 1) % EXAGGERATIONS.length];
+  const pool = severity >= 0 ? FLATTERING : EXAGGERATIONS;
+  const extra = pool[(distortion - 1) % pool.length];
   return `Il paraît que ${base.charAt(0).toLowerCase()}${base.slice(1)}, ${extra} !`;
 }

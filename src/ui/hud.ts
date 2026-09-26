@@ -1,4 +1,5 @@
 import { CHARACTERS } from '../../shared/characters';
+import { pocketCount } from '../../shared/forage';
 import { RELATION_MAX, RELATION_MIN, tierOf } from '../../shared/relations';
 import type { GameState, NpcId } from '../../shared/types';
 import { NPC_IDS } from '../../shared/types';
@@ -10,12 +11,16 @@ export interface Hud {
   pulse(npc: NpcId, delta: number): void;
   setAiStatus(text: string): void;
   setFps(fps: number): void;
+  /** Shows a passing time while the day/night cycle plays. */
+  showTime(day: number, minutes: number): void;
+  setSleeping(on: boolean): void;
 }
 
-function clockText(state: GameState): string {
-  const h = Math.floor(state.clock / 60);
-  const m = state.clock % 60;
-  return `Jour ${state.day} · ${String(h).padStart(2, '0')}h${String(m).padStart(2, '0')}`;
+function clockText(day: number, clock: number): string {
+  const h = Math.floor(clock / 60);
+  const m = clock % 60;
+  const icon = h >= 21 || h < 6 ? '🌙' : h >= 18 ? '🌇' : h < 8 ? '🌅' : '☀️';
+  return `${icon} Jour ${day} · ${String(h).padStart(2, '0')}h${String(m).padStart(2, '0')}`;
 }
 
 export function gaugeFill(relation: number): string {
@@ -59,11 +64,12 @@ export function createHud(portraits: Record<NpcId, string>, onNpc: (id: NpcId) =
   return {
     root,
     render(state) {
-      clock.textContent = clockText(state);
+      clock.textContent = clockText(state.day, state.clock);
       prestige.textContent = `★ ${state.islandValue}`;
       prestige.title = 'Valeur de l\u2019île';
       coins.textContent = `${state.coins} 🪙`;
-      bag.textContent = `🎒 Sac${state.inventory.length ? ` (${state.inventory.length})` : ''}`;
+      const items = state.inventory.length + pocketCount(state);
+      bag.textContent = `🎒 Sac${items ? ` (${items})` : ''}`;
       for (const id of NPC_IDS) {
         const c = cards.get(id);
         if (!c) continue;
@@ -84,6 +90,13 @@ export function createHud(portraits: Record<NpcId, string>, onNpc: (id: NpcId) =
     },
     setAiStatus(text) {
       status.textContent = text;
+    },
+    showTime(day, minutes) {
+      clock.textContent = clockText(day, Math.floor(minutes) % (24 * 60));
+    },
+    setSleeping(on) {
+      sleep.disabled = on;
+      sleep.textContent = on ? '⏳ Le temps passe…' : '🌙 Revenir dans 8 h';
     },
     setFps(value) {
       fps.textContent = `${Math.round(value)} fps`;

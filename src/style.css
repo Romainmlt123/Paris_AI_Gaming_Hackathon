@@ -102,8 +102,28 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .toast.out { opacity: 0; transform: translate(-50%, -12px); }
 .toast + .toast { top: calc(146px + var(--safe-top)); }
 
-body.night #scene { filter: brightness(0.35) saturate(0.6) hue-rotate(-20deg); transition: filter 0.8s; }
 #scene { transition: filter 0.8s; }
+
+/* Night ambience: moonlit vignette, HUD cards turn to deep-blue lanterns */
+#ui::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse 85% 70% at 50% 48%, transparent 40%, rgba(10, 14, 52, 0.6) 100%); opacity: var(--night, 0); }
+.chip, .gauge, .action { transition: background 0.8s, color 0.8s, box-shadow 0.8s, border-color 0.8s; }
+body.is-night .chip, body.is-night .gauge, body.is-night .action {
+  background: #26315e;
+  color: #f1e9ff;
+  border-color: #0e1333;
+  box-shadow: 0 3px 0 rgba(6, 8, 28, 0.75), inset 0 -3px 0 #1b2449, 0 0 14px rgba(255, 200, 110, 0.22);
+}
+body.is-night .prestige { color: #ffd25e; }
+body.is-night .bar { background: #3a4677; border-color: #0e1333; }
+body.is-night .portrait { border-color: #0e1333; background: #8fa3d8; }
+body.is-night .gauge .gauge-tier, body.is-night .gauge .gauge-value { color: #c8c3ff; opacity: 1; }
+body.is-night .ai-status, body.is-night .fps { color: #fff3c9; }
+body.is-night .gauge.wants { animation-name: wants-night; }
+body.is-night .gauge.hit { animation-name: hit-night; }
+body.is-night .gauge.gain { animation-name: gain-night; }
+@keyframes wants-night { 50% { background: #3d4a86; box-shadow: 0 3px 0 rgba(6, 8, 28, 0.75), 0 0 18px rgba(255, 210, 110, 0.55); transform: translateY(-2px); } }
+@keyframes hit-night { 0%, 100% { transform: none; } 25% { transform: translateX(-4px); background: #6a2f4a; } 75% { transform: translateX(4px); } }
+@keyframes gain-night { 50% { background: #2f5a4e; transform: scale(1.04); } }
 
 @keyframes rise { from { transform: translateY(30px); opacity: 0; } }
 @keyframes fade { from { opacity: 0; } }

@@ -1,5 +1,5 @@
 import { factById } from './rumors';
-import type { GameState, NpcId } from './types';
+import type { GameState, NpcId, Rumor } from './types';
 
 const OPENERS: Record<NpcId, (rumor: string | null) => string> = {
   josette: (r) =>
@@ -16,10 +16,14 @@ const OPENERS: Record<NpcId, (rumor: string | null) => string> = {
 
 /** First line an NPC says when they come to the player on their own (after the absence recap). */
 export function openerLine(state: GameState, npc: NpcId): string {
-  const rumor = [...state.rumors]
-    .reverse()
-    .find((r) => r.holder === npc && r.source !== 'vu' && (factById(state, r.factId)?.severity ?? 0) < 0);
-  return OPENERS[npc](rumor?.text ?? null);
+  return OPENERS[npc](latestBadRumor(state, npc, true)?.text ?? null);
 }
 
-export const CONFRONT_SUGGESTIONS = ['C\u2019est faux, j\u2019ai jamais dit ça !', 'Pardon, j\u2019ai été nul…', 'Et alors ?'];
+/** Latest negative rumor this NPC holds; the one they confront the player with. */
+export function latestBadRumor(state: GameState, npc: NpcId, hearsayOnly: boolean): Rumor | undefined {
+  return [...state.rumors]
+    .reverse()
+    .find((r) => r.holder === npc && (!hearsayOnly || r.source !== 'vu') && (factById(state, r.factId)?.severity ?? 0) < 0);
+}
+
+export const CONFRONT_SUGGESTIONS = ['C\u2019est faux, j\u2019ai jamais dit ça !', 'C\u2019est exagéré, ça !', 'Pardon, j\u2019ai été nul…'];
