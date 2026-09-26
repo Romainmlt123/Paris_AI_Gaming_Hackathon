@@ -84,11 +84,32 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .modal { width: 100%; max-width: 380px; padding: 16px; max-height: 80vh; overflow-y: auto; }
 .modal h2 { margin: 0; font-size: 24px; }
 .recap-sub { opacity: 0.6; margin-bottom: 10px; }
-.recap-list { list-style: none; margin: 0 0 14px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.recap-list li { display: flex; gap: 8px; font-size: 15px; line-height: 1.3; opacity: 0; animation: pop 0.4s ease-out forwards; background: #fffdf6; border: 2px solid var(--ink); border-radius: 4px; padding: 6px 8px; }
-.recap-list li.recap-relation { background: #ffe1dc; }
-.recap-list li.recap-intent { background: #fff0b8; font-weight: 700; }
-.recap-icon { flex: none; }
+/* Gazette (absence recap as a morning newspaper) */
+.gazette-back { align-items: flex-start; overflow-y: auto; padding: calc(12px + var(--safe-top)) 10px calc(12px + var(--safe-bottom)); }
+.gazette {
+  width: 100%; max-width: 400px; margin: auto; padding: 12px 12px 14px;
+  background: #f3eee0 radial-gradient(circle at 30% 20%, #faf6ea, #ebe3cf 90%);
+  color: #161412; font-family: Georgia, 'Noto Serif', 'Times New Roman', serif;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45); transform-origin: 50% 0;
+  animation: unfold 0.55s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+.gz-ears { display: flex; justify-content: space-between; gap: 8px; }
+.gz-ear { flex: 0 1 42%; border: 1px solid #161412; padding: 3px 5px; font-size: 9px; line-height: 1.2; text-align: center; font-style: italic; }
+.gz-masthead { margin: 6px 0 2px; font-family: 'UnifrakturMaguntia', 'Old English Text MT', serif; font-weight: 400; font-size: clamp(30px, 10vw, 42px); line-height: 1; text-align: center; letter-spacing: 0.5px; }
+.gz-issue { border-top: 3px double #161412; border-bottom: 1px solid #161412; padding: 3px 0; font-size: 10px; text-align: center; text-transform: uppercase; letter-spacing: 1.5px; }
+.gz-headline { margin: 10px 0 4px; font-size: clamp(21px, 6.4vw, 27px); line-height: 1.05; font-weight: 900; text-align: center; text-transform: uppercase; letter-spacing: -0.3px; }
+.gz-subhead { margin: 0 0 8px; padding-bottom: 8px; border-bottom: 1px solid #161412; font-size: 13px; font-style: italic; text-align: center; line-height: 1.3; }
+.gz-columns { columns: 2; column-gap: 14px; column-rule: 1px solid #161412; }
+.gz-article { break-inside: avoid; margin-bottom: 10px; opacity: 0; animation: pop 0.4s ease-out forwards; }
+.gz-article:nth-child(1) { animation-delay: 0.4s; } .gz-article:nth-child(2) { animation-delay: 0.6s; }
+.gz-article:nth-child(3) { animation-delay: 0.8s; } .gz-article:nth-child(4) { animation-delay: 1s; }
+.gz-article:nth-child(5) { animation-delay: 1.2s; }
+.gz-rubric { font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px; border-bottom: 1px solid #161412; margin-bottom: 2px; }
+.gz-title { margin: 2px 0 3px; font-size: 14px; line-height: 1.1; font-weight: 800; }
+.gz-body { margin: 0; font-size: 12px; line-height: 1.32; text-align: justify; hyphens: auto; }
+.gz-body::first-letter { font-size: 22px; float: left; line-height: 0.9; margin: 2px 3px 0 0; font-weight: 700; }
+.gazette .gz-close { display: block; width: 100%; margin-top: 4px; font-family: 'Pixelify Sans', system-ui, sans-serif; }
+@keyframes unfold { from { transform: scale(0.3) rotate(-14deg); opacity: 0; } to { transform: none; opacity: 1; } }
 .primary { width: 100%; padding: 12px; font-size: 17px; font-weight: 700; background: var(--accent); color: var(--paper); border: 3px solid var(--ink); border-radius: 6px; box-shadow: 0 3px 0 rgba(43,34,51,.55); }
 .ghost { width: 100%; padding: 10px; background: none; border: none; font-size: 15px; opacity: 0.7; }
 

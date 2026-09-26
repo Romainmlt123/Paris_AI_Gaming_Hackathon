@@ -75,3 +75,8 @@ Mémoire du projet : fait, reste, décisions, pièges.
   - Marius `RyPxucblPbKsz0Xp` : vieux pêcheur provençal, lent, grave, soupirs.
 - Émotion → `padding_bonus`/`temp` (colère/joie plus vite, tristesse plus lent). `…` → `<break time="0.5s" />`.
 - Bouton 🔊/🔇 dans le HUD (localStorage `ragots.sound`).
+
+## Gazette des Ragots (branche gazette)
+- Le récap d'absence est une une de journal façon NYT : `buildGazette(before, after, recap)` (shared/gazette.ts, pur, testé) + `showGazette` (src/ui/overlays.ts).
+- Gros titre choisi par le code : pire chute de relation (≤ -5) > ragots transmis > habitant qui veut parler > plus grosse hausse > titre calme.
+- Rubriques : Ragots, Carnet mondain, Cote de popularité, Petites annonces, Bourse. Titre en UnifrakturMaguntia (@fontsource), corps en serif.
