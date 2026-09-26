@@ -6,6 +6,7 @@ import { CharacterSprite } from './sprites';
 import { buildDecor } from './decor';
 import { FishingRig, PEN, Particles, Pen, shakeTree, treeIndexFromHit, updateTreeShakes } from './activities';
 import { treeMeshes, trees } from './props';
+import { grassUniforms } from './grass';
 import type { NpcId, Pickup, SlotId } from '../state/types';
 
 export interface WorldEvents {
@@ -25,6 +26,13 @@ const NPC_HOME: Record<NpcId, { x: number; z: number; wander: number }> = {
 };
 
 const PLAYER_SPEED = 3.4;
+
+const KEY_DIRS: Record<string, [number, number]> = {
+  z: [0, -1], w: [0, -1], arrowup: [0, -1],
+  s: [0, 1], arrowdown: [0, 1],
+  q: [-1, 0], a: [-1, 0], arrowleft: [-1, 0],
+  d: [1, 0], arrowright: [1, 0],
+};
 const NPC_SPEED = 1.6;
 
 class Actor {
@@ -40,6 +48,15 @@ class Actor {
   get moving(): boolean {
     return this.target !== null;
   }
+  /** Choisit la vue (face / dos / profil) selon la direction de marche. */
+  orient(dx: number, dz: number): void {
+    if (Math.abs(dx) < 0.01 && Math.abs(dz) < 0.01) return;
+    if (Math.abs(dx) > Math.abs(dz) * 0.8) {
+      this.sprite.view = 'side';
+      this.sprite.facing = dx > 0 ? 1 : -1;
+    } else this.sprite.view = dz > 0 ? 'down' : 'up';
+  }
+
   /** Avance vers la cible en glissant le long des obstacles. Renvoie true à l'arrivée. */
   step(dt: number): boolean {
     if (!this.target) return false;
@@ -67,7 +84,7 @@ class Actor {
       this.target = null;
       return true;
     }
-    if (Math.abs(dx) > 0.02) this.sprite.facing = dx > 0 ? 1 : -1;
+    this.orient(dx, dz);
     this.pos.x = nx;
     this.pos.z = nz;
     this.pos.y = onPier(nx, nz) ? 0.42 : groundHeight(nx, nz);
@@ -191,6 +208,8 @@ export class World {
   faceEachOther(id: NpcId): void {
     const n = this.npcs[id];
     const dx = n.pos.x - this.player.pos.x;
+    this.player.sprite.view = 'side';
+    n.sprite.view = 'side';
     this.player.sprite.facing = dx >= 0 ? 1 : -1;
     n.sprite.facing = dx >= 0 ? -1 : 1;
     n.target = null;
@@ -249,6 +268,7 @@ export class World {
     worldUniforms.uTime.value += dt;
     this.trackFps(dt);
 
+    this.applyKeyboard();
     if (!this.frozen && this.player.step(dt)) {
       this.marker.visible = false;
       this.resolveArrival();
@@ -264,6 +284,8 @@ export class World {
     }
     this.animateProps(dt);
     updateTreeShakes(dt);
+    const pushers = grassUniforms.uPush.value;
+    [this.player, this.npcs.gaston, this.npcs.josette, this.npcs.marius].forEach((a, i) => pushers[i]?.set(a.pos.x, a.pos.z));
     this.pen.update(dt);
     this.particles.follow(this.player.pos.x, this.player.pos.z, dt);
     this.particles.update(dt);
@@ -382,6 +404,91 @@ export class World {
       if (this.frozen) return;
       this.handleTap(e.clientX, e.clientY);
     });
+    this.bindKeyboard();
+  }
+
+  // ---------- Clavier (démo sur ordinateur) : ZQSD / WASD / flèches, Espace ou E pour interagir ----------
+  private readonly keys = new Set<string>();
+
+  private bindKeyboard(): void {
+    const typing = (e: KeyboardEvent): boolean => {
+      const t = e.target as HTMLElement | null;
+      return !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
+    };
+    window.addEventListener('keydown', (e) => {
+      if (typing(e)) return;
+      const k = e.key.toLowerCase();
+      if (k === ' ' || k === 'e' || k === 'enter') {
+        e.preventDefault();
+        if (this.captureTap) this.captureTap();
+        else if (!this.frozen) this.interact();
+        return;
+      }
+      if (KEY_DIRS[k]) {
+        e.preventDefault();
+        this.keys.add(k);
+      }
+    });
+    window.addEventListener('keyup', (e) => this.keys.delete(e.key.toLowerCase()));
+    window.addEventListener('blur', () => this.keys.clear());
+  }
+
+  /** Direction clavier normalisée (caméra fixe : haut = -z). */
+  private keyDir(): THREE.Vector2 | null {
+    const d = new THREE.Vector2();
+    for (const k of this.keys) {
+      const v = KEY_DIRS[k];
+      if (v) d.add(new THREE.Vector2(v[0], v[1]));
+    }
+    return d.lengthSq() > 0 ? d.normalize() : null;
+  }
+
+  private applyKeyboard(): void {
+    const d = this.keyDir();
+    if (!d || this.frozen) return;
+    this.pendingNpc = null;
+    this.pendingPickup = null;
+    this.pendingSlot = null;
+    this.pendingTree = null;
+    this.pendingPen = false;
+    this.marker.visible = false;
+    this.player.target = new THREE.Vector2(this.player.pos.x + d.x * 0.4, this.player.pos.z + d.y * 0.4);
+  }
+
+  /** Espace : interagit avec ce qui est le plus proche (habitant, objet, mouton, arbre, eau). */
+  private interact(): void {
+    const p = this.player.pos;
+    const near = (x: number, z: number): number => Math.hypot(x - p.x, z - p.z);
+    const npc = (Object.keys(this.npcs) as NpcId[]).map((id) => ({ id, d: this.distanceToNpc(id) })).sort((a, b) => a.d - b.d)[0];
+    if (npc && npc.d < 2.2) {
+      this.events.tapNpc(npc.id);
+      return;
+    }
+    const pk = this.pickups.map((x) => ({ x, d: near(x.x, x.z) })).sort((a, b) => a.d - b.d)[0];
+    if (pk && pk.d < 1.3) {
+      this.events.tapPickup(pk.x);
+      return;
+    }
+    if (near(PEN.x, PEN.z) < PEN.r + 1.4) {
+      this.events.tapPen();
+      return;
+    }
+    const tr = trees.map((t, i) => ({ i, d: near(t.x, t.z) })).sort((a, b) => a.d - b.d)[0];
+    if (tr && tr.d < 1.8) {
+      this.events.tapTree(tr.i);
+      return;
+    }
+    // Sinon, on regarde devant soi : de l'eau ? on pêche.
+    const f = this.player.sprite;
+    const dir = f.view === 'side' ? new THREE.Vector2(f.facing, 0) : new THREE.Vector2(0, f.view === 'down' ? 1 : -1);
+    for (let k = 1; k <= 4; k++) {
+      const x = p.x + dir.x * k;
+      const z = p.z + dir.y * k;
+      if (!walkable(x, z)) {
+        this.events.tapWater(x, z);
+        return;
+      }
+    }
   }
 
   handleTap(sx: number, sy: number): void {

@@ -1,9 +1,9 @@
 // Palette commune : fin de journée chaude, un peu dorée.
 export const PAL = {
-  grassLight: '#8cc152',
-  grass: '#6fa843',
-  grassDark: '#548a35',
-  grassDeep: '#3f6e2b',
+  grassLight: '#5f9a3a',
+  grass: '#4b8130',
+  grassDark: '#3b6a26',
+  grassDeep: '#2e5520',
   sand: '#ecd8a4',
   sandDark: '#d6bd83',
   sandLight: '#f6e8c2',

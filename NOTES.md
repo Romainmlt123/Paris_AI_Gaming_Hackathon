@@ -14,10 +14,12 @@ Mémoire du projet : fait, reste, décisions, pièges. Branche de travail : `dev
 ## Fait
 - Île HD-2D 100 % procédurale (Three.js) : plateau d'herbe extrudé + falaises, colline, plage polaire, eau shader (écume, reflets), 4 bâtiments, ponton, arbres instanciés avec vent, touffes, fleurs, rochers, chemin.
 - Rendu : caméra 48°, focale serrée, tilt-shift + étalonnage + vignette en une passe, bloom (high), ombres de feuillage/nuages mouvantes injectées dans les matériaux du sol, lumière selon l'heure.
-- Sprites pixel art générés en code (16×24, 2 frames de marche), ombre de silhouette via un plan projecteur tourné vers le soleil, « ! » au-dessus des habitants.
+- Sprites pixel art 24×32 générés en code (`pixelChars.ts`) : 3 vues (face/dos/profil) × 3 frames, ombrage 3 tons, contour auto ; planche de contrôle `scripts/sprites.html` + `node scripts/sprites.mjs`. Ancienne version 16×24, ombre de silhouette via un plan projecteur tourné vers le soleil, « ! » au-dessus des habitants.
 - Logique pure testée (35 tests) : relations/paliers, rumeurs (faits ≠ rumeurs), validation IA, économie, absence + repli déterministe, activités.
 - Serveur : `/api/talk`, `/api/absence` (Gemini `gemini-3.8-flash`, thinking low, ~2 s), `/api/tts` (Gradium), `/api/health`. Répliques de secours partout.
 - UI : HUD (jour, valeur de l'île, clochettes animées, puces relation avec « ! »), dialogue rétro typewriter + portraits expressifs + suggestions + variation expliquée, sacoche 16 cases, catalogue Gaston, deal borné, déco par emplacements + réactions (bulles), nuit + récap, initiative (l'habitant vient parler).
+- Herbe dense instanciée (`grass.ts`) : touffes de brins en tuiles, vent en vagues + frémissement, brins couchés au passage des personnages (uniform uPush).
+- Clavier : ZQSD/WASD/flèches, Espace/E/Entrée interagit (habitant, objet, mouton, arbre, eau devant soi), Échap ferme.
 - Activités : pêche (tap au bon moment, poulpe doré rare), secouer les arbres (fruits, pomme dorée, ruche → visage gonflé + Josette se moque), enclos (Flocon le mouton-nuage : fruit → laine dorée ; oublié → ragot).
 - Audio procédural (blips par personnage, ambiance vagues/mouettes, sfx) ; son actif par défaut, bouton 🔊.
 
@@ -35,6 +37,7 @@ Mémoire du projet : fait, reste, décisions, pièges. Branche de travail : `dev
 - Réveil à 8h minimum après une nuit (la démo reste de jour).
 
 ## Pièges
+- Herbe : instances sans rotation (le vent est calculé en espace monde) ; variété via 2 géométries de touffe.
 - Billboard face caméra = ombre en trait vu du soleil → plan projecteur séparé (`colorWrite:false`, `side: DoubleSide` sinon culling dans la passe d'ombre).
 - `PCFSoftShadowMap` retiré de three r186 → `PCFShadowMap`.
 - Police pixel : les chiffres 5/8 ressemblent à S → chiffres en Nunito.

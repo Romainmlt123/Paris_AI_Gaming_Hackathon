@@ -1,0 +1,13 @@
+<!doctype html><html><body style="background:#7fae5a;margin:0;padding:10px">
+<div id="out"></div>
+<script type="module">
+import { drawSheet } from '/src/world/pixelChars.ts';
+for (const k of ['player', 'gaston', 'josette', 'marius']) {
+  for (const sw of [false]) {
+    const c = drawSheet(k, sw);
+    c.style.cssText = `width:${c.width * 6}px;height:${c.height * 6}px;image-rendering:pixelated;display:block;margin:6px 0`;
+    document.getElementById('out').append(c);
+  }
+}
+const s = drawSheet('player', true); s.style.cssText = `width:${s.width * 6}px;image-rendering:pixelated;display:block`; document.getElementById('out').append(s);
+</script></body></html>

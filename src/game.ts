@@ -115,6 +115,14 @@ export class Game {
       if (!isVoiceAvailable()) sfx.blip(npc);
     };
     document.addEventListener('pointerdown', () => sfx.initAudio(), { capture: true });
+    window.addEventListener('keydown', (e) => {
+      sfx.initAudio();
+      if (e.key === 'Escape') {
+        if (this.talking) this.closeTalk();
+        else if (this.decorMode) this.toggleDecorMode();
+        else this.bag.close();
+      }
+    });
     const muteBtn = ui.querySelector('.mute');
     if (muteBtn) muteBtn.textContent = sfx.isMuted() ? '🔇' : '🔊';
     sfx.startAmbience();

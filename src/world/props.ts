@@ -4,6 +4,7 @@ import { PAL } from './palette';
 import { GRASS_Y, HILL_Y, groundHeight, isWalkable, shoreDistance, worldUniforms } from './island';
 import { plankTexture, plasterTexture, roofTexture, seeded, signTexture, stoneTexture, stripeTexture } from './textures';
 import type { Quality } from './scene';
+import { buildGrass } from './grass';
 import type { SlotId } from '../state/types';
 
 export interface Collider {
@@ -379,18 +380,18 @@ function scatterTufts(scene: THREE.Scene, quality: Quality): void {
     im.setMatrixAt(placed, m);
     im.setColorAt(placed, tuftColors[Math.floor(rnd() * tuftColors.length)]!);
     if (fl < flowers.count && rnd() < 0.22) {
-      m.compose(new THREE.Vector3(x + 0.1, GRASS_Y + 0.3 * s, z), q, new THREE.Vector3(1, 1, 1));
+      m.compose(new THREE.Vector3(x + 0.1, GRASS_Y + 0.3 + 0.12 * s, z), q, new THREE.Vector3(1.1, 0.8, 1.1));
       flowers.setMatrixAt(fl, m);
       flowers.setColorAt(fl, flowerColors[Math.floor(rnd() * flowerColors.length)]!);
       fl++;
     }
     placed++;
   }
-  im.count = placed;
+  // Les touffes ne servent plus qu'à placer les fleurs : l'herbe dense est dans grass.ts.
+  im.dispose();
   flowers.count = fl;
-  im.receiveShadow = true;
   flowers.castShadow = true;
-  scene.add(im, flowers);
+  scene.add(flowers);
 }
 
 function scatterRocks(scene: THREE.Scene): void {
@@ -413,6 +414,9 @@ function scatterRocks(scene: THREE.Scene): void {
   scene.add(im);
 }
 
+/** Dalles du chemin (l'herbe les évite). */
+export const pathStones: [number, number][] = [];
+
 // ---------- Emplacements de décoration ----------
 export const SLOT_POSITIONS: Record<SlotId, { x: number; z: number; y: number; label: string }> = {
   placette: { x: 0, z: 1.2, y: GRASS_Y, label: 'Placette' },
@@ -433,9 +437,10 @@ export function buildProps(scene: THREE.Scene, quality: Quality): { flag: THREE.
   scatterRocks(scene);
   scatterTufts(scene, quality);
   // Chemin de dalles entre la placette et les maisons.
+  pathStones.length = 0;
   const pathMat = lambert({ color: PAL.sandDark });
   const pathGeo = new THREE.CylinderGeometry(0.28, 0.3, 0.05, 7);
-  const stones: [number, number][] = [];
+  const stones = pathStones;
   const line = (ax: number, az: number, bx: number, bz: number, n: number): void => {
     for (let i = 0; i <= n; i++) stones.push([ax + ((bx - ax) * i) / n, az + ((bz - az) * i) / n]);
   };
@@ -452,5 +457,6 @@ export function buildProps(scene: THREE.Scene, quality: Quality): { flag: THREE.
   });
   path.receiveShadow = true;
   scene.add(path);
+  buildGrass(scene, quality);
   return { flag: hall.getObjectByName('flag') ?? null };
 }

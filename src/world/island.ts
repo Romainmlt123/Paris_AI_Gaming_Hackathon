@@ -29,6 +29,13 @@ export function shoreDistance(x: number, z: number): number {
   return Math.hypot(x, z) - shoreRadius(Math.atan2(z, x));
 }
 
+/** Sur le plateau de la colline nord ? */
+export function onHill(x: number, z: number): boolean {
+  const hx = x - HILL_CENTER.x;
+  const hz = z - HILL_CENTER.y;
+  return Math.hypot(hx, hz) < hillRadius(Math.atan2(hz, hx)) - 0.1;
+}
+
 export function isWalkable(x: number, z: number): boolean {
   if (shoreDistance(x, z) > -0.35) return false;
   const hx = x - HILL_CENTER.x;
