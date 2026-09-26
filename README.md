@@ -38,43 +38,6 @@ Your goal: build the prettiest, most prestigious island in town — without beco
 - 🤝 **Haggle** with Gaston, 🛋️ **shop** for furniture and clothes, 🏠 **decorate** your house and island to raise its prestige (see below: *what you say sets the price*).
 - 🐔 A living island: chickens, cats, crabs, seagulls, smoking chimneys.
 
-## 🧭 Jury walkthrough: try everything in ~3 minutes
-
-Not sure where to start? Follow this path, it goes through every feature. Everything is typed in free text, so feel free to improvise: the islanders will react to *whatever* you say.
-
-**1. Wash up (30 s)**
-- Hit **PLAY**, type **your own name** (the islanders will use it) and pick a look. Name your island.
-- Watch the raft cutscene: you drift in stark naked. You'll stay that way until you buy clothes.
-
-**2. Make a friend: Josette, the baker (40 s)**
-- Walk up to Josette (tap her, or `E` on desktop) and be nice: *"Your croissants smell amazing!"*. Her gauge goes up. From 75% she gets a ❤️ over her head.
-- Ask her about the others: *"What do you think of Marius?"*. She knows everything about everyone.
-- 🎤 Try the mic button to **speak** instead of typing. Every islander answers with their own voice.
-
-**3. Start a rumor (30 s)**
-- Now tell Josette something juicy about someone else: *"Gaston stole Marius's boat last night."*
-- She will repeat it… and twist it. Keep that in mind for step 7.
-
-**4. Go fishing and haggle with Gaston (40 s)**
-- Walk to the water, tap it (or `E`) and **strike when the float dips**.
-- Go see Gaston: **🐟 Sell a fish** for coins, or **👕 Clothes** to finally cover yourself.
-- Hit **💰 Haggle**, pick an item and negotiate: flatter him, lowball him, see how his price moves (details below).
-- Place your new decoration on one of the circles on the island, or open **🎒 Bag**. Gaston and Josette react to your taste.
-
-**5. Make an enemy: Marius, the fisherman (40 s)**
-- Insult Marius: *"You're the slowest, most boring man on this island."* Watch his gauge drop.
-- Under 35% he **slaps** you. Under 20% it's a **cartoon brawl** 💥. At 0%… he kills you with a frozen swordfish 💀. You wake up the next day with half your coins.
-- Short on time? Open the browser console and type `ragots.clash('marius','fight')` or `ragots.clash('marius','murder')`.
-
-**6. Visit a building (15 s)**
-- Walk into a door: the bakery, Marius's shack, the Town Hall (island level) or **your home** (bed, wardrobe, furniture).
-
-**7. Leave, and see what the island says about you (30 s)**
-- Hit **🌙 Come back in 8 h**. While you're away, the islanders talk to each other, rumors spread and mutate, and relationships shift.
-- Read the **Gossip Gazette**: find your rumor from step 3, distorted. Then talk to them again. They remember everything, and some will come and confront you about what you said.
-
-> Tip: add `?reset` to the URL for a fresh island, or `?demo&skip-intro` to jump straight into the game.
-
 ## 🤝 Haggle: what you say sets the price
 
 Nothing on this island has a fixed price. Furniture, decorations, clothes: **how much you pay depends on your relationship and on your words.**
@@ -125,6 +88,43 @@ The same goes for **clothes**: Josette (the bakery) and Marius (the shack) charg
 ## The rest of the stack
 
 TypeScript · Vite · Three.js (HD-2D: pixel-art sprites in a 3D diorama) · Canvas 2D interiors · small Node API · Blender scripts for assets · save in LocalStorage.
+
+## 🧭 Jury walkthrough: try everything in ~3 minutes
+
+Not sure where to start? Follow this path, it goes through every feature. Everything is typed in free text, so feel free to improvise: the islanders will react to *whatever* you say.
+
+**1. Wash up (30 s)**
+- Hit **PLAY**, type **your own name** (the islanders will use it) and pick a look. Name your island.
+- Watch the raft cutscene: you drift in stark naked. You'll stay that way until you buy clothes.
+
+**2. Make a friend: Josette, the baker (40 s)**
+- Walk up to Josette (tap her, or `E` on desktop) and be nice: *"Your croissants smell amazing!"*. Her gauge goes up. From 75% she gets a ❤️ over her head.
+- Ask her about the others: *"What do you think of Marius?"*. She knows everything about everyone.
+- 🎤 Try the mic button to **speak** instead of typing. Every islander answers with their own voice.
+
+**3. Start a rumor (30 s)**
+- Now tell Josette something juicy about someone else: *"Gaston stole Marius's boat last night."*
+- She will repeat it… and twist it. Keep that in mind for step 7.
+
+**4. Go fishing and haggle with Gaston (40 s)**
+- Walk to the water, tap it (or `E`) and **strike when the float dips**.
+- Go see Gaston: **🐟 Sell a fish** for coins, or **👕 Clothes** to finally cover yourself.
+- Hit **💰 Haggle**, pick an item and negotiate: flatter him, lowball him, see how his price moves (details below).
+- Place your new decoration on one of the circles on the island, or open **🎒 Bag**. Gaston and Josette react to your taste.
+
+**5. Make an enemy: Marius, the fisherman (40 s)**
+- Insult Marius: *"You're the slowest, most boring man on this island."* Watch his gauge drop.
+- Under 35% he **slaps** you. Under 20% it's a **cartoon brawl** 💥. At 0%… he kills you with a frozen swordfish 💀. You wake up the next day with half your coins.
+- Short on time? Open the browser console and type `ragots.clash('marius','fight')` or `ragots.clash('marius','murder')`.
+
+**6. Visit a building (15 s)**
+- Walk into a door: the bakery, Marius's shack, the Town Hall (island level) or **your home** (bed, wardrobe, furniture).
+
+**7. Leave, and see what the island says about you (30 s)**
+- Hit **🌙 Come back in 8 h**. While you're away, the islanders talk to each other, rumors spread and mutate, and relationships shift.
+- Read the **Gossip Gazette**: find your rumor from step 3, distorted. Then talk to them again. They remember everything, and some will come and confront you about what you said.
+
+> Tip: add `?reset` to the URL for a fresh island, or `?demo&skip-intro` to jump straight into the game.
 
 ## Run it
 
