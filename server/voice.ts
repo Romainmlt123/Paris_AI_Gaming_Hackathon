@@ -50,9 +50,7 @@ export async function handleStt(req: Request): Promise<Response> {
 
 export async function handleSttToken(): Promise<Response> {
   try {
-    const token = await sttToken(TOKEN_TIMEOUT_MS);
-    console.info('[stt-token] live STT session opened');
-    return json({ token });
+    return json({ token: await sttToken(TOKEN_TIMEOUT_MS) });
   } catch (err) {
     if (!(err instanceof GradiumError)) throw err;
     console.warn(`[stt-token] Gradium failed — ${err.message}`);

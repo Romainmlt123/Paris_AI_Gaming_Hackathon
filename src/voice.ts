@@ -117,7 +117,7 @@ function asLiveMessage(data: unknown): { type: string; text: string } | null {
 }
 
 /** Streams microphone audio to Gradium STT over WebSocket, reporting the transcript as it grows. */
-function openLive(onText: (text: string) => void, onState: (live: boolean) => void): { push(samples: Float32Array): void; finish(): Promise<string | null>; close(): void } {
+function openLive(onText: (text: string) => void): { push(samples: Float32Array): void; finish(): Promise<string | null>; close(): void } {
   const words: string[] = [];
   const pending: string[] = [];
   let ws: WebSocket | null = null;
@@ -126,7 +126,6 @@ function openLive(onText: (text: string) => void, onState: (live: boolean) => vo
   let done: (() => void) | null = null;
   const ended = new Promise<void>((resolve) => (done = resolve));
   const fail = (): void => {
-    if (!failed) onState(false);
     failed = true;
     done?.();
   };
@@ -148,7 +147,6 @@ function openLive(onText: (text: string) => void, onState: (live: boolean) => vo
         if (!msg) return;
         if (msg.type === 'ready') {
           ready = true;
-          onState(true);
           for (const chunk of pending.splice(0)) socket.send(JSON.stringify({ type: 'audio', audio: chunk }));
         } else if (msg.type === 'text' && msg.text) {
           words.push(msg.text);
@@ -188,7 +186,7 @@ function openLive(onText: (text: string) => void, onState: (live: boolean) => vo
  * Starts capturing the microphone. Rejects if permission is denied. Auto-stops after 12 s via `onLimit`.
  * `onText` receives the live transcript as the player speaks.
  */
-export async function startRecording(onLimit: () => void, onText: (text: string) => void, onState: (live: boolean) => void): Promise<Recording> {
+export async function startRecording(onLimit: () => void, onText: (text: string) => void): Promise<Recording> {
   stopSpeaking();
   const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 } });
   const ac = audio();
@@ -196,7 +194,7 @@ export async function startRecording(onLimit: () => void, onText: (text: string)
   const source = ac.createMediaStreamSource(stream);
   const processor = ac.createScriptProcessor(4096, 1, 1);
   const chunks: Float32Array[] = [];
-  const live = openLive(onText, onState);
+  const live = openLive(onText);
   processor.onaudioprocess = (e) => {
     const data = new Float32Array(e.inputBuffer.getChannelData(0));
     chunks.push(data);
