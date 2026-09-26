@@ -37,3 +37,8 @@ Mémoire du projet : fait, reste, décisions, pièges.
 - Feuillage : couronnes en cartes de feuilles alpha (texture canvas lissée), normales sphériques, ombres via `customDepthMaterial` ; buissons en bord d'île.
 - Lumière rasante chaude (ombres longues), shadow map 4096 en high, passe d'étalonnage finale (saturation, teinte chaude, vignette), caméra plus proche.
 - Eau : fond plus sombre au large, crêtes pixelisées animées.
+
+## Dialogues IA
+- Filtres de sécurité Gemini désactivés (`safetySettings` à `OFF`, server/gemini.ts) : les habitants encaissent insultes et grossièretés et répondent dans leur personnage au lieu de tomber sur la réplique de secours.
+- Timeouts : serveur 9 s, client 11 s (réponse Gemini typique ~1,3 s).
+- Piège : un serveur Vite lancé depuis une autre branche renvoyait 404 sur /api/talk → toutes les répliques passaient par le secours. Relancer `npm run dev` après un changement de branche.

@@ -5,7 +5,7 @@ import type { NpcId, TalkContext, TalkRequest, TalkResult } from '../shared/type
 import { EMOTIONS } from '../shared/types';
 import { GeminiError, generateJson, json } from './gemini';
 
-const TALK_TIMEOUT_MS = 7000;
+const TALK_TIMEOUT_MS = 9000;
 
 function systemPrompt(npc: NpcId): string {
   const c = CHARACTERS[npc];

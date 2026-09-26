@@ -3,7 +3,7 @@ import { mergeSim, simulateFallback } from '../shared/simulate';
 import { parseSimResult, parseTalkResult } from '../shared/validate';
 import type { GameState, NpcId, SimRequest, SimResult, TalkContext, TalkResult } from '../shared/types';
 
-const CLIENT_TIMEOUT_MS = 9000;
+const CLIENT_TIMEOUT_MS = 11000;
 
 async function post(path: string, body: unknown, timeoutMs: number): Promise<unknown> {
   const res = await fetch(path, {

@@ -7,6 +7,14 @@ export function geminiKey(): string | null {
 
 export class GeminiError extends Error {}
 
+const SAFETY_OFF = [
+  'HARM_CATEGORY_HARASSMENT',
+  'HARM_CATEGORY_HATE_SPEECH',
+  'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+  'HARM_CATEGORY_DANGEROUS_CONTENT',
+  'HARM_CATEGORY_CIVIC_INTEGRITY',
+].map((category) => ({ category, threshold: 'OFF' }));
+
 interface GeminiPart {
   text?: string;
 }
@@ -29,6 +37,7 @@ export async function generateJson(system: string, user: string, timeoutMs: numb
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: system }] },
         contents: [{ role: 'user', parts: [{ text: user }] }],
+        safetySettings: SAFETY_OFF,
         generationConfig: {
           responseMimeType: 'application/json',
           temperature: 1,
