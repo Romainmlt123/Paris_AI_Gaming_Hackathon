@@ -39,92 +39,210 @@ function speckle(ctx: CanvasRenderingContext2D, rng: Rng, size: number, colors: 
   }
 }
 
-export const grassTop = (): THREE.CanvasTexture =>
-  pixelTexture(16, (ctx, rng, s) => {
-    fill(ctx, P.grass, 0, 0, s, s);
-    speckle(ctx, rng, s, [P.grassDark, P.grassLight], 0.14);
-    for (let i = 0; i < 5; i++) {
-      const x = Math.floor(rng() * s);
-      const y = Math.floor(rng() * (s - 1));
-      fill(ctx, P.grassLight, x, y);
-      fill(ctx, P.grassDark, x, y + 1);
-    }
-  }, 11);
+function shade(c: string, k: number): string {
+  const col = new THREE.Color(c);
+  return (k < 0 ? col.multiplyScalar(1 + k) : col.lerp(new THREE.Color('#fff4dc'), k)).getStyle();
+}
 
+/** Seamless fill: wraps around the tile edges. */
+function wrap(ctx: CanvasRenderingContext2D, s: number, c: string, x: number, y: number, w = 1, h = 1): void {
+  ctx.fillStyle = c;
+  for (const ox of [0, -s]) for (const oy of [0, -s]) {
+    const xx = (((x % s) + s) % s) + ox;
+    const yy = (((y % s) + s) % s) + oy;
+    if (xx + w > 0 && yy + h > 0 && xx < s && yy < s) ctx.fillRect(xx, yy, w, h);
+  }
+}
+
+function pick<T>(rng: Rng, list: T[]): T {
+  const v = list[Math.floor(rng() * list.length)];
+  if (v === undefined) throw new Error('empty list');
+  return v;
+}
+
+const TILE = 64;
+
+function grassPaint(ctx: CanvasRenderingContext2D, rng: Rng, s: number): void {
+  fill(ctx, P.grass, 0, 0, s, s);
+  for (let i = 0; i < 26; i++) {
+    const x = Math.floor(rng() * s);
+    const y = Math.floor(rng() * s);
+    const r = 3 + Math.floor(rng() * 6);
+    const c = rng() < 0.5 ? shade(P.grass, -0.08) : shade(P.grass, 0.06);
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) if (dx * dx + dy * dy <= r * r && rng() < 0.85) wrap(ctx, s, c, x + dx, y + dy);
+  }
+  for (let i = 0; i < 520; i++) {
+    const x = Math.floor(rng() * s);
+    const y = Math.floor(rng() * s);
+    const h = 2 + Math.floor(rng() * 3);
+    wrap(ctx, s, shade(P.grassDark, -0.1), x, y + h, 1, 1);
+    wrap(ctx, s, rng() < 0.5 ? P.grassDark : shade(P.grass, -0.12), x, y + 1, 1, h - 1);
+    wrap(ctx, s, rng() < 0.6 ? P.grassLight : shade(P.grassLight, 0.15), x, y, 1, 1);
+  }
+  for (let i = 0; i < 4; i++) {
+    const x = Math.floor(rng() * s);
+    const y = Math.floor(rng() * s);
+    wrap(ctx, s, pick(rng, [P.flowerWhite, P.flowerYellow, '#dfe9ff']), x, y);
+  }
+}
+
+export const grassTop = (): THREE.CanvasTexture => pixelTexture(TILE, grassPaint, 11);
+
+/** Paving stones with mortar, highlights and wear, like a village square. */
 export const pathTop = (): THREE.CanvasTexture =>
-  pixelTexture(16, (ctx, rng, s) => {
-    fill(ctx, P.path, 0, 0, s, s);
-    speckle(ctx, rng, s, [P.pathDark, P.sand], 0.18);
+  pixelTexture(TILE, (ctx, rng, s) => {
+    const mortar = shade(P.pathDark, -0.25);
+    fill(ctx, mortar, 0, 0, s, s);
+    const rows = 5;
+    const rh = s / rows;
+    for (let r = 0; r < rows; r++) {
+      const y = Math.round(r * rh);
+      const h = Math.round((r + 1) * rh) - y;
+      let x = r % 2 === 0 ? 0 : -Math.floor(rh * 0.7);
+      while (x < s) {
+        const w = Math.floor(rh * (1 + rng() * 0.8));
+        const base = pick(rng, [P.path, shade(P.path, -0.06), shade(P.path, 0.05), shade(P.pathDark, 0.15)]);
+        wrap(ctx, s, base, x + 1, y + 1, w - 2, h - 2);
+        wrap(ctx, s, shade(base, 0.22), x + 1, y + 1, w - 3, 1);
+        wrap(ctx, s, shade(base, 0.12), x + 1, y + 2, 1, h - 4);
+        wrap(ctx, s, shade(base, -0.18), x + 2, y + h - 2, w - 3, 1);
+        wrap(ctx, s, shade(base, -0.1), x + w - 2, y + 2, 1, h - 4);
+        for (let k = 0; k < 6; k++) wrap(ctx, s, shade(base, rng() < 0.5 ? -0.08 : 0.08), x + 2 + Math.floor(rng() * (w - 4)), y + 2 + Math.floor(rng() * (h - 4)));
+        x += w;
+      }
+    }
+    for (let i = 0; i < 12; i++) wrap(ctx, s, P.grassDark, Math.floor(rng() * s), Math.floor(rng() * s), 1, 2);
   }, 12);
 
 export const sandTex = (): THREE.CanvasTexture =>
-  pixelTexture(16, (ctx, rng, s) => {
+  pixelTexture(TILE, (ctx, rng, s) => {
     fill(ctx, P.sand, 0, 0, s, s);
-    speckle(ctx, rng, s, [P.sandDark, '#f7ead0'], 0.12);
+    for (let y = 0; y < s; y += 8) for (let x = 0; x < s; x++) {
+      const yy = y + Math.round(Math.sin((x / s) * Math.PI * 4 + y) * 2);
+      wrap(ctx, s, shade(P.sand, -0.05), x, yy, 1, 1);
+      wrap(ctx, s, shade(P.sand, 0.12), x, yy - 1, 1, 1);
+    }
+    speckle(ctx, rng, s, [P.sandDark, '#f9eed6', shade(P.sand, -0.12)], 0.06);
+    for (let i = 0; i < 3; i++) {
+      const x = Math.floor(rng() * s);
+      const y = Math.floor(rng() * s);
+      wrap(ctx, s, '#fff3e6', x, y, 2, 1);
+      wrap(ctx, s, '#e9b7a4', x, y + 1, 2, 1);
+    }
   }, 13);
 
-/** Side of a grass column: grass lip on top, earth below. */
+function earth(ctx: CanvasRenderingContext2D, rng: Rng, s: number, base: string): void {
+  fill(ctx, base, 0, 0, s, s);
+  for (let i = 0; i < 40; i++) {
+    const x = Math.floor(rng() * s);
+    const y = Math.floor(rng() * s);
+    const w = 3 + Math.floor(rng() * 6);
+    wrap(ctx, s, shade(base, 0.12), x, y, w, 1);
+    wrap(ctx, s, shade(base, -0.2), x, y + 1, w, 1);
+  }
+  speckle(ctx, rng, s, [shade(base, -0.15), shade(base, 0.1)], 0.08);
+}
+
+function grassLip(ctx: CanvasRenderingContext2D, rng: Rng, s: number, depth: number): void {
+  fill(ctx, P.grass, 0, 0, s, depth);
+  fill(ctx, P.grassLight, 0, 0, s, 1);
+  for (let x = 0; x < s; x++) {
+    const h = depth + Math.floor(rng() * 4);
+    fill(ctx, rng() < 0.5 ? P.grassDark : P.grass, x, depth, 1, h - depth);
+    fill(ctx, shade(P.grassDark, -0.3), x, h, 1, 1);
+  }
+}
+
+/** Side of a grass column: overhanging grass lip, earth below. */
 export const dirtSide = (): THREE.CanvasTexture =>
-  pixelTexture(16, (ctx, rng, s) => {
-    fill(ctx, P.dirt, 0, 0, s, s);
-    speckle(ctx, rng, s, [P.dirtDark, '#a27455'], 0.2);
-    fill(ctx, P.grass, 0, 0, s, 3);
-    for (let x = 0; x < s; x++) if (rng() < 0.5) fill(ctx, P.grassDark, x, 3);
+  pixelTexture(TILE, (ctx, rng, s) => {
+    earth(ctx, rng, s, P.dirt);
+    grassLip(ctx, rng, s, 10);
   }, 14);
 
 export const cliffSide = (): THREE.CanvasTexture =>
-  pixelTexture(16, (ctx, rng, s) => {
-    fill(ctx, P.cliff, 0, 0, s, s);
-    for (let y = 0; y < s; y += 4) {
-      const off = (y / 4) % 2 === 0 ? 0 : 4;
-      fill(ctx, P.cliffDark, 0, y + 3, s, 1);
-      for (let x = off; x < s; x += 8) fill(ctx, P.cliffDark, x, y, 1, 3);
+  pixelTexture(TILE, (ctx, rng, s) => {
+    fill(ctx, P.cliffDark, 0, 0, s, s);
+    for (let y = 0; y < s; y += 10) {
+      let x = (y / 10) % 2 === 0 ? 0 : -7;
+      while (x < s) {
+        const w = 10 + Math.floor(rng() * 10);
+        const base = pick(rng, [P.cliff, shade(P.cliff, -0.08), shade(P.cliff, 0.06)]);
+        wrap(ctx, s, base, x + 1, y + 1, w - 2, 8);
+        wrap(ctx, s, shade(base, 0.2), x + 1, y + 1, w - 3, 1);
+        wrap(ctx, s, shade(base, -0.2), x + 1, y + 8, w - 2, 1);
+        x += w;
+      }
     }
-    speckle(ctx, rng, s, ['#b5a897'], 0.08);
-    fill(ctx, P.grass, 0, 0, s, 2);
-    for (let x = 0; x < s; x++) if (rng() < 0.5) fill(ctx, P.grassDark, x, 2);
+    grassLip(ctx, rng, s, 6);
   }, 15);
 
 export const planks = (): THREE.CanvasTexture =>
-  pixelTexture(16, (ctx, rng, s) => {
-    fill(ctx, P.plank, 0, 0, s, s);
-    for (let y = 0; y < s; y += 4) {
-      fill(ctx, P.plankDark, 0, y + 3, s, 1);
-      fill(ctx, P.plankDark, Math.floor(rng() * s), y, 1, 3);
+  pixelTexture(TILE, (ctx, rng, s) => {
+    const ph = 8;
+    for (let y = 0; y < s; y += ph) {
+      const base = pick(rng, [P.plank, shade(P.plank, -0.07), shade(P.plank, 0.05)]);
+      fill(ctx, base, 0, y, s, ph);
+      fill(ctx, shade(base, 0.18), 0, y, s, 1);
+      fill(ctx, shade(P.plankDark, -0.35), 0, y + ph - 1, s, 1);
+      for (let g = 0; g < 5; g++) {
+        const gy = y + 2 + Math.floor(rng() * (ph - 3));
+        const gx = Math.floor(rng() * s);
+        wrap(ctx, s, shade(base, -0.14), gx, gy, 6 + Math.floor(rng() * 14), 1);
+      }
+      const seam = Math.floor(rng() * s);
+      wrap(ctx, s, shade(P.plankDark, -0.3), seam, y, 1, ph - 1);
+      wrap(ctx, s, '#6b5a50', seam + 2, y + 3, 1, 1);
+      wrap(ctx, s, '#6b5a50', seam - 3, y + 3, 1, 1);
     }
-    speckle(ctx, rng, s, ['#c99a6a'], 0.06);
   }, 16);
 
 export const plaster = (tint: string): THREE.CanvasTexture =>
-  pixelTexture(16, (ctx, rng, s) => {
+  pixelTexture(TILE, (ctx, rng, s) => {
     fill(ctx, tint, 0, 0, s, s);
-    speckle(ctx, rng, s, ['#00000010', '#ffffff30'], 0.2);
-    fill(ctx, '#00000018', 0, s - 2, s, 2);
+    for (let i = 0; i < 30; i++) {
+      const x = Math.floor(rng() * s);
+      const y = Math.floor(rng() * s);
+      wrap(ctx, s, shade(tint, rng() < 0.5 ? -0.05 : 0.05), x, y, 2 + Math.floor(rng() * 5), 1 + Math.floor(rng() * 2));
+    }
+    fill(ctx, shade(tint, -0.15), 0, s - 6, s, 6);
+    fill(ctx, shade(tint, -0.25), 0, s - 6, s, 1);
   }, 17);
 
 export const stoneWall = (): THREE.CanvasTexture =>
-  pixelTexture(16, (ctx, rng, s) => {
-    fill(ctx, P.stone, 0, 0, s, s);
-    for (let y = 0; y < s; y += 4) {
-      const off = (y / 4) % 2 === 0 ? 0 : 3;
-      fill(ctx, P.stoneDark, 0, y + 3, s, 1);
-      for (let x = off; x < s; x += 6) fill(ctx, P.stoneDark, x, y, 1, 3);
+  pixelTexture(TILE, (ctx, rng, s) => {
+    fill(ctx, shade(P.stoneDark, -0.2), 0, 0, s, s);
+    const bh = 8;
+    for (let y = 0; y < s; y += bh) {
+      let x = (y / bh) % 2 === 0 ? 0 : -8;
+      while (x < s) {
+        const w = 16;
+        const base = pick(rng, [P.stone, shade(P.stone, -0.06), shade(P.stone, 0.05), shade(P.stoneDark, 0.1)]);
+        wrap(ctx, s, base, x + 1, y + 1, w - 2, bh - 2);
+        wrap(ctx, s, shade(base, 0.2), x + 1, y + 1, w - 2, 1);
+        wrap(ctx, s, shade(base, -0.15), x + 1, y + bh - 2, w - 2, 1);
+        x += w;
+      }
     }
-    speckle(ctx, rng, s, ['#ddd4c5'], 0.08);
+    speckle(ctx, rng, s, ['#ddd4c540'], 0.05);
   }, 18);
 
 export const roofTiles = (base: string): THREE.CanvasTexture =>
-  pixelTexture(16, (ctx, rng, s) => {
-    fill(ctx, base, 0, 0, s, s);
-    const dark = new THREE.Color(base).multiplyScalar(0.72).getStyle();
-    const light = new THREE.Color(base).lerp(new THREE.Color('#ffffff'), 0.18).getStyle();
-    for (let y = 0; y < s; y += 4) {
-      fill(ctx, dark, 0, y + 3, s, 1);
-      const off = (y / 4) % 2 === 0 ? 0 : 2;
-      for (let x = off; x < s; x += 4) fill(ctx, dark, x, y, 1, 3);
-      fill(ctx, light, 0, y, s, 1);
+  pixelTexture(TILE, (ctx, rng, s) => {
+    const rh = 8;
+    const tw = 8;
+    fill(ctx, shade(base, -0.4), 0, 0, s, s);
+    for (let y = 0; y < s; y += rh) {
+      const off = (y / rh) % 2 === 0 ? 0 : tw / 2;
+      for (let x = -tw; x < s + tw; x += tw) {
+        const c = shade(base, (rng() - 0.5) * 0.12);
+        wrap(ctx, s, c, x + off, y, tw - 1, rh - 1);
+        wrap(ctx, s, shade(c, 0.22), x + off, y, tw - 1, 1);
+        wrap(ctx, s, shade(c, 0.1), x + off, y + 1, 1, rh - 3);
+        wrap(ctx, s, shade(c, -0.22), x + off, y + rh - 2, tw - 1, 1);
+        wrap(ctx, s, shade(c, -0.3), x + off + 1, y + rh - 1, tw - 3, 1);
+      }
     }
-    speckle(ctx, rng, s, [dark], 0.03);
   }, 19);
 
 export const awning = (): THREE.CanvasTexture =>

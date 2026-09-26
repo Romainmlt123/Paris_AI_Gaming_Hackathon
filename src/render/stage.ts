@@ -8,10 +8,29 @@ import { HorizontalTiltShiftShader } from 'three/addons/shaders/HorizontalTiltSh
 import { VerticalTiltShiftShader } from 'three/addons/shaders/VerticalTiltShiftShader.js';
 import { P } from './textures';
 
+/** Final grade in display space: warm lift, gentle saturation, soft vignette. */
+const GradeShader = {
+  uniforms: { tDiffuse: { value: null } },
+  vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+  fragmentShader: `
+    uniform sampler2D tDiffuse;
+    varying vec2 vUv;
+    void main() {
+      vec3 c = texture2D(tDiffuse, vUv).rgb;
+      float l = dot(c, vec3(0.299, 0.587, 0.114));
+      c = mix(vec3(l), c, 1.12);
+      c = c * vec3(1.03, 1.0, 0.95) + vec3(0.015, 0.01, 0.0);
+      c = mix(c, c * c * (3.0 - 2.0 * c), 0.25);
+      vec2 d = vUv - 0.5;
+      c *= 1.0 - dot(d, d) * 0.55;
+      gl_FragColor = vec4(c, 1.0);
+    }`,
+};
+
 export type Quality = 'low' | 'mid' | 'high';
 
 const PITCH = THREE.MathUtils.degToRad(50);
-const DISTANCE = 30;
+const DISTANCE = 25;
 
 export interface Stage {
   renderer: THREE.WebGLRenderer;
@@ -27,9 +46,9 @@ export interface Stage {
 }
 
 function lights(scene: THREE.Scene): THREE.DirectionalLight {
-  scene.add(new THREE.HemisphereLight(P.sky, P.skyGround, 1.25));
-  const sun = new THREE.DirectionalLight(P.sun, 2.6);
-  sun.position.set(-9, 12, 6);
+  scene.add(new THREE.HemisphereLight('#ffe2c2', '#3c5f6e', 1.05));
+  const sun = new THREE.DirectionalLight('#ffc98e', 3.1);
+  sun.position.set(-10, 8, 4);
   sun.castShadow = true;
   const cam = sun.shadow.camera;
   cam.left = -14;
@@ -66,6 +85,7 @@ export function createStage(canvas: HTMLCanvasElement, initial: Quality): Stage 
   composer.addPass(hTilt);
   composer.addPass(vTilt);
   composer.addPass(new OutputPass());
+  composer.addPass(new ShaderPass(GradeShader));
 
   const focus = new THREE.Vector3();
   const stage: Stage = {
@@ -76,7 +96,7 @@ export function createStage(canvas: HTMLCanvasElement, initial: Quality): Stage 
     quality: initial,
     setQuality(q) {
       stage.quality = q;
-      const size = q === 'low' ? 1024 : 2048;
+      const size = q === 'low' ? 1024 : q === 'mid' ? 2048 : 4096;
       sun.shadow.mapSize.set(size, size);
       sun.shadow.map?.dispose();
       sun.shadow.map = null;
@@ -94,7 +114,7 @@ export function createStage(canvas: HTMLCanvasElement, initial: Quality): Stage 
       composer.setPixelRatio(ratio);
       composer.setSize(w, h);
       camera.aspect = w / h;
-      camera.fov = w / h < 0.7 ? 40 : 28;
+      camera.fov = w / h < 0.7 ? 38 : 26;
       camera.updateProjectionMatrix();
       hTilt.uniforms['h'] = { value: 1.2 / (w * ratio) };
       vTilt.uniforms['v'] = { value: 1.2 / (h * ratio) };
@@ -104,7 +124,7 @@ export function createStage(canvas: HTMLCanvasElement, initial: Quality): Stage 
       focus.lerp(target, focus.lengthSq() === 0 ? 1 : k);
       camera.position.set(focus.x, focus.y + Math.sin(PITCH) * DISTANCE, focus.z + Math.cos(PITCH) * DISTANCE);
       camera.lookAt(focus);
-      sun.position.set(focus.x - 9, 12, focus.z + 6);
+      sun.position.set(focus.x - 10, 8, focus.z + 4);
       sun.target.position.copy(focus);
     },
     render() {

@@ -18,67 +18,143 @@ export interface SpriteSpec {
   beard?: boolean;
 }
 
-export const FRAME_W = 16;
-export const FRAME_H = 24;
+export const FRAME_W = 32;
+export const FRAME_H = 48;
 export const FRAMES = 3;
 
 type Px = (x: number, y: number, c: string, w?: number, h?: number) => void;
 
-function drawHead(px: Px, s: SpriteSpec, facing: Facing, bob: number): void {
-  const y0 = 3 + bob;
-  px(4, y0, s.skin, 8, 8);
-  px(3, y0 + 3, s.skin, 1, 3);
-  px(12, y0 + 3, s.skin, 1, 3);
-  if (facing === 'down') {
-    px(6, y0 + 4, P.ink, 1, 2);
-    px(9, y0 + 4, P.ink, 1, 2);
-    px(5, y0 + 6, '#f2a0a0');
-    px(10, y0 + 6, '#f2a0a0');
-    px(7, y0 + 7, '#b5645a', 2, 1);
-    if (s.mustache) px(5, y0 + 6, s.hair, 6, 1);
-    if (s.beard) {
-      px(4, y0 + 6, s.hair, 1, 2);
-      px(11, y0 + 6, s.hair, 1, 2);
-      px(4, y0 + 8, s.hair, 8, 1);
-      px(5, y0 + 9, s.hair, 6, 1);
-      px(7, y0 + 7, '#b5645a', 2, 1);
-    }
-  } else {
-    px(4, y0, s.hair, 8, 7);
+function tone(c: string, k: number): string {
+  const col = new THREE.Color(c);
+  return (k < 0 ? col.lerp(new THREE.Color('#2a1e3a'), -k) : col.lerp(new THREE.Color('#fff4dc'), k)).getStyle();
+}
+
+function drawFace(px: Px, s: SpriteSpec, y0: number): void {
+  const eye = (x: number): void => {
+    px(x, y0 + 8, P.ink, 2, 3);
+    px(x, y0 + 8, '#ffffff');
+  };
+  eye(11);
+  eye(19);
+  px(10, y0 + 6, tone(s.hair, -0.25), 4, 1);
+  px(18, y0 + 6, tone(s.hair, -0.25), 4, 1);
+  px(9, y0 + 12, '#f29b9b', 2, 1);
+  px(21, y0 + 12, '#f29b9b', 2, 1);
+  px(15, y0 + 11, tone(s.skin, -0.18), 2, 1);
+  px(14, y0 + 13, '#9c4b43', 4, 1);
+  if (s.mustache) {
+    px(11, y0 + 12, s.hair, 10, 2);
+    px(10, y0 + 13, s.hair, 1, 1);
+    px(21, y0 + 13, s.hair, 1, 1);
+    px(12, y0 + 12, tone(s.hair, 0.3), 3, 1);
   }
-  if (s.hairStyle === 'short' || s.hairStyle === 'bun') {
-    px(4, y0 - 1, s.hair, 8, 3);
-    px(3, y0, s.hair, 1, 4);
-    px(12, y0, s.hair, 1, 4);
-    if (s.hairStyle === 'bun') px(6, y0 - 3, s.hair, 4, 2);
-  } else {
-    const hat = s.hat ?? s.hair;
-    px(4, y0 - 2, hat, 8, 3);
-    px(3, y0 - 1, hat, 10, 2);
-    if (s.hairStyle === 'cap' && facing === 'down') px(3, y0 + 1, hat, 11, 1);
-    if (s.hairStyle === 'beanie') px(7, y0 - 3, '#ffffff', 2, 1);
+  if (s.beard) {
+    px(8, y0 + 10, s.hair, 2, 6);
+    px(22, y0 + 10, s.hair, 2, 6);
+    px(9, y0 + 14, s.hair, 14, 3);
+    px(11, y0 + 17, s.hair, 10, 1);
+    px(12, y0 + 12, s.hair, 8, 1);
+    px(14, y0 + 14, '#9c4b43', 4, 1);
+    px(10, y0 + 15, tone(s.hair, 0.3), 4, 1);
   }
 }
 
-function drawBody(px: Px, s: SpriteSpec, frame: number, facing: Facing): void {
-  const bob = frame === 0 ? 0 : 1;
-  const swing = frame === 1 ? 1 : frame === 2 ? -1 : 0;
-  px(4, 12 + bob, s.shirt, 8, 7);
-  px(3, 13 + bob + swing, s.shirt, 1, 4);
-  px(12, 13 + bob - swing, s.shirt, 1, 4);
-  px(3, 17 + bob + swing, s.skin);
-  px(12, 17 + bob - swing, s.skin);
-  if (s.scarf) px(4, 12 + bob, s.scarf, 8, 1);
-  if (s.apron && facing === 'down') {
-    px(5, 14 + bob, s.apron, 6, 6);
-    px(6, 13 + bob, s.apron, 4, 1);
+function drawHair(px: Px, s: SpriteSpec, facing: Facing, y0: number): void {
+  const hl = tone(s.hair, 0.3);
+  const dk = tone(s.hair, -0.3);
+  if (facing === 'up') {
+    px(8, y0, s.hair, 16, 15);
+    px(7, y0 + 2, s.hair, 18, 10);
+    px(10, y0 + 1, hl, 8, 1);
+    px(8, y0 + 13, dk, 16, 2);
+  } else if (s.hairStyle === 'short' || s.hairStyle === 'bun') {
+    px(8, y0 - 1, s.hair, 16, 5);
+    px(7, y0 + 1, s.hair, 2, 9);
+    px(23, y0 + 1, s.hair, 2, 9);
+    px(9, y0 + 4, s.hair, 7, 2);
+    px(17, y0 + 4, s.hair, 5, 1);
+    px(11, y0, hl, 7, 1);
+    px(9, y0 + 5, dk, 3, 1);
   }
-  const leftLift = frame === 1 ? 1 : 0;
-  const rightLift = frame === 2 ? 1 : 0;
-  px(5, 19 + bob, s.pants, 2, 3 - leftLift);
-  px(9, 19 + bob, s.pants, 2, 3 - rightLift);
-  px(5, 22 + bob - leftLift, s.shoes, 2, 1);
-  px(9, 22 + bob - rightLift, s.shoes, 2, 1);
+  if (s.hairStyle === 'bun') {
+    px(12, y0 - 5, s.hair, 8, 5);
+    px(13, y0 - 6, s.hair, 6, 1);
+    px(14, y0 - 5, hl, 3, 1);
+    px(12, y0 - 1, dk, 8, 1);
+  }
+  if (s.hairStyle === 'cap' || s.hairStyle === 'beanie') {
+    const hat = s.hat ?? s.hair;
+    if (facing === 'down') {
+      px(7, y0 + 4, s.hair, 2, 5);
+      px(23, y0 + 4, s.hair, 2, 5);
+    }
+    px(8, y0 - 2, hat, 16, 6);
+    px(7, y0, hat, 18, 4);
+    px(10, y0 - 1, tone(hat, 0.3), 9, 1);
+    px(7, y0 + 3, tone(hat, -0.3), 18, 1);
+    if (s.hairStyle === 'cap' && facing === 'down') px(6, y0 + 4, tone(hat, -0.15), 20, 2);
+    if (s.hairStyle === 'beanie') {
+      px(14, y0 - 5, '#ffffff', 4, 3);
+      px(14, y0 - 3, '#d9d4cc', 4, 1);
+      for (let x = 8; x < 24; x += 2) px(x, y0 + 1, tone(hat, -0.15), 1, 2);
+    }
+  }
+}
+
+function drawHead(px: Px, s: SpriteSpec, facing: Facing, bob: number): void {
+  const y0 = 5 + bob;
+  px(9, y0, s.skin, 14, 16);
+  px(8, y0 + 2, s.skin, 16, 12);
+  px(6, y0 + 7, s.skin, 2, 4);
+  px(24, y0 + 7, s.skin, 2, 4);
+  px(22, y0 + 3, tone(s.skin, -0.12), 2, 11);
+  px(10, y0 + 15, tone(s.skin, -0.15), 12, 1);
+  px(10, y0 + 1, tone(s.skin, 0.2), 5, 1);
+  if (facing === 'down') drawFace(px, s, y0);
+  drawHair(px, s, facing, y0);
+}
+
+function drawBody(px: Px, s: SpriteSpec, frame: number, facing: Facing): void {
+  const r = (x: number, y: number, w: number, h: number, c: string): void => px(x, y, c, w, h);
+  const b = frame === 0 ? 0 : 1;
+  const swing = frame === 1 ? 1 : frame === 2 ? -1 : 0;
+  const shirtD = tone(s.shirt, -0.25);
+  const shirtL = tone(s.shirt, 0.25);
+  r(10, 21 + b, 12, 12, s.shirt);
+  r(9, 22 + b, 14, 9, s.shirt);
+  r(19, 22 + b, 4, 10, shirtD);
+  r(10, 22 + b, 2, 8, shirtL);
+  r(13, 21 + b, 6, 1, shirtD);
+  // arms
+  r(6, 23 + b + swing, 3, 9, s.shirt);
+  r(6, 23 + b + swing, 1, 9, shirtL);
+  r(23, 23 + b - swing, 3, 9, shirtD);
+  r(6, 32 + b + swing, 3, 3, s.skin);
+  r(23, 32 + b - swing, 3, 3, tone(s.skin, -0.15));
+  if (s.scarf) {
+    r(10, 20 + b, 12, 3, s.scarf);
+    r(11, 20 + b, 5, 1, tone(s.scarf, 0.3));
+    if (facing === 'down') r(18, 23 + b, 3, 5, tone(s.scarf, -0.15));
+  }
+  if (s.apron && facing === 'down') {
+    r(12, 25 + b, 8, 11, s.apron);
+    r(13, 22 + b, 1, 3, s.apron);
+    r(18, 22 + b, 1, 3, s.apron);
+    r(18, 25 + b, 2, 11, tone(s.apron, -0.12));
+    r(14, 29 + b, 4, 2, tone(s.apron, -0.08));
+  }
+  const pantsD = tone(s.pants, -0.3);
+  r(10, 32 + b, 12, 1, pantsD);
+  r(11, 33 + b, 10, 4, s.pants);
+  const lift = (i: number): number => (frame === i ? 1 : 0);
+  r(11, 37 + b, 4, 6 - lift(1), s.pants);
+  r(17, 37 + b, 4, 6 - lift(2), s.pants);
+  r(14, 37 + b, 1, 6 - lift(1), pantsD);
+  r(20, 37 + b, 1, 6 - lift(2), pantsD);
+  r(10, 43 + b - lift(1), 5, 3, s.shoes);
+  r(17, 43 + b - lift(2), 5, 3, s.shoes);
+  r(11, 43 + b - lift(1), 2, 1, tone(s.shoes, 0.3));
+  r(18, 43 + b - lift(2), 2, 1, tone(s.shoes, 0.3));
 }
 
 function outline(ctx: CanvasRenderingContext2D, ox: number, oy: number): void {
@@ -132,15 +208,15 @@ export function setFrame(tex: THREE.Texture, frame: number, facing: Facing): voi
 }
 
 /** Upscaled head crop for the UI. */
-export function portraitDataUrl(sheet: HTMLCanvasElement, scale = 4): string {
-  const size = 14;
+export function portraitDataUrl(sheet: HTMLCanvasElement, scale = 3): string {
+  const size = 24;
   const canvas = document.createElement('canvas');
   canvas.width = size * scale;
   canvas.height = size * scale;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('2D canvas unavailable');
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(sheet, 1, 0, size, size, 0, 0, size * scale, size * scale);
+  ctx.drawImage(sheet, 4, 0, size, size, 0, 0, size * scale, size * scale);
   return canvas.toDataURL();
 }
 

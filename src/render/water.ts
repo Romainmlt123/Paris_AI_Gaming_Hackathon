@@ -51,8 +51,14 @@ const fragment = /* glsl */ `
   varying vec2 vWorld;
   void main() {
     float land = texture2D(uShore, clamp(vShoreUv, 0.0, 1.0)).r;
-    float ripple = sin(vWorld.x * 1.7 + uTime * 0.9) * sin(vWorld.y * 1.3 - uTime * 0.7);
-    vec3 col = mix(uDeep, uShallow, smoothstep(0.02, 0.55, land + ripple * 0.03));
+    vec2 p = floor(vWorld * 16.0) / 16.0;
+    float ripple = sin(p.x * 1.7 + uTime * 0.9) * sin(p.y * 1.3 - uTime * 0.7);
+    vec3 deep = mix(uDeep * 0.72, uDeep, smoothstep(0.0, 0.18, land));
+    vec3 col = mix(deep, uShallow, smoothstep(0.04, 0.55, land + ripple * 0.03));
+    float n = sin(p.x * 5.3 + uTime) + sin(p.y * 6.1 - uTime * 0.8)
+            + sin((p.x - p.y) * 4.3 + uTime * 1.3) + sin((p.x + p.y) * 7.1 - uTime * 0.6);
+    float crest = smoothstep(2.9, 3.3, n);
+    col = mix(col, mix(uShallow, uFoam, 0.6), crest * (0.18 + 0.4 * smoothstep(0.05, 0.4, land)));
     float edge = smoothstep(0.42, 0.5, land);
     col = mix(col, uFoam, edge * 0.9);
     float band = smoothstep(0.2, 0.28, land) * (1.0 - smoothstep(0.36, 0.42, land));

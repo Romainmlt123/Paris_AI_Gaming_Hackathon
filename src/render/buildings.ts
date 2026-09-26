@@ -39,7 +39,7 @@ function roof(w: number, d: number, color: string): THREE.Mesh {
   geo.rotateY(Math.PI / 2);
   const tex = roofTiles(color);
   tex.rotation = Math.PI / 2;
-  tex.repeat.set(2.5, 2.5);
+  tex.repeat.set(0.9, 0.9);
   const mat = new THREE.MeshLambertMaterial({ map: tex });
   const mesh = new THREE.Mesh(geo, mat);
   mesh.castShadow = true;

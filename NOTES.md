@@ -29,3 +29,11 @@ Mémoire du projet : fait, reste, décisions, pièges.
 - Le secret Devin s'appelle `GOOGLE_STUDIO_KEY` : `server/gemini.ts` accepte aussi `GEMINI_API_KEY`.
 - InstancedMesh + BoxGeometry : passer UN matériau (pas un tableau d'un seul), sinon 5 faces sur 6 disparaissent.
 - Les emojis n'apparaissent pas en headless (pas de police emoji), OK sur téléphone.
+
+## Passe graphismes HD (branche devin/*-hd-graphics)
+- Sprites 32×48 (au lieu de 16×24) avec ombrage, reflets et yeux détaillés ; acteurs 1.5 u de haut ; portraits recadrés 24 px.
+- Textures procédurales 64 px/tuile : pavés avec joints, herbe à brins, sable ridé, planches veinées, pierres, tuiles de toit.
+- Herbe 3D : `src/render/grass.ts`, touffes instanciées animées par le vent (vertex shader) ; densité par niveau de qualité via `mesh.count` (low 3 / mid 7 / high 14 passes par tuile). Piège : `DoubleSide` inverse la normale des faces arrière → brins noirs ; on duplique les triangles dans les deux sens.
+- Feuillage : couronnes en cartes de feuilles alpha (texture canvas lissée), normales sphériques, ombres via `customDepthMaterial` ; buissons en bord d'île.
+- Lumière rasante chaude (ombres longues), shadow map 4096 en high, passe d'étalonnage finale (saturation, teinte chaude, vignette), caméra plus proche.
+- Eau : fond plus sombre au large, crêtes pixelisées animées.

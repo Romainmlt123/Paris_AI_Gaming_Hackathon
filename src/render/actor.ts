@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { drawSheet, FRAME_H, FRAME_W, setFrame, sheetTexture, type Facing, type SpriteSpec } from './sprites';
 
-const HEIGHT = 1.35;
+const HEIGHT = 1.5;
 
 export interface ActorView {
   root: THREE.Group;

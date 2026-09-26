@@ -5,7 +5,8 @@ import { NPC_IDS } from '../../shared/types';
 import { createActorView, type ActorView } from '../render/actor';
 import { createBuildings } from '../render/buildings';
 import { createDeco, slotMarker } from '../render/decor';
-import { createFlowers, createRocks, createTrees, type Swaying } from '../render/props';
+import { createBushes, createFlowers, createRocks, createTrees, type Swaying } from '../render/props';
+import { createGrass } from '../render/grass';
 import { SPRITES } from '../render/sprites';
 import type { Stage } from '../render/stage';
 import { createTerrain, type Terrain } from '../render/terrain';
@@ -104,7 +105,10 @@ export function createWorld(stage: Stage): World {
   const water: Water = createWater(map);
   const trees = createTrees(map);
   const sway: Swaying[] = trees.sway;
-  stage.scene.add(terrain.group, water.mesh, trees.group, createRocks(map), createFlowers(map), createBuildings(map));
+  const grass = createGrass(map);
+  let grassQuality = stage.quality;
+  grass.setQuality(grassQuality);
+  stage.scene.add(terrain.group, water.mesh, trees.group, grass.mesh, createBushes(map), createRocks(map), createFlowers(map), createBuildings(map));
 
   const player = makeActor(createActorView(SPRITES.player, 'player'), { x: 12, z: 20 }, map, SPEED);
   stage.scene.add(player.view.root);
@@ -265,6 +269,11 @@ export function createWorld(stage: Stage): World {
         if (marker) marker.scale.setScalar(1 + Math.sin(time * 3) * 0.08);
       }
       water.update(time);
+      grass.update(time);
+      if (stage.quality !== grassQuality) {
+        grassQuality = stage.quality;
+        grass.setQuality(grassQuality);
+      }
     },
     teleportPlayer(tile) {
       player.path = [];
