@@ -68,7 +68,10 @@ export interface World {
   /** The NPC lunges with its weapon; `onHit` fires on impact, then the player's ghost floats away. */
   murder(id: NpcId, onHit: () => void): Promise<void>;
   revive(): void;
+  setPlayerSkin(skin: PlayerSkin): void;
 }
+
+export type PlayerSkin = 'player' | 'castaway';
 
 function tileY(map: TileMap, x: number, z: number): number {
   return surfaceHeight(kindAt(map, Math.round(x), Math.round(z)));
@@ -220,6 +223,7 @@ export function createWorld(stage: Stage): World {
     map,
     playerPos: player.pos,
     npcView: (id) => npc(id).view,
+    setPlayerSkin: (skin) => player.view.setSkin(SPRITES[skin]),
     pick(ndc) {
       raycaster.setFromCamera(ndc, stage.camera);
       const sprites = [...npcs.values()].map((n) => n.view.sprite);

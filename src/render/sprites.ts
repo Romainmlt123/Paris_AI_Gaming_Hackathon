@@ -16,6 +16,8 @@ export interface SpriteSpec {
   scarf?: string;
   mustache?: boolean;
   beard?: boolean;
+  /** Castaway: no clothes, pixel mosaic in front, bare bottom from behind. */
+  naked?: boolean;
 }
 
 export const FRAME_W = 32;
@@ -112,6 +114,71 @@ function drawHead(px: Px, s: SpriteSpec, facing: Facing, bob: number): void {
   px(10, y0 + 1, tone(s.skin, 0.2), 5, 1);
   if (facing === 'down') drawFace(px, s, y0);
   drawHair(px, s, facing, y0);
+  if (s.naked) {
+    px(10, y0 - 3, '#4f9a4a', 2, 3);
+    px(12, y0 - 2, '#6fbf5a', 3, 2);
+    px(15, y0 - 1, '#4f9a4a', 2, 1);
+    px(20, y0 - 2, '#3f7f3c', 2, 3);
+  }
+}
+
+const MOSAIC = ['#f6d7bd', '#e7ad8e', '#f2c3a6', '#d99a82', '#f8e2cc', '#e4a38f'];
+
+function drawNakedBody(px: Px, s: SpriteSpec, frame: number, facing: Facing): void {
+  const r = (x: number, y: number, w: number, h: number, c: string): void => px(x, y, c, w, h);
+  const b = frame === 0 ? 0 : 1;
+  const swing = frame === 1 ? 1 : frame === 2 ? -1 : 0;
+  const lift = (i: number): number => (frame === i ? 1 : 0);
+  const skinD = tone(s.skin, -0.15);
+  const skinDD = tone(s.skin, -0.3);
+  const skinL = tone(s.skin, 0.2);
+  const pale = tone(s.skin, 0.62);
+  r(10, 21 + b, 12, 12, s.skin);
+  r(9, 22 + b, 14, 9, s.skin);
+  r(19, 22 + b, 4, 10, skinD);
+  r(10, 22 + b, 2, 8, skinL);
+  r(13, 21 + b, 6, 1, skinD);
+  r(6, 23 + b + swing, 3, 12, s.skin);
+  r(6, 23 + b + swing, 1, 11, skinL);
+  r(23, 23 + b - swing, 3, 12, skinD);
+  r(11, 32 + b, 10, 5, s.skin);
+  r(11, 37 + b, 4, 6 - lift(1), s.skin);
+  r(17, 37 + b, 4, 6 - lift(2), s.skin);
+  r(14, 37 + b, 1, 6 - lift(1), skinD);
+  r(20, 37 + b, 1, 6 - lift(2), skinD);
+  r(10, 43 + b - lift(1), 5, 3, s.skin);
+  r(17, 43 + b - lift(2), 5, 3, s.skin);
+  r(10, 45 + b - lift(1), 5, 1, skinD);
+  r(17, 45 + b - lift(2), 5, 1, skinD);
+  if (facing === 'down') {
+    r(12, 25 + b, 2, 1, '#d98a80');
+    r(18, 25 + b, 2, 1, '#d98a80');
+    r(11, 27 + b, 3, 1, skinD);
+    r(18, 27 + b, 3, 1, skinD);
+    r(16, 30 + b, 1, 1, skinDD);
+    r(11, 43 + b - lift(1), 1, 1, skinDD);
+    r(13, 43 + b - lift(1), 1, 1, skinDD);
+    r(18, 43 + b - lift(2), 1, 1, skinDD);
+    r(20, 43 + b - lift(2), 1, 1, skinDD);
+    for (let y = 0; y < 3; y++) for (let x = 0; x < 5; x++) {
+      r(11 + x * 2, 33 + b + y * 2, 2, 2, MOSAIC[(x * 7 + y * 3 + frame) % MOSAIC.length] ?? s.skin);
+    }
+  } else {
+    r(16, 23 + b, 1, 8, skinD);
+    r(11, 24 + b, 3, 1, skinD);
+    r(19, 24 + b, 3, 1, skinD);
+    r(10, 32 + b, 12, 6, pale);
+    r(10, 32 + b, 12, 1, skinD);
+    r(10, 33 + b, 1, 4, skinD);
+    r(21, 33 + b, 1, 4, skinD);
+    r(15, 33 + b, 2, 5, '#b86f5e');
+    r(12, 33 + b, 1, 1, '#ffffff');
+    r(18, 33 + b, 1, 1, '#ffffff');
+    r(12, 35 + b, 2, 2, '#f7a8a8');
+    r(18, 35 + b, 2, 2, '#f7a8a8');
+    r(11, 37 + b, 4, 1, '#c98a72');
+    r(17, 37 + b, 4, 1, '#c98a72');
+  }
 }
 
 function drawBody(px: Px, s: SpriteSpec, frame: number, facing: Facing): void {
@@ -190,7 +257,8 @@ export function drawSheet(spec: SpriteSpec): HTMLCanvasElement {
         ctx.fillStyle = c;
         ctx.fillRect(ox + x0, oy + y0, x1 - x0, y1 - y0);
       };
-      drawBody(px, spec, frame, facing);
+      if (spec.naked) drawNakedBody(px, spec, frame, facing);
+      else drawBody(px, spec, frame, facing);
       drawHead(px, spec, facing, frame === 0 ? 0 : 1);
       outline(ctx, ox, oy);
     }
@@ -225,8 +293,9 @@ export function portraitDataUrl(sheet: HTMLCanvasElement, scale = 3): string {
   return canvas.toDataURL();
 }
 
-export const SPRITES: Record<'player' | 'gaston' | 'josette' | 'marius', SpriteSpec> = {
+export const SPRITES: Record<'player' | 'castaway' | 'gaston' | 'josette' | 'marius', SpriteSpec> = {
   player: { skin: '#f3c9a5', hair: '#5a3b2a', hairStyle: 'short', shirt: '#3fa7a0', pants: '#34466b', shoes: '#4a3328', scarf: '#e0564a' },
+  castaway: { skin: '#f3c9a5', hair: '#5a3b2a', hairStyle: 'short', shirt: '#f3c9a5', pants: '#f3c9a5', shoes: '#f3c9a5', naked: true },
   gaston: { skin: '#e9b48f', hair: '#3b2a24', hairStyle: 'cap', hat: '#7b4fa0', shirt: '#e3b13f', pants: '#5b4636', shoes: '#2f2320', mustache: true },
   josette: { skin: '#f6d0b5', hair: '#c46b3d', hairStyle: 'bun', shirt: '#e98aa6', pants: '#7a4b6b', shoes: '#5a3a3a', apron: '#fffaf0' },
   marius: { skin: '#dba27c', hair: '#b7b3ad', hairStyle: 'beanie', hat: '#2f5f8f', shirt: '#e5d9b6', pants: '#3e5a6e', shoes: '#3a2e26', beard: true },

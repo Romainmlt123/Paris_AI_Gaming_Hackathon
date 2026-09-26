@@ -15,6 +15,7 @@ export interface ActorView {
   setMood(mood: Mood, time: number): void;
   /** Knocked out: sprite lies flat on the ground. */
   setDown(down: boolean): void;
+  setSkin(spec: SpriteSpec): void;
 }
 
 function bubbleSprite(): THREE.Sprite {
@@ -88,6 +89,13 @@ export function createActorView(spec: SpriteSpec, name: string): ActorView {
         m.visible = key === mood;
         if (m.visible) m.position.y = HEIGHT + 0.1 + Math.abs(Math.sin(time * (mood === 'skull' ? 6 : 3))) * 0.08;
       }
+    },
+    setSkin(next) {
+      const ctx = sheet.getContext('2d');
+      if (!ctx) return;
+      ctx.clearRect(0, 0, sheet.width, sheet.height);
+      ctx.drawImage(drawSheet(next), 0, 0);
+      tex.needsUpdate = true;
     },
     setDown(down) {
       sprite.rotation.x = down ? -Math.PI / 2 : 0;

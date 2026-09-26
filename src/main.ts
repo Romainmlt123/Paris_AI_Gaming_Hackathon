@@ -12,7 +12,7 @@ import type { DecoId, GameState, NpcId, RelationChange, SlotId } from '../shared
 import { NPC_IDS } from '../shared/types';
 import { simulate, talk } from './api';
 import { loadState, resetSave, saveState } from './game/save';
-import { createWorld, HOMES } from './game/world';
+import { createWorld, HOMES, type PlayerSkin } from './game/world';
 import { portraitDataUrl, SPRITES, drawSheet } from './render/sprites';
 import { createQualityGovernor, createStage, type Quality } from './render/stage';
 import { createDialogue, type Chip } from './ui/dialogue';
@@ -416,8 +416,10 @@ declare global {
       clash: (npc: NpcId, kind: Clash) => Promise<void>;
       pos: () => { x: number; z: number };
       homes: typeof HOMES;
+      skin: (skin: PlayerSkin) => void;
     };
   }
 }
 /** Hooks for the scripted demo recording (see CLAUDE.md §13). */
-window.ragots = { state: () => state, talk: (npc) => startTalk(npc), say: (text) => onPlayerLine(text), absence, clash: runClash, pos: () => ({ x: world.playerPos.x, z: world.playerPos.z }), homes: HOMES };
+window.ragots = { state: () => state, talk: (npc) => startTalk(npc), say: (text) => onPlayerLine(text), absence, clash: runClash, pos: () => ({ x: world.playerPos.x, z: world.playerPos.z }), homes: HOMES, skin: (skin) => world.setPlayerSkin(skin) };
+if (params.get('skin') === 'castaway') world.setPlayerSkin('castaway');

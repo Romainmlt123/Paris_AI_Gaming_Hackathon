@@ -60,3 +60,7 @@ Mémoire du projet : fait, reste, décisions, pièges.
 ## Eau & sable
 - Eau : bandes de profondeur, caustiques cellulaires fines (masquées par bruit), rides, reflets, écume de rivage, sable mouillé.
 - Sable : damier 2×2 multi-tons, rides décalées aléatoirement, galets et coquillages.
+
+## Onboarding / cinématique (branche feature/rouge)
+- Skin « naufragé » : `SPRITES.castaway` (`naked: true`, src/render/sprites.ts) — tout nu, mosaïque de censure pixelisée animée devant, fesses visibles de dos (marque de bronzage + joues roses), algue dans les cheveux.
+- Changer le skin du joueur à chaud : `world.setPlayerSkin('castaway' | 'player')`, hook `ragots.skin(...)`, ou `?skin=castaway` au chargement.
