@@ -44,6 +44,55 @@ function bubbleSprite(): THREE.Sprite {
   return s;
 }
 
+const MOSAIC = ['#e9b896', '#d99a7a', '#c9856a', '#f0c7a6', '#b8735e', '#e0a98c', '#f4a3a3', '#a8604f'];
+const MOSAIC_COLS = 7;
+const MOSAIC_ROWS = 4;
+
+/** Oversized, flickering pixel censor block worn by the naked castaway. */
+function censorMosaic(): { mesh: THREE.Mesh; update(time: number): void } {
+  const cell = 3;
+  const c = document.createElement('canvas');
+  c.width = MOSAIC_COLS * cell + 2;
+  c.height = MOSAIC_ROWS * cell + 2;
+  const ctx = c.getContext('2d');
+  if (!ctx) throw new Error('2D canvas unavailable');
+  const tex = new THREE.CanvasTexture(c);
+  tex.magFilter = THREE.NearestFilter;
+  tex.minFilter = THREE.NearestFilter;
+  tex.generateMipmaps = false;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const draw = (): void => {
+    ctx.fillStyle = '#2b2233';
+    ctx.fillRect(0, 0, c.width, c.height);
+    for (let y = 0; y < MOSAIC_ROWS; y++) for (let x = 0; x < MOSAIC_COLS; x++) {
+      ctx.fillStyle = MOSAIC[Math.floor(Math.random() * MOSAIC.length)] ?? '#f2c3a6';
+      ctx.fillRect(1 + x * cell, 1 + y * cell, cell, cell);
+    }
+    tex.needsUpdate = true;
+  };
+  draw();
+  const w = 0.78;
+  const h = (w * c.height) / c.width;
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, transparent: true }));
+  mesh.position.set(0, 0.34, 0.04);
+  mesh.renderOrder = 5;
+  mesh.visible = false;
+  let tick = -1;
+  return {
+    mesh,
+    update(time) {
+      const t = Math.floor(time * 9);
+      if (t !== tick) {
+        tick = t;
+        draw();
+      }
+      const pulse = 1 + Math.sin(time * 14) * 0.07;
+      mesh.scale.set(pulse, 2 - pulse, 1);
+      mesh.rotation.z = Math.sin(time * 5) * 0.06;
+    },
+  };
+}
+
 /** Pixel-art billboard (Y-axis only) that casts a silhouette-accurate shadow. */
 export function createActorView(spec: SpriteSpec, name: string): ActorView {
   const sheet = drawSheet(spec);
@@ -61,6 +110,10 @@ export function createActorView(spec: SpriteSpec, name: string): ActorView {
   const bubble = bubbleSprite();
   root.add(bubble);
   setFrame(tex, 0, 'down');
+  const censor = censorMosaic();
+  root.add(censor.mesh);
+  let naked = spec.naked === true;
+  let down = false;
   const moods = {
     heart: moodSprite('heart'),
     storm: moodSprite('storm'),
@@ -79,6 +132,11 @@ export function createActorView(spec: SpriteSpec, name: string): ActorView {
       const frame = walking ? 1 + (Math.floor(time * 8) % 2) : 0;
       setFrame(tex, frame, facing);
       sprite.scale.x = flip ? -1 : 1;
+      censor.mesh.visible = naked && facing === 'down' && !down;
+      if (censor.mesh.visible) {
+        censor.update(time);
+        censor.mesh.position.y = 0.34 - (walking ? 0.03 : 0);
+      }
     },
     setBubble(visible, time) {
       bubble.visible = visible;
@@ -96,8 +154,10 @@ export function createActorView(spec: SpriteSpec, name: string): ActorView {
       ctx.clearRect(0, 0, sheet.width, sheet.height);
       ctx.drawImage(drawSheet(next), 0, 0);
       tex.needsUpdate = true;
+      naked = next.naked === true;
     },
-    setDown(down) {
+    setDown(isDown) {
+      down = isDown;
       sprite.rotation.x = down ? -Math.PI / 2 : 0;
       sprite.position.y = down ? 0.05 : 0;
     },

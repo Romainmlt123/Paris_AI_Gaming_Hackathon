@@ -16,7 +16,7 @@ export interface SpriteSpec {
   scarf?: string;
   mustache?: boolean;
   beard?: boolean;
-  /** Castaway: no clothes, pixel mosaic in front, bare bottom from behind. */
+  /** Castaway: no clothes, bare bottom from behind (the actor adds the censor mosaic). */
   naked?: boolean;
 }
 
@@ -122,8 +122,6 @@ function drawHead(px: Px, s: SpriteSpec, facing: Facing, bob: number): void {
   }
 }
 
-const MOSAIC = ['#f6d7bd', '#e7ad8e', '#f2c3a6', '#d99a82', '#f8e2cc', '#e4a38f'];
-
 function drawNakedBody(px: Px, s: SpriteSpec, frame: number, facing: Facing): void {
   const r = (x: number, y: number, w: number, h: number, c: string): void => px(x, y, c, w, h);
   const b = frame === 0 ? 0 : 1;
@@ -160,9 +158,6 @@ function drawNakedBody(px: Px, s: SpriteSpec, frame: number, facing: Facing): vo
     r(13, 43 + b - lift(1), 1, 1, skinDD);
     r(18, 43 + b - lift(2), 1, 1, skinDD);
     r(20, 43 + b - lift(2), 1, 1, skinDD);
-    for (let y = 0; y < 3; y++) for (let x = 0; x < 5; x++) {
-      r(11 + x * 2, 33 + b + y * 2, 2, 2, MOSAIC[(x * 7 + y * 3 + frame) % MOSAIC.length] ?? s.skin);
-    }
   } else {
     r(16, 23 + b, 1, 8, skinD);
     r(11, 24 + b, 3, 1, skinD);
