@@ -13,6 +13,15 @@ function gradiumKey(): string {
   return key;
 }
 
+async function readBody<T>(read: () => Promise<T>): Promise<T> {
+  try {
+    return await read();
+  } catch (err) {
+    const reason = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+    throw new GradiumError(`body read failed (${reason})`);
+  }
+}
+
 async function call(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
   let res: Response;
   try {
@@ -21,7 +30,7 @@ async function call(url: string, init: RequestInit, timeoutMs: number): Promise<
     const reason = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
     throw new GradiumError(`network/timeout (${reason})`);
   }
-  if (!res.ok) throw new GradiumError(`HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  if (!res.ok) throw new GradiumError(`HTTP ${res.status}: ${(await readBody(() => res.text())).slice(0, 200)}`);
   return res;
 }
 
@@ -44,7 +53,7 @@ export async function synthesize(npc: NpcId, text: string, emotion: Emotion, tim
     },
     timeoutMs,
   );
-  return pcmToWav(new Uint8Array(await res.arrayBuffer()), TTS_RATE);
+  return pcmToWav(new Uint8Array(await readBody(() => res.arrayBuffer())), TTS_RATE);
 }
 
 interface AsrMessage {
@@ -62,7 +71,7 @@ export async function transcribe(wav: Uint8Array<ArrayBuffer>, timeoutMs: number
     timeoutMs,
   );
   const words: string[] = [];
-  for (const line of (await res.text()).split('\n')) {
+  for (const line of (await readBody(() => res.text())).split('\n')) {
     if (!line.trim()) continue;
     let msg: AsrMessage;
     try {

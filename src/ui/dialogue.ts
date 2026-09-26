@@ -25,6 +25,7 @@ export interface Dialogue {
   setRelation(relation: number): void;
 }
 
+const MAX_LINE = 200;
 const EMOJI: Record<Emotion, string> = {
   joie: '😊',
   neutre: '😐',
@@ -57,7 +58,7 @@ export function createDialogue(portraits: Record<NpcId, string>, onSend: (text: 
   box.append(you, text);
   const chips = el('div', 'chips');
   const form = el('form', 'dlg-form');
-  const input = el('input', 'dlg-input', '', { type: 'text', maxlength: '200', placeholder: 'Écris ta réplique…', enterkeyhint: 'send', autocomplete: 'off' });
+  const input = el('input', 'dlg-input', '', { type: 'text', maxlength: String(MAX_LINE), placeholder: 'Écris ta réplique…', enterkeyhint: 'send', autocomplete: 'off' });
   const send = el('button', 'dlg-send', '➤', { type: 'submit', 'aria-label': 'Envoyer' });
   const mic = el('button', 'dlg-mic', '🎤', { type: 'button', 'aria-label': 'Parler au micro' });
   mic.hidden = !micSupported();
@@ -78,6 +79,7 @@ export function createDialogue(portraits: Record<NpcId, string>, onSend: (text: 
   root.addEventListener('pointerdown', (e) => e.stopPropagation());
 
   let recording: Recording | null = null;
+  let micSession = 0;
   const setMic = (mode: 'idle' | 'rec' | 'wait'): void => {
     mic.dataset['mode'] = mode;
     mic.textContent = mode === 'rec' ? '■' : mode === 'wait' ? '…' : '🎤';
@@ -85,6 +87,7 @@ export function createDialogue(portraits: Record<NpcId, string>, onSend: (text: 
     input.placeholder = mode === 'rec' ? 'Je t\u2019écoute… (touche ■ pour finir)' : mode === 'wait' ? 'Transcription…' : 'Écris ta réplique…';
   };
   const cancelRecording = (): void => {
+    micSession++;
     recording?.cancel();
     recording = null;
     setMic('idle');
@@ -92,11 +95,13 @@ export function createDialogue(portraits: Record<NpcId, string>, onSend: (text: 
   const finishRecording = async (): Promise<void> => {
     const rec = recording;
     if (!rec) return;
+    const session = micSession;
     recording = null;
     setMic('wait');
-    const text = await transcribe(await rec.stop());
+    const heard = await transcribe(await rec.stop());
+    if (session !== micSession || npc === null) return;
     setMic('idle');
-    if (npc === null) return;
+    const text = heard?.trim().slice(0, MAX_LINE) ?? null;
     if (!text) {
       input.placeholder = text === null ? 'Micro indisponible, écris ta réplique…' : 'Rien entendu… réessaie ?';
       return;
@@ -108,25 +113,30 @@ export function createDialogue(portraits: Record<NpcId, string>, onSend: (text: 
     skipTyping();
     onSend(text);
   };
-  mic.addEventListener('click', (e) => {
-    e.stopPropagation();
-    if (recording) {
-      void finishRecording();
-      return;
-    }
-    if (mic.dataset['mode'] === 'wait') return;
-    if (mic.dataset['mode'] === 'rec') return setMic('idle');
+  const beginRecording = (): void => {
+    const session = ++micSession;
     setMic('rec');
-    startRecording(() => void finishRecording())
+    startRecording(() => {
+      if (session === micSession) void finishRecording();
+    })
       .then((rec) => {
-        if (npc === null || mic.dataset['mode'] !== 'rec') return rec.cancel();
+        if (session !== micSession || npc === null) return rec.cancel();
         recording = rec;
       })
       .catch((err: unknown) => {
         console.warn('[voice] microphone unavailable', err);
+        if (session !== micSession) return;
         setMic('idle');
         input.placeholder = 'Micro refusé, écris ta réplique…';
       });
+  };
+  mic.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (recording) return void finishRecording();
+    const mode = mic.dataset['mode'];
+    if (mode === 'wait') return;
+    if (mode === 'rec') return cancelRecording();
+    beginRecording();
   });
 
   const setRelation = (relation: number): void => {
@@ -140,6 +150,7 @@ export function createDialogue(portraits: Record<NpcId, string>, onSend: (text: 
     isOpen: () => npc !== null,
     current: () => npc,
     open(id, relation) {
+      cancelRecording();
       npc = id;
       root.hidden = false;
       root.dataset['npc'] = id;

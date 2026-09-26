@@ -34,6 +34,8 @@ export async function handleTts(req: Request): Promise<Response> {
 }
 
 export async function handleStt(req: Request): Promise<Response> {
+  const declared = Number(req.headers.get('content-length') ?? 0);
+  if (declared > MAX_AUDIO_BYTES) return json({ error: 'invalid audio size' }, 413);
   const audio = new Uint8Array(await req.arrayBuffer());
   if (audio.byteLength < 44 || audio.byteLength > MAX_AUDIO_BYTES) return json({ error: 'invalid audio size' }, 400);
   try {
