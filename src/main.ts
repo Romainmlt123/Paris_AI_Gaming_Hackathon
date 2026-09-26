@@ -9,7 +9,7 @@ import { advanceClock, chatterLine, routineStep } from '../shared/routine';
 import { addCatch, BAG_FISH_MAX, FISH, giveFish, rollFish } from '../shared/fishing';
 import { buyItem, islandLevel, ISLAND_LEVELS, lookOf, nextLevel, SHOP_ITEMS, SHOP_OWNER, stockOf, toggleWear, type ShopId } from '../shared/shop';
 import { buildGazette } from '../shared/gazette';
-import { applySimResult, buildSimRequest, mergeSim, simulateFallback } from '../shared/simulate';
+import { applySimResult, buildSimRequest, legalTransfers, mergeSim, simulateFallback } from '../shared/simulate';
 import { applyOpener, applyTalkResult, buildTalkContext, createInitialState, npcsWithIntent } from '../shared/state';
 import { arrivalFactText, cleanIsland, cleanName, DEFAULT_LOOK, ISLAND_IDEAS } from '../shared/player';
 import { recordFact } from '../shared/rumors';
@@ -135,9 +135,10 @@ async function aiOpener(npc: NpcId, reason: string): Promise<void> {
   replying = true;
   dialogue.setChips([]);
   dialogue.thinking(true);
+  const gen = ++talkGen;
   try {
     const result = await initiativeLine(npc, buildTalkContext(state, npc), reason);
-    if (dialogue.current() !== npc) return;
+    if (gen !== talkGen) return;
     commit(applyOpener(state, npc, result));
     dialogue.thinking(false);
     busy = false;
@@ -146,7 +147,7 @@ async function aiOpener(npc: NpcId, reason: string): Promise<void> {
     await dialogue.say(result.reply, result.emotion);
   } catch (err) {
     aiFailed(npc, err);
-    if (dialogue.current() === npc) endTalk();
+    if (gen === talkGen) endTalk();
   } finally {
     busy = false;
     replying = false;
@@ -164,7 +165,10 @@ function pin(npc: NpcId): void {
   world.setEscort(npc);
 }
 
+let talkGen = 0;
+
 function endTalk(): void {
+  talkGen++;
   dialogue.close();
   if (currentMusic() === 'tension') ambient();
   pinned = false;
@@ -285,23 +289,23 @@ function runInitiative({ npc, trigger, reason }: Initiative): void {
     if (seeking !== npc) return;
     seeking = null;
     if (busy || dialogue.isOpen() || world.distance(npc) > REACH_DISTANCE) return;
-    commit(markInitiative(state, npc, trigger));
     deal = null;
     world.facePlayerToward(npc);
     dialogue.open(npc, state.npcs[npc].relation);
     pin(npc);
     dialogue.thinking(true);
+    const gen = ++talkGen;
     let result: TalkResult;
     try {
       result = await line;
     } catch (err) {
       aiFailed(npc, err);
-      if (dialogue.current() === npc) endTalk();
+      if (gen === talkGen) endTalk();
       return;
     }
-    if (dialogue.current() !== npc) return;
+    if (gen !== talkGen) return;
     dialogue.thinking(false);
-    commit(applyOpener(state, npc, result));
+    commit(applyOpener(markInitiative(state, npc, trigger), npc, result));
     dialogue.setChips(chipsFor(npc, result.suggestions));
     await dialogue.say(result.reply, result.emotion);
   }
@@ -818,7 +822,8 @@ async function absence(): Promise<void> {
   let result: SimResult;
   try {
     const ai = await simulate(buildSimRequest(before, ABSENCE_HOURS));
-    result = { ...ai, transfers: mergeSim(ai, simulateFallback(before, ABSENCE_HOURS)).transfers };
+    const legal = { ...ai, transfers: legalTransfers(before, ai.transfers) };
+    result = { ...ai, transfers: mergeSim(legal, simulateFallback(before, ABSENCE_HOURS)).transfers };
   } catch (err) {
     console.warn('[ai] simulate: no AI answer', err);
     hud.setAiStatus('');

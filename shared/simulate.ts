@@ -125,6 +125,18 @@ function applyTransfer(
   return next;
 }
 
+/** Transfers that `applySimResult` would actually apply, in order. */
+export function legalTransfers(state: GameState, transfers: SimResult['transfers']): SimResult['transfers'] {
+  let next = structuredClone(state);
+  const kept: SimResult['transfers'] = [];
+  for (const transfer of transfers) {
+    if (!canSpread(next, transfer.from, transfer.to)) continue;
+    next = applyTransfer(next, transfer, [], new Map());
+    kept.push(transfer);
+  }
+  return kept;
+}
+
 /**
  * Applies a (possibly AI-proposed) simulation. Illegal transfers — unknown facts, NPCs who do not
  * know the rumor, weak bonds — are silently dropped; relation changes are always computed here.
