@@ -7,24 +7,29 @@ import { CONFRONT_SUGGESTIONS, openerLine } from '../shared/opener';
 import { addCatch, BAG_FISH_MAX, FISH, giveFish, rollFish } from '../shared/fishing';
 import { buyItem, islandLevel, ISLAND_LEVELS, lookOf, nextLevel, SHOP_ITEMS, SHOP_OWNER, stockOf, toggleWear, type ShopId } from '../shared/shop';
 import { applySimResult, buildSimRequest } from '../shared/simulate';
-import { applyTalkResult, buildTalkContext, npcsWithIntent } from '../shared/state';
+import { applyTalkResult, buildTalkContext, createInitialState, npcsWithIntent } from '../shared/state';
+import { arrivalFactText, cleanIsland, cleanName, DEFAULT_LOOK, ISLAND_IDEAS } from '../shared/player';
+import { recordFact } from '../shared/rumors';
 import { defaultSuggestions } from '../shared/fallback';
 import { clashFor, moodOf, resolveFight, resolveMurder, resolveSlap, WEAPONS, type Clash } from '../shared/violence';
 import type { DecoId, FishId, GameState, NpcId, RelationChange, SlotId } from '../shared/types';
 import { NPC_IDS } from '../shared/types';
 import { simulate, talk } from './api';
-import { loadState, resetSave, saveState } from './game/save';
+import { loadState, resetSave, saveState, TIPS_KEY } from './game/save';
 import { BUILDINGS, type BuildingId } from './game/map';
 import { createWorld, doorTile, HOMES, type FishSpot, type PlayerSkin } from './game/world';
 import { createInterior } from './interior/interior';
 import type { Action } from './interior/layouts';
 import { drawIcon } from './interior/paint';
 import { fishIconUrl } from './render/fishArt';
-import { portraitDataUrl, SPRITES, drawSheet, type SpriteSpec } from './render/sprites';
+import { lookSpec, portraitDataUrl, SPRITES, drawSheet, type SpriteSpec } from './render/sprites';
 import { createQualityGovernor, createStage, type Quality } from './render/stage';
 import { createDialogue, type Chip } from './ui/dialogue';
 import { el } from './ui/dom';
 import { createHud } from './ui/hud';
+import { runOnboarding, type Profile } from './ui/onboarding';
+import { createTips } from './ui/tips';
+import { playIntro } from './game/intro';
 import { bang, flash, sheet, showCatch, showDeath, showRecap, toast } from './ui/overlays';
 import { unlockAudioOnGesture } from './voice';
 
@@ -51,6 +56,7 @@ const dialogue = createDialogue(portraits, (text) => void onPlayerLine(text), ()
 const interior = createInterior({ onAction: (a) => onInteriorAction(a), onExit: (id) => leaveBuilding(id) });
 ui.append(interior.root, hud.root, dialogue.root);
 let lookKey = '';
+const tips = createTips(ui);
 
 function commit(next: GameState): void {
   state = next;
@@ -86,6 +92,7 @@ function startTalk(npc: NpcId, initiated = false): void {
   deal = null;
   const open = (): void => {
     world.facePlayerToward(npc);
+    tips.done('talk');
     dialogue.open(npc, state.npcs[npc].relation);
     const confront = state.npcs[npc].intent !== null;
     const line = confront ? openerLine(state, npc) : greeting(npc);
@@ -112,6 +119,9 @@ function greeting(npc: NpcId): string {
 }
 
 function endTalk(): void {
+  if (dialogue.isOpen()) {
+    tips.show('rumor', '👂 Tout ce que tu dis sera répété… et déformé. Touche « Revenir dans 8 h » pour voir les ragots circuler.');
+  }
   dialogue.close();
   world.setFrozen(null);
   deal = null;
@@ -120,7 +130,7 @@ function endTalk(): void {
 async function onPlayerLine(text: string): Promise<void> {
   const npc = dialogue.current();
   if (!npc || busy) return;
-  dialogue.playerSaid(text);
+  dialogue.playerSaid(text, state.playerName);
   if (deal && npc === 'gaston') return haggleLine(text);
   busy = true;
   dialogue.thinking(true);
@@ -303,12 +313,12 @@ const OWNER_SAYS: Record<NpcId, string[]> = {
   marius: ['… Prends-en soin. La mer, elle, ne rend rien.', '… Bon choix. Mon père aurait approuvé.', '… Hm. Ça te va.'],
 };
 
-function lookSpec(): SpriteSpec {
+function playerSpec(): SpriteSpec {
   const look = lookOf(state);
-  const spec: SpriteSpec = { ...SPRITES.player, shirt: look.shirt ?? SPRITES.player.shirt };
-  const ownsScarf = state.owned.some((id) => SHOP_ITEMS[id].slot === 'scarf');
+  const base = lookSpec(state.look ?? DEFAULT_LOOK, !look.shirt);
+  const spec: SpriteSpec = look.shirt ? { ...base, shirt: look.shirt } : base;
   if (look.scarf) spec.scarf = look.scarf;
-  else if (ownsScarf) delete spec.scarf;
+  else delete spec.scarf;
   if (look.hat) {
     spec.hairStyle = look.hat.style;
     spec.hat = look.hat.color;
@@ -316,11 +326,11 @@ function lookSpec(): SpriteSpec {
   return spec;
 }
 
-function syncLook(): void {
-  const next = JSON.stringify(state.outfit);
-  if (next === lookKey) return;
+function syncLook(force = false): void {
+  const next = JSON.stringify([state.outfit, state.look]);
+  if (next === lookKey && !force) return;
   lookKey = next;
-  const spec = lookSpec();
+  const spec = playerSpec();
   world.setPlayerSpec(spec);
   interior.setPlayerSheet(drawSheet(spec));
 }
@@ -595,7 +605,7 @@ async function offerFish(npc: NpcId, id: FishId): Promise<void> {
   const before = state.npcs[npc].relation;
   const out = giveFish(state, npc, id);
   if (!out) return;
-  dialogue.playerSaid(npc === 'gaston' ? `Tu m’achètes ce ${FISH[id].name.toLowerCase()} ?` : `Tiens, c’est pour toi : ${FISH[id].name.toLowerCase()}.`);
+  dialogue.playerSaid(npc === 'gaston' ? `Tu m’achètes ce ${FISH[id].name.toLowerCase()} ?` : `Tiens, c’est pour toi : ${FISH[id].name.toLowerCase()}.`, state.playerName);
   commit(out.state);
   if (out.coins > 0) toast(ui!, `+${out.coins} 🪙 · ${FISH[id].name}`, 'good');
   showChange(out.change);
@@ -614,6 +624,7 @@ async function offerFish(npc: NpcId, id: FishId): Promise<void> {
 
 async function absence(): Promise<void> {
   if (busy) return;
+  tips.done('rumor');
   busy = true;
   endTalk();
   document.body.classList.add('night');
@@ -768,6 +779,57 @@ commit(state);
 stage.resize();
 requestAnimationFrame(frame);
 
+function applyLook(): void {
+  syncLook(true);
+}
+
+function talkTip(): void {
+  tips.show('talk', matchMedia('(pointer: fine)').matches ? '💬 Approche un habitant et appuie sur E pour lui parler' : '💬 Touche un habitant pour lui parler');
+}
+
+async function newGame(profile: Profile, short: boolean): Promise<void> {
+  localStorage.removeItem(TIPS_KEY);
+  const fresh = createInitialState(profile.name, profile.island, profile.look);
+  commit(recordFact(fresh, { actor: 'player', text: arrivalFactText(profile.name, profile.island), severity: -1, witnesses: ['josette', 'gaston', 'marius'] }).state);
+  await playIntro(world, ui!, {
+    name: profile.name,
+    island: profile.island,
+    spec: lookSpec(profile.look, true),
+    short,
+  });
+  toast(ui!, `Bienvenue sur ${profile.island}, ${profile.name} !`, 'good');
+}
+
+async function boot(): Promise<void> {
+  applyLook();
+  const demo = params.has('demo');
+  const preset: Partial<Profile> = {};
+  const presetName = cleanName(params.get('name'));
+  const presetIsland = cleanIsland(params.get('island')) || (demo ? ISLAND_IDEAS[1] : '');
+  if (presetName) preset.name = presetName;
+  if (presetIsland) preset.island = presetIsland;
+  if (demo) preset.look = DEFAULT_LOOK;
+  if (params.has('skip-intro')) {
+    if (!state.playerName) commit({ ...state, playerName: presetName || 'Jury', islandName: presetIsland || ISLAND_IDEAS[1] || '', look: state.look ?? DEFAULT_LOOK });
+    applyLook();
+    talkTip();
+    return;
+  }
+  busy = true;
+  hud.root.hidden = true;
+  const hasProfile = state.playerName !== '';
+  const result = await runOnboarding(ui!, {
+    canContinue: hasProfile,
+    continueLabel: hasProfile ? `Continuer (${state.playerName}${state.islandName ? ` · ${state.islandName}` : ''})` : 'Continuer',
+    preset,
+  });
+  if (result.kind === 'new') await newGame(result.profile, demo);
+  hud.root.hidden = false;
+  busy = false;
+  talkTip();
+}
+void boot();
+
 declare global {
   interface Window {
     ragots: {
@@ -786,5 +848,6 @@ declare global {
   }
 }
 /** Hooks for the scripted demo recording (see CLAUDE.md §13). */
-window.ragots = { state: () => state, talk: (npc) => startTalk(npc), say: (text) => onPlayerLine(text), absence, clash: runClash, pos: () => ({ x: world.playerPos.x, z: world.playerPos.z }), homes: HOMES, enter: (id) => enterBuilding(id), skin: (skin) => world.setPlayerSkin(skin), fish: () => { const spot = world.fishSpot({ x: Math.round(world.playerPos.x), z: Math.round(world.playerPos.z) }, 8); if (spot) goFish(spot); return spot; }, strike };
+window.ragots = { state: () => state, talk: (npc) => startTalk(npc), say: (text) => onPlayerLine(text), absence, clash: runClash, pos: () => ({ x: world.playerPos.x, z: world.playerPos.z }), homes: HOMES, enter: (id) => enterBuilding(id), skin: (skin) => (skin === 'castaway' ? world.setPlayerSkin(skin) : applyLook()), fish: () => { const spot = world.fishSpot({ x: Math.round(world.playerPos.x), z: Math.round(world.playerPos.z) }, 8); if (spot) goFish(spot); return spot; }, strike };
 if (params.get('skin') === 'castaway') world.setPlayerSkin('castaway');
+

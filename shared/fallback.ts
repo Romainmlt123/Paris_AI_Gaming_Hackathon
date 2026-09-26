@@ -1,4 +1,5 @@
 import { CHARACTERS } from './characters';
+import { cleanName, playerLabel } from './player';
 import { hashString, pick } from './rng';
 import type { Emotion, NpcId, TalkContext, TalkResult } from './types';
 
@@ -150,13 +151,15 @@ export function fallbackTalk(npc: NpcId, message: string, context: TalkContext):
           {
             text:
               outcome.line === 'caught'
-                ? `Le joueur a menti effrontément à ${sheet.name}`
-                : `Le joueur a insulté ${sheet.name} : « ${quote} »`,
+                ? `${playerLabel(context.playerName)} a menti effrontément à ${sheet.name}`
+                : `${playerLabel(context.playerName)} a insulté ${sheet.name} : « ${quote} »`,
             severity: outcome.severity,
           },
         ];
+  const line = pick(LINES[npc][outcome.line], hashString(message));
+  const name = cleanName(context.playerName);
   return {
-    reply: pick(LINES[npc][outcome.line], hashString(message)),
+    reply: name && (outcome.line === 'greeting' || outcome.line === 'compliment') ? `${name} ! ${line}` : line,
     emotion: outcome.emotion,
     relationDelta: outcome.delta,
     reason: outcome.reason,

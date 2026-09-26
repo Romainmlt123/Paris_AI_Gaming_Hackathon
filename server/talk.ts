@@ -1,5 +1,6 @@
 import { CHARACTERS } from '../shared/characters';
 import { fallbackTalk } from '../shared/fallback';
+import { cleanIsland, cleanName } from '../shared/player';
 import { asNpcId, parseTalkResult } from '../shared/validate';
 import type { NpcId, TalkContext, TalkRequest, TalkResult } from '../shared/types';
 import { EMOTIONS } from '../shared/types';
@@ -36,8 +37,16 @@ function contextPrompt(message: string, ctx: TalkContext): string {
     ? ctx.knownRumors.map((r) => `- ${r.source === 'vu' ? 'Vu de tes yeux' : `Entendu de ${CHARACTERS[r.source].name}`} : ${r.text}`).join('\n')
     : '- (rien de spécial)';
   const memories = ctx.memories.length ? ctx.memories.map((m) => `- ${m}`).join('\n') : '- (première vraie discussion)';
-  const history = ctx.history.map((l) => `${l.who === 'player' ? 'Joueur' : 'Toi'} : ${l.text}`).join('\n');
-  return `Jour ${ctx.day}. Valeur de l'île du joueur : ${ctx.islandValue}.
+  const name = cleanName(ctx.playerName);
+  const island = cleanIsland(ctx.islandName);
+  const who = name || 'Joueur';
+  const history = ctx.history.map((l) => `${l.who === 'player' ? who : 'Toi'} : ${l.text}`).join('\n');
+  const naming = name
+    ? `Le joueur s'appelle ${name}. Appelle-le souvent par son prénom, naturellement (et déforme-le ou moque-le si tu es fâché).\n`
+    : '';
+  const place = island ? `L'île où vous vivez s'appelle ${island} (ce nom a été choisi par le joueur, glisse-le parfois).\n` : '';
+  const nude = "Le joueur est arrivé sur l'île tout nu, sur un radeau, et il est TOUJOURS tout nu : personne ne lui a donné de vêtements. Tu peux le remarquer, t'en moquer ou en être gêné.\n";
+  return `${naming}${place}${nude}Jour ${ctx.day}. Valeur de l'île du joueur : ${ctx.islandValue}.
 Ta jauge d'amitié envers le joueur : ${Math.round((ctx.relation + 100) / 2)} % (${ctx.tier}). Ton humeur : ${ctx.emotion}.
 ${ctx.intent ? `Tu voulais lui parler de ceci : ${ctx.intent}\n` : ''}Tes souvenirs du joueur :
 ${memories}
@@ -45,7 +54,7 @@ Ce que tu sais / as entendu :
 ${rumors}
 Conversation récente :
 ${history || '(début)'}
-Joueur : ${message}`;
+${who} : ${message}`;
 }
 
 function parseRequest(raw: unknown): TalkRequest | null {
@@ -53,7 +62,7 @@ function parseRequest(raw: unknown): TalkRequest | null {
   const body = raw as Partial<TalkRequest>;
   const npc = asNpcId(body.npc);
   if (!npc || typeof body.message !== 'string' || typeof body.context !== 'object' || body.context === null) return null;
-  return { npc, message: body.message.slice(0, 300), context: body.context };
+  return { npc, message: body.message.slice(0, 300), context: { ...body.context, playerName: cleanName(body.context.playerName), islandName: cleanIsland(body.context.islandName) } };
 }
 
 export async function handleTalk(req: Request): Promise<Response> {

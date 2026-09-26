@@ -27,6 +27,7 @@ export function gaugeFill(relation: number): string {
 export function createHud(portraits: Record<NpcId, string>, onNpc: (id: NpcId) => void, onSleep: () => void, onBag: () => void): Hud {
   const root = el('div', 'hud');
   const top = el('div', 'hud-top');
+  const who = el('div', 'chip who');
   const clock = el('div', 'chip clock');
   const prestige = el('div', 'chip prestige');
   const coins = el('div', 'chip coins');
@@ -36,7 +37,7 @@ export function createHud(portraits: Record<NpcId, string>, onNpc: (id: NpcId) =
     sound.textContent = soundLabel();
   });
   sound.setAttribute('aria-label', 'Voix des habitants');
-  top.append(clock, prestige, coins, sound);
+  top.append(who, clock, prestige, coins, sound);
   const gauges = el('div', 'gauges');
   const cards = new Map<NpcId, { card: HTMLElement; fill: HTMLElement; tier: HTMLElement; value: HTMLElement }>();
   for (const id of NPC_IDS) {
@@ -67,6 +68,8 @@ export function createHud(portraits: Record<NpcId, string>, onNpc: (id: NpcId) =
   return {
     root,
     render(state) {
+      who.textContent = state.playerName;
+      who.hidden = !state.playerName;
       clock.textContent = clockText(state);
       prestige.textContent = `★ ${state.islandValue}`;
       prestige.title = 'Valeur de l\u2019île';
