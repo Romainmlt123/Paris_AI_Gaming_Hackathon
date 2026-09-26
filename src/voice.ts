@@ -91,8 +91,6 @@ export interface Recording {
   /** Stops recording and returns a 24 kHz mono WAV. */
   stop(): Promise<Uint8Array<ArrayBuffer>>;
   cancel(): void;
-  /** Current input loudness, 0..1. */
-  level(): number;
 }
 
 /** Starts capturing the microphone. Rejects if permission is denied. Auto-stops after 12 s via `onLimit`. */
@@ -104,14 +102,7 @@ export async function startRecording(onLimit: () => void): Promise<Recording> {
   const source = ac.createMediaStreamSource(stream);
   const processor = ac.createScriptProcessor(4096, 1, 1);
   const chunks: Float32Array[] = [];
-  let level = 0;
-  processor.onaudioprocess = (e) => {
-    const data = new Float32Array(e.inputBuffer.getChannelData(0));
-    chunks.push(data);
-    let sum = 0;
-    for (const v of data) sum += v * v;
-    level = Math.min(1, Math.sqrt(sum / data.length) * 6);
-  };
+  processor.onaudioprocess = (e) => chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
   source.connect(processor);
   processor.connect(ac.destination);
   const limit = setTimeout(onLimit, MAX_RECORD_MS);
@@ -133,8 +124,7 @@ export async function startRecording(onLimit: () => void): Promise<Recording> {
       }
       return floatToWav(resample(merged, ac.sampleRate, STT_RATE), STT_RATE);
     },
-      cancel: release,
-    level: () => level,
+    cancel: release,
   };
 }
 

@@ -77,15 +77,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .dlg-mic[hidden] { display: none; }
 .dlg-mic[data-mode='rec'] { background: #e0484a; color: var(--paper); animation: blink 0.8s steps(2) infinite; }
 .dlg-mic:disabled { opacity: 0.6; }
-.dlg-rec { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; padding: 6px 10px; border: 2px solid var(--ink); border-radius: 4px; background: #fff3f0; color: var(--ink); font-size: 14px; }
-.dlg-rec[hidden] { display: none; }
-.dlg-rec-dot { width: 10px; height: 10px; border-radius: 50%; background: #e0484a; animation: blink 0.8s steps(2) infinite; }
-.dlg-rec-text { flex: 1; }
-.dlg-rec-meter { display: flex; align-items: center; gap: 2px; height: 18px; }
-.dlg-rec-meter i { width: 4px; height: 18px; background: #e0484a; border-radius: 2px; transform: scaleY(0.15); transition: transform 0.08s; }
-.dlg-rec[data-mode='wait'] { background: #fff8dc; }
-.dlg-rec[data-mode='wait'] .dlg-rec-dot { background: #d9a400; }
-.dlg-rec[data-mode='wait'] .dlg-rec-meter, .dlg-rec[data-mode='note'] .dlg-rec-meter, .dlg-rec[data-mode='note'] .dlg-rec-dot { display: none; }
 .dlg-send { width: 46px; border: 2px solid var(--ink); border-radius: 4px; background: var(--accent); color: var(--paper); font-size: 18px; }
 
 /* Modal recap */

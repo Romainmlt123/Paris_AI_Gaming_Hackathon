@@ -36,8 +36,6 @@ const EMOJI: Record<Emotion, string> = {
   amuse: '😏',
 };
 
-const METER_BARS = 7;
-
 export function createDialogue(portraits: Record<NpcId, string>, onSend: (text: string) => void, onClose: () => void): Dialogue {
   const root = el('div', 'dialogue');
   root.hidden = true;
@@ -65,15 +63,7 @@ export function createDialogue(portraits: Record<NpcId, string>, onSend: (text: 
   const mic = el('button', 'dlg-mic', '🎤', { type: 'button', 'aria-label': 'Parler au micro' });
   mic.hidden = !micSupported();
   form.append(input, mic, send);
-  const rec = el('div', 'dlg-rec');
-  rec.hidden = true;
-  const recDot = el('span', 'dlg-rec-dot');
-  const recText = el('span', 'dlg-rec-text');
-  const meter = el('span', 'dlg-rec-meter');
-  const meterBars = Array.from({ length: METER_BARS }, () => el('i', ''));
-  meter.append(...meterBars);
-  rec.append(recDot, recText, meter);
-  root.append(head, box, chips, rec, form);
+  root.append(head, box, chips, form);
   let npc: NpcId | null = null;
   let busy = false;
   let skipTyping = (): void => undefined;
@@ -90,35 +80,7 @@ export function createDialogue(portraits: Record<NpcId, string>, onSend: (text: 
 
   let recording: Recording | null = null;
   let micSession = 0;
-  let recStart = 0;
-  let recFrame = 0;
-  let recNoteTimer = 0;
-  const drawRec = (): void => {
-    const secs = Math.floor((performance.now() - recStart) / 1000);
-    recText.textContent = `Je t\u2019écoute… 0:${String(secs).padStart(2, '0')}`;
-    const lvl = recording?.level() ?? 0;
-    meterBars.forEach((b, i) => {
-      const wobble = 0.6 + 0.4 * Math.sin(performance.now() / 90 + i * 1.7);
-      b.style.transform = `scaleY(${Math.max(0.15, Math.min(1, lvl * wobble * (1 + i * 0.1)))})`;
-    });
-    recFrame = requestAnimationFrame(drawRec);
-  };
-  const showRec = (mode: 'idle' | 'rec' | 'wait' | 'note', note = ''): void => {
-    cancelAnimationFrame(recFrame);
-    clearTimeout(recNoteTimer);
-    rec.hidden = mode === 'idle';
-    rec.dataset['mode'] = mode;
-    if (mode === 'rec') {
-      recStart = performance.now();
-      drawRec();
-    } else if (mode === 'wait') recText.textContent = 'Transcription de ta voix…';
-    else if (mode === 'note') {
-      recText.textContent = note;
-      recNoteTimer = window.setTimeout(() => showRec('idle'), 2500);
-    }
-  };
   const setMic = (mode: 'idle' | 'rec' | 'wait'): void => {
-    showRec(mode);
     mic.dataset['mode'] = mode;
     mic.textContent = mode === 'rec' ? '■' : mode === 'wait' ? '…' : '🎤';
     mic.disabled = mode === 'wait';
@@ -142,10 +104,8 @@ export function createDialogue(portraits: Record<NpcId, string>, onSend: (text: 
     const text = heard?.trim().slice(0, MAX_LINE) ?? null;
     if (!text) {
       input.placeholder = text === null ? 'Micro indisponible, écris ta réplique…' : 'Rien entendu… réessaie ?';
-      showRec('note', text === null ? '⚠️ Transcription indisponible' : '🤷 Rien entendu… réessaie ?');
       return;
     }
-    showRec('note', `🎤 Compris : « ${text} »`);
     if (busy) {
       input.value = text;
       return;
@@ -168,7 +128,6 @@ export function createDialogue(portraits: Record<NpcId, string>, onSend: (text: 
         if (session !== micSession) return;
         setMic('idle');
         input.placeholder = 'Micro refusé, écris ta réplique…';
-        showRec('note', '🚫 Micro refusé par le navigateur');
       });
   };
   mic.addEventListener('click', (e) => {
