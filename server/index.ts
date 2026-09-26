@@ -54,9 +54,32 @@ function isNpc(v: unknown): v is NpcId {
   return typeof v === 'string' && (NPC_IDS as readonly string[]).includes(v);
 }
 
+function isContext(v: unknown): v is TalkRequest['context'] {
+  if (typeof v !== 'object' || v === null) return false;
+  const c = v as Record<string, unknown>;
+  const arrays = ['memories', 'knownFacts', 'heardRumors', 'bonds', 'inventory', 'decor'];
+  return typeof c.relation === 'number' && typeof c.day === 'number' && arrays.every((k) => Array.isArray(c[k]));
+}
+
+const RATE_WINDOW_MS = 60_000;
+const RATE_MAX = 60;
+const hits = new Map<string, { start: number; count: number }>();
+function rateLimited(req: IncomingMessage): boolean {
+  const ip = req.socket.remoteAddress ?? '?';
+  const now = Date.now();
+  const h = hits.get(ip);
+  if (!h || now - h.start > RATE_WINDOW_MS) {
+    if (hits.size > 1000) hits.clear();
+    hits.set(ip, { start: now, count: 1 });
+    return false;
+  }
+  h.count++;
+  return h.count > RATE_MAX;
+}
+
 async function handleTalk(req: IncomingMessage, res: ServerResponse): Promise<void> {
   const body = JSON.parse((await readBody(req)).toString('utf8')) as TalkRequest & { playerName?: string };
-  if (!isNpc(body.npc) || typeof body.playerText !== 'string' || !body.context) return json(res, 400, { error: 'requête invalide' });
+  if (!isNpc(body.npc) || typeof body.playerText !== 'string' || !isContext(body.context)) return json(res, 400, { error: 'requête invalide' });
   const playerText = body.playerText.slice(0, 300);
   const ctx = body.context;
   const t0 = Date.now();
@@ -83,6 +106,7 @@ function fallbackGazette(r: GazetteRequest): Gazette {
 
 async function handleGazette(req: IncomingMessage, res: ServerResponse): Promise<void> {
   const body = JSON.parse((await readBody(req)).toString('utf8')) as GazetteRequest;
+  if (typeof body.report !== 'object' || body.report === null || !Array.isArray(body.report.lines) || !Array.isArray(body.report.transfers)) return json(res, 400, { error: 'requête invalide' });
   try {
     const p = gazettePrompt(body.report, body.playerName, body.islandValue);
     const raw = (await gemini(p.system, p.user, 8000)) as Partial<Gazette>;
@@ -98,7 +122,9 @@ async function handleGazette(req: IncomingMessage, res: ServerResponse): Promise
   }
 }
 
+const TTS_CACHE_MAX_BYTES = 40_000_000;
 const ttsCache = new Map<string, Buffer>();
+let ttsCacheBytes = 0;
 async function handleTts(req: IncomingMessage, res: ServerResponse): Promise<void> {
   const body = JSON.parse((await readBody(req)).toString('utf8')) as { npc?: unknown; text?: unknown };
   if (!isNpc(body.npc) || typeof body.text !== 'string' || !GRADIUM_KEY) return json(res, 400, { error: 'tts indisponible' });
@@ -114,8 +140,12 @@ async function handleTts(req: IncomingMessage, res: ServerResponse): Promise<voi
     });
     if (!r.ok) return json(res, 502, { error: `gradium ${r.status}` });
     audio = Buffer.from(await r.arrayBuffer());
-    if (ttsCache.size > 200) ttsCache.clear();
+    if (ttsCacheBytes + audio.length > TTS_CACHE_MAX_BYTES) {
+      ttsCache.clear();
+      ttsCacheBytes = 0;
+    }
     ttsCache.set(key, audio);
+    ttsCacheBytes += audio.length;
   }
   res.writeHead(200, { 'content-type': 'audio/wav', 'content-length': audio.length });
   res.end(audio);
@@ -149,6 +179,7 @@ function serveStatic(url: string, res: ServerResponse): void {
 createServer((req, res) => {
   const url = req.url ?? '/';
   const route = async (): Promise<void> => {
+    if (req.method === 'POST' && url.startsWith('/api/') && rateLimited(req)) return json(res, 429, { error: 'trop de requêtes' });
     if (req.method === 'POST' && url === '/api/talk') return handleTalk(req, res);
     if (req.method === 'POST' && url === '/api/gazette') return handleGazette(req, res);
     if (req.method === 'POST' && url === '/api/tts') return handleTts(req, res);

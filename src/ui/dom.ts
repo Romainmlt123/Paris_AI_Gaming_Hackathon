@@ -9,9 +9,8 @@ export function h<K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Record<s
   return el;
 }
 
-export function btn(label: string, cls: string, onClick: () => void): HTMLButtonElement {
-  const b = h('button', { class: cls });
-  b.innerHTML = label;
+export function btn(label: string, cls: string, onClick: () => void, icon?: string): HTMLButtonElement {
+  const b = h('button', { class: cls }, icon ? h('span', {}, icon) : null, label);
   b.addEventListener('click', (e) => {
     e.stopPropagation();
     onClick();

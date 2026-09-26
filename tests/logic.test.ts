@@ -4,7 +4,7 @@ import { simulateAbsence } from '../src/logic/absence.ts';
 import { applyTalk, LIE_PENALTY } from '../src/logic/talk.ts';
 import { buildContext } from '../src/logic/context.ts';
 import { detectDenial } from '../src/logic/facts.ts';
-import { validateTalkResponse } from '../src/logic/validate.ts';
+import { fallbackResponse, validateTalkResponse } from '../src/logic/validate.ts';
 import { addItem, removeItem, countItem, INVENTORY_SIZE } from '../src/logic/inventory.ts';
 import { applyOffer, executeDeal, placeDecor, startDeal } from '../src/logic/economy.ts';
 import { tierOf, MAX_TALK_DELTA } from '../src/logic/relations.ts';
@@ -23,6 +23,30 @@ function insultMarius(s: GameState): GameState {
 }
 
 describe('scénario de démo', () => {
+  it('sans IA, une insulte devient quand même un ragot pour Josette', () => {
+    let s = createInitialState(42);
+    const text = 'Marius, t’es un vieux fou qui pue le poisson';
+    const ctx = buildContext(s, 'marius');
+    s = applyTalk(s, 'marius', text, fallbackResponse('marius', ctx, text), ctx, 0).state;
+    expect(s.facts.some((f) => f.kind === 'insult')).toBe(true);
+    const { report } = simulateAbsence(s, 8, 0);
+    expect(report.transfers.some((t) => t.from === 'marius' && t.to === 'josette')).toBe(true);
+  });
+
+  it('montrer le carnet ne le consomme pas', () => {
+    let s = createInitialState(42);
+    addItem(s.player.inventory, 'carnet', 1);
+    const ctx = buildContext(s, 'josette', { offeredItemId: 'carnet', deal: null });
+    s = applyTalk(s, 'josette', 'Regarde ça', resp({ acceptGift: true }), ctx, 0).state;
+    expect(countItem(s.player.inventory, 'carnet')).toBe(1);
+  });
+
+  it('un oubli de nourrissage déclenche l’intention de Josette dès la première journée', () => {
+    const { state, report } = simulateAbsence(createInitialState(42), 24, 0);
+    expect(state.facts.some((f) => f.kind === 'neglect')).toBe(true);
+    expect(report.intents.some((i) => i.npc === 'josette')).toBe(true);
+  });
+
   it('Marius raconte à Josette, qui vient demander des comptes, puis démasque le mensonge', () => {
     let s = insultMarius(createInitialState());
     expect(s.npcs.marius.relation).toBe(5);

@@ -57,6 +57,23 @@ function parseDenials(v: unknown, ctx: NpcContext): ClaimCheck[] {
   return v.flatMap((d): ClaimCheck[] => (typeof d === 'string' && known.has(d) ? [{ deniesFactId: d }] : isRecord(d) && typeof d.deniesFactId === 'string' && known.has(d.deniesFactId) ? [{ deniesFactId: d.deniesFactId }] : []));
 }
 
+const INSULT_WORDS = ['idiot', 'imbecile', 'debile', 'crétin', 'cretin', 'nul', 'pue', 'puant', 'moche', 'vieux fou', 'abruti', 'minable', 'ridicule', 'gros', 'bete', 'tais-toi', 'ferme-la', 'lent', 'naze'];
+const COMPLIMENT_WORDS = ['merci', 'bravo', 'genial', 'magnifique', 'super', 'adore', 'j\'aime', 'beau', 'belle', 'gentil', 'meilleur'];
+
+function fold(s: string): string {
+  return ` ${s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[’`]/g, "'")} `;
+}
+
+/** Classement local minimal des répliques du joueur, pour que les faits essentiels existent même sans IA. */
+export function classifyLocally(npc: NpcId, playerText: string): TalkEvent | null {
+  if (!playerText) return null;
+  const t = fold(playerText);
+  const name = NPCS[npc].name;
+  if (INSULT_WORDS.some((w) => t.includes(fold(w).trim()))) return { kind: 'insult', text: `Le joueur a insulté ${name} : « ${playerText.slice(0, 80)} »`, target: npc };
+  if (COMPLIMENT_WORDS.some((w) => t.includes(fold(w).trim()))) return { kind: 'compliment', text: `Le joueur a complimenté ${name}.`, target: npc };
+  return null;
+}
+
 /** Réplique de secours crédible, choisie selon la situation. */
 export function fallbackResponse(npc: NpcId, ctx: NpcContext, playerText: string): TalkResponse {
   const situation: FallbackSituation = ctx.denial
@@ -69,17 +86,18 @@ export function fallbackResponse(npc: NpcId, ctx: NpcContext, playerText: string
           ? 'deal'
           : 'generic';
   const line = pickFallback(npc, situation, playerText.length + ctx.day);
+  const local = classifyLocally(npc, playerText);
   return {
     reply: line.text,
-    emotion: line.emotion,
-    events: [],
-    relationDelta: 0,
-    reason: '',
+    emotion: local?.kind === 'insult' ? 'colere' : line.emotion,
+    events: local ? [local] : [],
+    relationDelta: local?.kind === 'insult' ? -8 : local ? 3 : 0,
+    reason: local?.kind === 'insult' ? 'Insulté·e' : local ? 'Compliment apprécié' : '',
     intent: null,
     suggestions: NPCS[npc].suggestions,
     deal: null,
     denials: [],
-    acceptGift: situation === 'gift' && !ctx.offeredItem?.tags.includes('rotten'),
+    acceptGift: situation === 'gift' && !ctx.offeredItem?.tags.includes('rotten') && ITEMS[ctx.offeredItem?.itemId ?? '']?.kind !== 'story',
     fallback: true,
   };
 }

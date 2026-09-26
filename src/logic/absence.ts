@@ -70,7 +70,7 @@ function refreshWorld(draft: GameState, newDays: number, rng: () => number, worl
   }
   if (spawned > 0) world.push(`La marée a déposé ${spawned} coquillage${spawned > 1 ? 's' : ''} sur la plage.`);
   for (const a of draft.animals) {
-    if (a.lastFedDay < draft.day - 1) {
+    if (newDays > 0 && a.lastFedDay < draft.day) {
       const already = draft.facts.some((f) => f.kind === 'neglect' && f.day === draft.day && f.text.includes(a.name));
       if (!already) {
         addFact(draft, {
@@ -106,6 +106,12 @@ export function simulateAbsence(state: GameState, hours: number, now: number): {
   const changes: RelationChange[] = [];
   const impact = new Map<NpcId, { fact: Fact; delta: number }>();
   const rounds = clamp(Math.ceil(hours / 3), 1, 4);
+  const totalHours = draft.hour + hours;
+  const newDays = Math.floor(totalHours / 24);
+  draft.day += newDays;
+  draft.hour = totalHours % 24;
+  const world: string[] = [];
+  refreshWorld(draft, newDays, rng, world);
 
   for (let round = 0; round < rounds; round++) {
     for (const teller of NPC_IDS) {
@@ -151,13 +157,6 @@ export function simulateAbsence(state: GameState, hours: number, now: number): {
     st.mood = intent?.kind === 'confront' ? 'colere' : intent?.kind === 'mock' ? 'moquerie' : 'neutre';
     if (st.intent) intents.push({ npc, intent: st.intent });
   }
-
-  const totalHours = draft.hour + hours;
-  const newDays = Math.floor(totalHours / 24);
-  draft.day += newDays;
-  draft.hour = totalHours % 24;
-  const world: string[] = [];
-  refreshWorld(draft, newDays, rng, world);
 
   const lines: string[] = [];
   for (const t of transfers) lines.push(`${NPCS[t.from].name} a raconté à ${NPCS[t.to].name} : « ${t.text} »`);

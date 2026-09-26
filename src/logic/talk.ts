@@ -24,11 +24,7 @@ export function applyTalk(state: GameState, npc: NpcId, playerText: string, resp
     if (c) changes.push(c);
   };
 
-  const denial = ctx.denial ?? (() => {
-    const id = resp.denials[0]?.deniesFactId;
-    const f = id ? draft.facts.find((x) => x.id === id && x.actor === 'player' && x.severity < 0) : undefined;
-    return f ? { factId: f.id, text: f.text } : null;
-  })();
+  const denial = ctx.denial;
 
   if (denial) {
     addFact(draft, { actor: 'player', target: npc, kind: 'lie', text: `${draft.player.name} a menti à ${name} en niant : ${denial.text}`, witnesses: [npc] });
@@ -46,7 +42,7 @@ export function applyTalk(state: GameState, npc: NpcId, playerText: string, resp
   }
 
   let giftTaken = false;
-  if (ctx.offeredItem && resp.acceptGift && removeItem(draft.player.inventory, ctx.offeredItem.itemId, 1)) {
+  if (ctx.offeredItem && resp.acceptGift && item(ctx.offeredItem.itemId).kind !== 'story' && removeItem(draft.player.inventory, ctx.offeredItem.itemId, 1)) {
     giftTaken = true;
     const def = item(ctx.offeredItem.itemId);
     const sheet = NPCS[npc];
@@ -63,7 +59,7 @@ export function applyTalk(state: GameState, npc: NpcId, playerText: string, resp
   }
   st.mood = denial && resp.emotion === 'neutre' ? 'colere' : resp.emotion;
   if (ctx.intent && st.intent && playerText) st.intent = null;
-  if (resp.intent && !playerText) st.intent = st.intent ?? null;
+  if (resp.intent) st.intent = st.intent ?? resp.intent;
   st.lastTalkDay = draft.day;
   return { state: draft, changes, lieCaught: denial !== null, giftTaken };
 }

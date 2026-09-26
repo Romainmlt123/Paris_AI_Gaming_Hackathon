@@ -55,13 +55,23 @@ export const sfx = {
 };
 
 let current: HTMLAudioElement | null = null;
+let currentUrl: string | null = null;
+let speechGen = 0;
+function releaseVoice(): void {
+  current?.pause();
+  current = null;
+  if (currentUrl) URL.revokeObjectURL(currentUrl);
+  currentUrl = null;
+}
 /** Voix Gradium ; retourne false si indisponible (le jeu reste jouable sans). */
 export async function speak(npc: NpcId, text: string): Promise<boolean> {
   if (!settings.voice || !settings.sound) return false;
+  const gen = ++speechGen;
   const blob = await tts(npc, text);
-  if (!blob) return false;
-  current?.pause();
-  current = new Audio(URL.createObjectURL(blob));
+  if (!blob || gen !== speechGen) return false;
+  releaseVoice();
+  currentUrl = URL.createObjectURL(blob);
+  current = new Audio(currentUrl);
   try {
     await current.play();
     return true;
@@ -70,8 +80,8 @@ export async function speak(npc: NpcId, text: string): Promise<boolean> {
   }
 }
 export function stopVoice(): void {
-  current?.pause();
-  current = null;
+  speechGen++;
+  releaseVoice();
 }
 
 /** Micro → WAV 16 bits mono (format accepté par Gradium STT). */

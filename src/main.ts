@@ -49,10 +49,10 @@ for (const id of NPC_IDS) {
 }
 const bar = h('div', { class: 'bottombar' });
 bar.append(
-  btn('<span>🎒</span>Sac', '', () => openInventory()),
-  btn('<span>🪑</span>Déco', '', () => openDecorMode()),
-  btn('<span>🌙</span>Partir', '', () => openAbsence()),
-  btn('<span>📰</span>Gazette', '', () => openRecap(true)),
+  btn('Sac', '', () => openInventory(), '🎒'),
+  btn('Déco', '', () => openDecorMode(), '🪑'),
+  btn('Partir', '', () => openAbsence(), '🌙'),
+  btn('Gazette', '', () => openRecap(true), '📰'),
 );
 ui.append(hud, rels, bar);
 
