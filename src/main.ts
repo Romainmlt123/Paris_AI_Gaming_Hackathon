@@ -108,6 +108,7 @@ function startTalk(npc: NpcId, initiated = false): void {
     dialogue.open(npc, state.npcs[npc].relation);
     const confront = state.npcs[npc].intent !== null;
     if (confront) music('tension');
+    else if (currentMusic() === 'tension') ambient();
     const line = confront ? openerLine(state, npc) : greeting(npc);
     void dialogue.say(line, confront ? 'mefiance' : state.npcs[npc].emotion);
     dialogue.setChips(chipsFor(npc, confront ? CONFRONT_SUGGESTIONS : defaultSuggestions(npc)));

@@ -26,10 +26,16 @@ function player(track: Track): HTMLAudioElement {
   return a;
 }
 
+const fadeIds = new Map<HTMLAudioElement, number>();
+
+/** One fade per player: starting a new fade cancels the previous one (and its callback). */
 function fade(a: HTMLAudioElement, to: number, then?: () => void): void {
+  const id = (fadeIds.get(a) ?? 0) + 1;
+  fadeIds.set(a, id);
   const from = a.volume;
   const start = performance.now();
   const step = (): void => {
+    if (fadeIds.get(a) !== id) return;
     const k = Math.min(1, (performance.now() - start) / FADE_MS);
     a.volume = Math.max(0, Math.min(1, from + (to - from) * k));
     if (k < 1) requestAnimationFrame(step);
@@ -79,7 +85,7 @@ export function duckMusic(on: boolean): void {
 export function syncSound(): void {
   if (!current) return;
   if (isSoundOn()) start(current);
-  else player(current).pause();
+  else for (const a of players.values()) a.pause();
 }
 
 /** Browsers block audio until a gesture: start the pending music on the first tap or key. */
