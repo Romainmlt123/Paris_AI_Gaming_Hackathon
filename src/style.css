@@ -113,3 +113,16 @@ body.night #scene { filter: brightness(0.35) saturate(0.6) hue-rotate(-20deg); t
 @keyframes wants { 50% { background: #fff0b8; transform: translateY(-2px); } }
 @keyframes hit { 0%, 100% { transform: none; } 25% { transform: translateX(-4px); background: #ffc9c1; } 75% { transform: translateX(4px); } }
 @keyframes gain { 50% { background: #d8f2c6; transform: scale(1.04); } }
+
+/* Fights & murders */
+.bang { position: absolute; transform: translate(-50%, -50%) rotate(var(--rot, 0deg)); font-size: 34px; font-weight: 700; color: #ffd25e; -webkit-text-stroke: 2px var(--ink); text-shadow: 3px 3px 0 var(--accent); pointer-events: none; animation: bang 0.7s ease-out forwards; }
+.flash { position: absolute; inset: 0; background: #fff; pointer-events: none; animation: flash 0.5s ease-out forwards; }
+.death-back { background: rgba(60, 0, 10, 0.72); animation: fade 0.8s; }
+.modal.death { text-align: center; background: #fff1ee; }
+.death-skull { font-size: 46px; animation: gain 1.2s ease-in-out infinite; }
+.death-how { font-size: 17px; font-weight: 700; margin: 8px 0; }
+.death-quote { font-style: italic; opacity: 0.8; margin: 0 0 8px; }
+.gauge.danger { animation: danger 0.7s ease-in-out infinite; }
+@keyframes bang { 0% { transform: translate(-50%, -50%) rotate(var(--rot)) scale(0.2); opacity: 0; } 25% { transform: translate(-50%, -50%) rotate(var(--rot)) scale(1.25); opacity: 1; } 100% { transform: translate(-50%, -80%) rotate(var(--rot)) scale(1); opacity: 0; } }
+@keyframes flash { 0% { opacity: 0.95; background: #fff; } 40% { background: #d9453b; opacity: 0.6; } 100% { opacity: 0; } }
+@keyframes danger { 50% { background: #ffc9c1; border-color: var(--bad); } }

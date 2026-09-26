@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import type { Mood } from '../../shared/violence';
+import { moodSprite } from './brawl';
 import { drawSheet, FRAME_H, FRAME_W, setFrame, sheetTexture, type Facing, type SpriteSpec } from './sprites';
 
 const HEIGHT = 1.5;
@@ -10,6 +12,9 @@ export interface ActorView {
   bubble: THREE.Sprite;
   setPose(walking: boolean, facing: Facing, flip: boolean, time: number): void;
   setBubble(visible: boolean, time: number): void;
+  setMood(mood: Mood, time: number): void;
+  /** Knocked out: sprite lies flat on the ground. */
+  setDown(down: boolean): void;
 }
 
 function bubbleSprite(): THREE.Sprite {
@@ -55,6 +60,15 @@ export function createActorView(spec: SpriteSpec, name: string): ActorView {
   const bubble = bubbleSprite();
   root.add(bubble);
   setFrame(tex, 0, 'down');
+  const moods = {
+    heart: moodSprite('heart'),
+    storm: moodSprite('storm'),
+    skull: moodSprite('skull'),
+  };
+  for (const m of Object.values(moods)) {
+    m.position.set(0.42, HEIGHT + 0.1, 0);
+    root.add(m);
+  }
   return {
     root,
     sprite,
@@ -68,6 +82,16 @@ export function createActorView(spec: SpriteSpec, name: string): ActorView {
     setBubble(visible, time) {
       bubble.visible = visible;
       bubble.position.y = HEIGHT + 0.45 + Math.sin(time * 5) * 0.06;
+    },
+    setMood(mood, time) {
+      for (const [key, m] of Object.entries(moods)) {
+        m.visible = key === mood;
+        if (m.visible) m.position.y = HEIGHT + 0.1 + Math.abs(Math.sin(time * (mood === 'skull' ? 6 : 3))) * 0.08;
+      }
+    },
+    setDown(down) {
+      sprite.rotation.x = down ? -Math.PI / 2 : 0;
+      sprite.position.y = down ? 0.05 : 0;
     },
   };
 }

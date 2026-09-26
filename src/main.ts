@@ -7,6 +7,7 @@ import { CONFRONT_SUGGESTIONS, openerLine } from '../shared/opener';
 import { applySimResult, buildSimRequest } from '../shared/simulate';
 import { applyTalkResult, buildTalkContext, npcsWithIntent } from '../shared/state';
 import { defaultSuggestions } from '../shared/fallback';
+import { clashFor, moodOf, resolveFight, resolveMurder, WEAPONS, type Clash } from '../shared/violence';
 import type { DecoId, GameState, NpcId, RelationChange, SlotId } from '../shared/types';
 import { NPC_IDS } from '../shared/types';
 import { simulate, talk } from './api';
@@ -16,7 +17,7 @@ import { portraitDataUrl, SPRITES, drawSheet } from './render/sprites';
 import { createQualityGovernor, createStage, type Quality } from './render/stage';
 import { createDialogue, type Chip } from './ui/dialogue';
 import { createHud } from './ui/hud';
-import { sheet, showRecap, toast } from './ui/overlays';
+import { bang, flash, sheet, showDeath, showRecap, toast } from './ui/overlays';
 
 const ABSENCE_HOURS = 8;
 const params = new URLSearchParams(location.search);
@@ -44,6 +45,7 @@ function commit(next: GameState): void {
   saveState(state);
   hud.render(state);
   world.syncDecor(state);
+  world.setMoods({ gaston: moodOf(state.npcs.gaston.relation), josette: moodOf(state.npcs.josette.relation), marius: moodOf(state.npcs.marius.relation) });
 }
 
 function showChange(change: RelationChange | null): void {
@@ -102,14 +104,79 @@ async function onPlayerLine(text: string): Promise<void> {
   busy = true;
   dialogue.thinking(true);
   const result = await talk(npc, text, buildTalkContext(state, npc));
+  const before = state.npcs[npc].relation;
   const applied = applyTalkResult(state, npc, text, result);
   commit(applied.state);
   hud.setAiStatus(result.source === 'ai' ? '' : 'IA hors ligne · répliques de secours');
   dialogue.thinking(false);
-  busy = false;
   showChange(applied.change);
-  dialogue.setChips(chipsFor(npc, result.suggestions));
-  await dialogue.say(result.reply, result.emotion);
+  const clash = clashFor(before, state.npcs[npc].relation);
+  if (!clash) {
+    busy = false;
+    dialogue.setChips(chipsFor(npc, result.suggestions));
+    await dialogue.say(result.reply, result.emotion);
+    return;
+  }
+  dialogue.setChips([]);
+  await dialogue.say(result.reply, 'colere');
+  await new Promise((r) => setTimeout(r, 900));
+  await runClash(npc, clash);
+}
+
+// ---------- Fights & murders ----------
+
+const BANGS = ['POW !', 'BAM !', 'KRAK !', 'SBAF !', 'AÏE !', 'BONK !', 'TCHAC !', 'OUILLE !'];
+const AFTER_FIGHT: Record<NpcId, string> = {
+  gaston: 'Pfff… T’as une sacrée droite, mon ami. Bon. On est quittes. Pour cette fois.',
+  josette: 'Ouf… mon chignon ! Bon… ça défoule, faut l’avouer. On repart de zéro, mon chou ?',
+  marius: '… La tempête est passée. Après la houle, toujours le calme.',
+};
+const LAST_WORDS: Record<NpcId, string> = {
+  gaston: 'Rien de personnel, mon ami. C’est le commerce.',
+  josette: 'Oups. Bon… je dirai que c’était un accident, mon chou.',
+  marius: '… La mer reprend toujours ce qu’on lui doit.',
+};
+
+async function runClash(npc: NpcId, clash: Clash): Promise<void> {
+  busy = true;
+  endTalk();
+  world.setFrozen(npc);
+  if (clash === 'fight') await fight(npc);
+  else await murder(npc);
+  busy = false;
+}
+
+async function fight(npc: NpcId): Promise<void> {
+  toast(ui!, `💥 BAGARRE avec ${CHARACTERS[npc].name} !`, 'bad');
+  let i = 0;
+  const words = setInterval(() => bang(ui!, BANGS[i++ % BANGS.length] ?? 'POW !'), 380);
+  await world.fight(npc);
+  clearInterval(words);
+  const applied = resolveFight(state, npc);
+  commit(applied.state);
+  showChange(applied.change);
+  world.facePlayerToward(npc);
+  dialogue.open(npc, state.npcs[npc].relation);
+  dialogue.setChips(chipsFor(npc, defaultSuggestions(npc)));
+  await dialogue.say(AFTER_FIGHT[npc], 'amuse');
+}
+
+async function murder(npc: NpcId): Promise<void> {
+  await world.murder(npc, () => {
+    flash(ui!);
+    bang(ui!, 'BONK !!');
+  });
+  await showDeath(ui!, CHARACTERS[npc].name, WEAPONS[npc], LAST_WORDS[npc]);
+  const coinsBefore = state.coins;
+  const applied = resolveMurder(state, npc);
+  commit(applied.state);
+  world.revive();
+  world.teleportPlayer({ x: 12, z: 20 });
+  world.setFrozen(null);
+  toast(ui!, `Réveil au matin… délesté de ${coinsBefore - state.coins} 🪙`, 'bad');
+  setTimeout(() => showChange(applied.change), 1400);
+  const next = npcsWithIntent(state)[0];
+  if (next) setTimeout(() => startTalk(next, true), 2600);
 }
 
 // ---------- Haggling with Gaston ----------
@@ -272,8 +339,15 @@ requestAnimationFrame(frame);
 
 declare global {
   interface Window {
-    ragots: { state: () => GameState; talk: (npc: NpcId) => void; say: (text: string) => Promise<void>; absence: () => Promise<void>; homes: typeof HOMES };
+    ragots: {
+      state: () => GameState;
+      talk: (npc: NpcId) => void;
+      say: (text: string) => Promise<void>;
+      absence: () => Promise<void>;
+      clash: (npc: NpcId, kind: Clash) => Promise<void>;
+      homes: typeof HOMES;
+    };
   }
 }
 /** Hooks for the scripted demo recording (see CLAUDE.md §13). */
-window.ragots = { state: () => state, talk: (npc) => startTalk(npc), say: (text) => onPlayerLine(text), absence, homes: HOMES };
+window.ragots = { state: () => state, talk: (npc) => startTalk(npc), say: (text) => onPlayerLine(text), absence, clash: runClash, homes: HOMES };

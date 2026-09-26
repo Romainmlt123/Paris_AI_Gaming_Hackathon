@@ -2,6 +2,7 @@ import { CHARACTERS } from '../../shared/characters';
 import { RELATION_MAX, RELATION_MIN, tierOf } from '../../shared/relations';
 import type { GameState, NpcId } from '../../shared/types';
 import { NPC_IDS } from '../../shared/types';
+import { DANGER_PCT, percentOf } from '../../shared/violence';
 import { button, el } from './dom';
 
 export interface Hud {
@@ -71,8 +72,9 @@ export function createHud(portraits: Record<NpcId, string>, onNpc: (id: NpcId) =
         c.fill.style.width = gaugeFill(r);
         c.fill.dataset['tone'] = r < -15 ? 'bad' : r < 15 ? 'mid' : 'good';
         c.tier.textContent = tierOf(r).label;
-        c.value.textContent = ` ${r > 0 ? '+' : ''}${r}`;
+        c.value.textContent = ` ${percentOf(r)}%`;
         c.card.classList.toggle('wants', state.npcs[id].intent !== null);
+        c.card.classList.toggle('danger', percentOf(r) <= DANGER_PCT);
       }
     },
     pulse(npc, delta) {

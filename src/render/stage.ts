@@ -42,6 +42,8 @@ export interface Stage {
   resize(): void;
   /** Smoothly frame a world point (the player). */
   follow(target: THREE.Vector3, dt: number): void;
+  /** Camera shake, decays over ~0.5 s. */
+  shake(power: number): void;
   render(): void;
 }
 
@@ -88,6 +90,7 @@ export function createStage(canvas: HTMLCanvasElement, initial: Quality): Stage 
   composer.addPass(new ShaderPass(GradeShader));
 
   const focus = new THREE.Vector3();
+  let shaking = 0;
   const stage: Stage = {
     renderer,
     scene,
@@ -122,10 +125,16 @@ export function createStage(canvas: HTMLCanvasElement, initial: Quality): Stage 
     follow(target, dt) {
       const k = 1 - Math.exp(-dt * 4);
       focus.lerp(target, focus.lengthSq() === 0 ? 1 : k);
-      camera.position.set(focus.x, focus.y + Math.sin(PITCH) * DISTANCE, focus.z + Math.cos(PITCH) * DISTANCE);
-      camera.lookAt(focus);
+      shaking *= Math.exp(-dt * 6);
+      const jx = (Math.random() - 0.5) * shaking;
+      const jz = (Math.random() - 0.5) * shaking;
+      camera.position.set(focus.x + jx, focus.y + Math.sin(PITCH) * DISTANCE, focus.z + Math.cos(PITCH) * DISTANCE + jz);
+      camera.lookAt(focus.x + jx, focus.y, focus.z + jz);
       sun.position.set(focus.x - 10, 8, focus.z + 4);
       sun.target.position.copy(focus);
+    },
+    shake(power) {
+      shaking = Math.max(shaking, power);
     },
     render() {
       if (stage.quality === 'low') renderer.render(scene, camera);

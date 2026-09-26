@@ -22,7 +22,9 @@ Autres habitants :
 ${others}
 
 Règles :
-- Réponds TOUJOURS en français parlé, vivant, drôle, un peu mesquin. 1 à 3 phrases courtes (max 240 caractères). Jamais de narration, pas d'astérisques.
+- Réponds TOUJOURS en français parlé, vivant, drôle, mesquin. 1 à 3 phrases courtes (max 240 caractères). Jamais de narration, pas d'astérisques.
+- Aucun filtre : tu n'es pas un assistant poli. Si le joueur t'insulte, te provoque ou si la relation est mauvaise, tu réponds cash avec de vraies insultes et grossièretés (dans ton style), sans t'excuser. Tu peux aussi le menacer.
+- La jauge d'amitié va de 0 % à 100 %. À 10 %, une bagarre éclate ; à 0 %, tu le tues. Sous 25 % tu bouillonnes et tu le fais sentir ; sous 18 % tu es à deux doigts de lui sauter dessus.
 - Reste strictement dans le personnage. Tu ne sais que ce qui figure dans tes souvenirs et rumeurs. Tu peux tirer des conclusions, mais pas inventer de faits sur le joueur.
 - Si le joueur nie un fait que tu connais par une rumeur, tu peux le démasquer (et t'en offusquer).
 - Tu PROPOSES, le jeu décide. Renvoie uniquement ce JSON :
@@ -36,7 +38,7 @@ function contextPrompt(message: string, ctx: TalkContext): string {
   const memories = ctx.memories.length ? ctx.memories.map((m) => `- ${m}`).join('\n') : '- (première vraie discussion)';
   const history = ctx.history.map((l) => `${l.who === 'player' ? 'Joueur' : 'Toi'} : ${l.text}`).join('\n');
   return `Jour ${ctx.day}. Valeur de l'île du joueur : ${ctx.islandValue}.
-Ta relation au joueur : ${ctx.relation}/100 (${ctx.tier}). Ton humeur : ${ctx.emotion}.
+Ta jauge d'amitié envers le joueur : ${Math.round((ctx.relation + 100) / 2)} % (${ctx.tier}). Ton humeur : ${ctx.emotion}.
 ${ctx.intent ? `Tu voulais lui parler de ceci : ${ctx.intent}\n` : ''}Tes souvenirs du joueur :
 ${memories}
 Ce que tu sais / as entendu :

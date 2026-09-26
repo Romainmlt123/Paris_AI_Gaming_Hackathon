@@ -42,3 +42,10 @@ Mémoire du projet : fait, reste, décisions, pièges.
 - Filtres de sécurité Gemini désactivés (`safetySettings` à `OFF`, server/gemini.ts) : les habitants encaissent insultes et grossièretés et répondent dans leur personnage au lieu de tomber sur la réplique de secours.
 - Timeouts : serveur 9 s, client 11 s (réponse Gemini typique ~1,3 s).
 - Piège : un serveur Vite lancé depuis une autre branche renvoyait 404 sur /api/talk → toutes les répliques passaient par le secours. Relancer `npm run dev` après un changement de branche.
+
+## Bagarres & meurtres (shared/violence.ts)
+- Jauge d'amitié affichée en % : `(relation + 100) / 2`. 10 % = relation -80, 0 % = -100.
+- Franchir 10 % vers le bas → bagarre nuage (3,4 s, onomatopées DOM, secousse caméra), puis +15 et rumeur « se sont battus ».
+- Atteindre 0 % → le PNJ tue le joueur avec son arme (caisse / rouleau / espadon), fantôme, carte de décès, réveil le lendemain 8h00, pièces /2, relation du tueur remise à -40, les deux autres viennent parler du meurtre.
+- Humeurs au-dessus des PNJ : cœur ≥ 75 %, orage ≤ 25 %, crâne ≤ 18 % (jauge HUD qui clignote).
+- Hook démo : `ragots.clash('marius', 'fight' | 'murder')`.

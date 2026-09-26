@@ -68,3 +68,39 @@ export function sheet(host: HTMLElement, title: string, items: SheetItem[], empt
 export function npcName(id: keyof typeof CHARACTERS): string {
   return CHARACTERS[id].name;
 }
+
+/** Cartoon sound-effect word popping around the middle of the screen. */
+export function bang(host: HTMLElement, word: string): void {
+  const b = el('div', 'bang', word);
+  b.style.left = `${18 + Math.random() * 54}%`;
+  b.style.top = `${34 + Math.random() * 22}%`;
+  b.style.setProperty('--rot', `${Math.round(Math.random() * 40 - 20)}deg`);
+  host.append(b);
+  setTimeout(() => b.remove(), 700);
+}
+
+export function flash(host: HTMLElement): void {
+  const f = el('div', 'flash');
+  host.append(f);
+  setTimeout(() => f.remove(), 500);
+}
+
+export function showDeath(host: HTMLElement, killer: string, weapon: string, lastWords: string): Promise<void> {
+  return new Promise((resolve) => {
+    const back = el('div', 'modal-back death-back');
+    const card = el('div', 'modal death');
+    card.append(
+      el('div', 'death-skull', '💀'),
+      el('h2', '', 'Tu es mort.'),
+      el('p', 'death-how', `${killer} t\u2019a assassiné avec ${weapon}.`),
+      el('p', 'death-quote', `« ${lastWords} »`),
+      el('p', 'recap-sub', 'Toute l\u2019île sera au courant avant midi.'),
+      button('primary', 'Se réveiller le lendemain…', () => {
+        back.remove();
+        resolve();
+      }),
+    );
+    back.append(card);
+    host.append(back);
+  });
+}

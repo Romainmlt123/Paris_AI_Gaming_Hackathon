@@ -2,7 +2,9 @@ import * as THREE from 'three';
 import { SLOTS } from '../../shared/economy';
 import type { DecoId, GameState, NpcId, SlotId } from '../../shared/types';
 import { NPC_IDS } from '../../shared/types';
+import type { Mood } from '../../shared/violence';
 import { createActorView, type ActorView } from '../render/actor';
+import { brawlCloud, ghostSprite, weaponSprite } from '../render/brawl';
 import { createBuildings } from '../render/buildings';
 import { createDeco, slotMarker } from '../render/decor';
 import { createBushes, createFlowers, createRocks, createTrees, type Swaying } from '../render/props';
@@ -55,6 +57,12 @@ export interface World {
   syncDecor(state: GameState): void;
   update(dt: number, time: number, intents: Set<NpcId>): void;
   teleportPlayer(tile: Tile): void;
+  setMoods(moods: Record<NpcId, Mood>): void;
+  /** Cartoon dust-cloud brawl between the player and an NPC. */
+  fight(id: NpcId): Promise<void>;
+  /** The NPC lunges with its weapon; `onHit` fires on impact, then the player's ghost floats away. */
+  murder(id: NpcId, onHit: () => void): Promise<void>;
+  revive(): void;
 }
 
 function tileY(map: TileMap, x: number, z: number): number {
@@ -138,6 +146,28 @@ export function createWorld(stage: Stage): World {
   const placed = new Map<SlotId, DecoId | null>();
   let frozen: NpcId | null = null;
   const raycaster = new THREE.Raycaster();
+  let moods: Record<NpcId, Mood> = { gaston: null, josette: null, marius: null };
+  const ghost = ghostSprite();
+  stage.scene.add(ghost);
+  let cine: ((t: number) => boolean) | null = null;
+  let cineT = 0;
+
+  function play(step: (t: number) => boolean): Promise<void> {
+    return new Promise((resolve) => {
+      cineT = 0;
+      cine = (t) => {
+        const done = step(t);
+        if (done) resolve();
+        return done;
+      };
+    });
+  }
+
+  function disposeSprite(s: THREE.Sprite): void {
+    s.removeFromParent();
+    s.material.map?.dispose();
+    s.material.dispose();
+  }
 
   const npc = (id: NpcId): Npc => {
     const n = npcs.get(id);
@@ -254,11 +284,16 @@ export function createWorld(stage: Stage): World {
       }
     },
     update(dt, time, intents) {
+      if (cine) {
+        cineT += dt;
+        if (cine(cineT)) cine = null;
+      }
       stepActor(player, map, dt, time);
       for (const n of npcs.values()) {
         wander(n, dt);
         stepActor(n, map, dt, time);
         n.view.setBubble(intents.has(n.id), time);
+        n.view.setMood(moods[n.id], time);
       }
       for (const s of sway) {
         s.object.rotation.z = Math.sin(time * 1.3 + s.phase) * 0.035;
@@ -278,6 +313,80 @@ export function createWorld(stage: Stage): World {
     teleportPlayer(tile) {
       player.path = [];
       player.pos.set(tile.x, tileY(map, tile.x, tile.z), tile.z);
+    },
+    setMoods(next) {
+      moods = next;
+    },
+    fight(id) {
+      const n = npc(id);
+      frozen = id;
+      player.path = [];
+      n.path = [];
+      const cloud = brawlCloud(SPRITES.player.skin, SPRITES[id].skin);
+      const mid = player.pos.clone().lerp(n.pos, 0.5);
+      cloud.sprite.visible = true;
+      stage.scene.add(cloud.sprite);
+      player.view.root.visible = false;
+      n.view.root.visible = false;
+      let last = -1;
+      return play((t) => {
+        const tick = Math.floor(t * 12);
+        if (tick !== last) {
+          last = tick;
+          cloud.tick();
+          if (tick % 3 === 0) stage.shake(0.3);
+        }
+        cloud.sprite.position.set(mid.x + Math.sin(t * 7) * 0.35, mid.y + 0.9 + Math.abs(Math.sin(t * 13)) * 0.18, mid.z + Math.cos(t * 5) * 0.15);
+        if (t < 3.4) return false;
+        disposeSprite(cloud.sprite);
+        player.view.root.visible = true;
+        n.view.root.visible = true;
+        return true;
+      });
+    },
+    murder(id, onHit) {
+      const n = npc(id);
+      frozen = id;
+      player.path = [];
+      n.path = [];
+      const weapon = weaponSprite(id);
+      weapon.visible = true;
+      stage.scene.add(weapon);
+      const start = n.pos.clone();
+      const lunge = player.pos.clone().lerp(n.pos, 0.45);
+      let hit = false;
+      return play((t) => {
+        if (t < 0.6) n.pos.lerpVectors(start, lunge, t / 0.6);
+        const k = THREE.MathUtils.clamp((t - 0.6) / 0.2, 0, 1);
+        weapon.position.set(
+          THREE.MathUtils.lerp(n.pos.x, player.pos.x, k),
+          n.pos.y + 2.1 - k * 1.1,
+          THREE.MathUtils.lerp(n.pos.z, player.pos.z, k),
+        );
+        weapon.material.rotation = 0.9 - k * 2.4 + (t < 0.6 ? Math.sin(t * 24) * 0.25 : 0);
+        if (!hit && t >= 0.8) {
+          hit = true;
+          stage.shake(1);
+          player.view.setDown(true);
+          onHit();
+        }
+        weapon.visible = t < 1.6;
+        if (t >= 1.3) {
+          const g = (t - 1.3) / 2;
+          ghost.visible = true;
+          ghost.position.set(player.pos.x + Math.sin(t * 3) * 0.15, player.pos.y + 0.5 + g * 1.8, player.pos.z);
+          ghost.material.opacity = 1 - Math.max(0, g - 0.5) * 2;
+        }
+        if (t < 3.6) return false;
+        disposeSprite(weapon);
+        ghost.visible = false;
+        return true;
+      });
+    },
+    revive() {
+      player.view.setDown(false);
+      ghost.visible = false;
+      ghost.material.opacity = 1;
     },
   };
 }

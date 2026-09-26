@@ -3,6 +3,7 @@ import { tierOf } from '../../shared/relations';
 import type { Emotion, NpcId } from '../../shared/types';
 import { button, el, typewrite } from './dom';
 import { gaugeFill } from './hud';
+import { percentOf } from '../../shared/violence';
 
 export interface Chip {
   label: string;
@@ -75,7 +76,7 @@ export function createDialogue(portraits: Record<NpcId, string>, onSend: (text: 
   const setRelation = (relation: number): void => {
     fill.style.width = gaugeFill(relation);
     fill.dataset['tone'] = relation < -15 ? 'bad' : relation < 15 ? 'mid' : 'good';
-    tier.textContent = `${tierOf(relation).label} · ${relation > 0 ? '+' : ''}${relation}`;
+    tier.textContent = `${tierOf(relation).label} · ${percentOf(relation)}%`;
   };
 
   return {
