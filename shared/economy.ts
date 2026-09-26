@@ -1,8 +1,8 @@
-import { classifyMessage } from './fallback';
-import { applyRelationDelta, clamp, tierOf } from './relations';
-import { pick, hashString } from './rng';
-import { homePrestige } from './shop';
-import type { DecoId, GameState, NpcId, RelationChange, ShopItemId, SlotId } from './types';
+import { classifyMessage } from './fallback.js';
+import { applyRelationDelta, clamp, tierOf } from './relations.js';
+import { pick, hashString } from './rng.js';
+import { homePrestige } from './shop.js';
+import type { DecoId, GameState, NpcId, RelationChange, ShopItemId, SlotId } from './types.js';
 
 export interface Deco {
   id: DecoId;

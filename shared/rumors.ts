@@ -1,4 +1,4 @@
-import type { Fact, GameState, NpcId, Rumor, Speaker } from './types';
+import type { Fact, GameState, NpcId, Rumor, Speaker } from './types.js';
 
 export interface NewFact {
   actor: Speaker;

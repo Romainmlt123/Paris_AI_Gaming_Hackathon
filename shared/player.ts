@@ -1,4 +1,4 @@
-import type { PlayerLook } from './types';
+import type { PlayerLook } from './types.js';
 
 export const NAME_MAX = 14;
 

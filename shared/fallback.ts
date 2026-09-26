@@ -1,7 +1,7 @@
-import { CHARACTERS } from './characters';
-import { cleanName, playerLabel } from './player';
-import { hashString, pick } from './rng';
-import type { Emotion, NpcId, TalkContext, TalkResult } from './types';
+import { CHARACTERS } from './characters.js';
+import { cleanName, playerLabel } from './player.js';
+import { hashString, pick } from './rng.js';
+import type { Emotion, NpcId, TalkContext, TalkResult } from './types.js';
 
 export type Intent = 'insult' | 'denial' | 'compliment' | 'apology' | 'greeting' | 'neutral';
 

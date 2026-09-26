@@ -1,4 +1,4 @@
-import type { Emotion, NpcId } from './types';
+import type { Emotion, NpcId } from './types.js';
 
 export interface VoiceProfile {
   /** Gradium voice created with Voice Design (prompts in NOTES.md). */

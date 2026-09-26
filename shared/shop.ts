@@ -1,5 +1,5 @@
-import { tierOf } from './relations';
-import type { GameState, NpcId, OutfitSlot, ShopItemId } from './types';
+import { tierOf } from './relations.js';
+import type { GameState, NpcId, OutfitSlot, ShopItemId } from './types.js';
 
 export type ShopId = 'echoppe' | 'boulangerie' | 'cabane';
 export type ItemKind = 'meuble' | 'tenue';

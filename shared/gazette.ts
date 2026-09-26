@@ -1,8 +1,8 @@
-import { CHARACTERS } from './characters';
-import { tierOf } from './relations';
-import { hashString, pick } from './rng';
-import type { GameState, NpcId, RecapEntry, Rumor } from './types';
-import { NPC_IDS } from './types';
+import { CHARACTERS } from './characters.js';
+import { tierOf } from './relations.js';
+import { hashString, pick } from './rng.js';
+import type { GameState, NpcId, RecapEntry, Rumor } from './types.js';
+import { NPC_IDS } from './types.js';
 
 export interface GazetteArticle {
   rubric: string;

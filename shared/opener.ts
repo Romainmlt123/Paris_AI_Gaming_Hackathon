@@ -1,6 +1,6 @@
-import { CHARACTERS } from './characters';
-import { factById } from './rumors';
-import type { GameState, NpcId } from './types';
+import { CHARACTERS } from './characters.js';
+import { factById } from './rumors.js';
+import type { GameState, NpcId } from './types.js';
 
 const OPENERS: Record<NpcId, (rumor: string | null) => string> = {
   josette: (r) =>

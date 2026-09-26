@@ -1,10 +1,10 @@
-import { CHARACTERS } from './characters';
-import { isNaked } from './economy';
-import { CONFRONT_SUGGESTIONS, openerLine } from './opener';
-import { hashString, pick } from './rng';
-import type { Emotion, GameState, NpcId, TalkResult } from './types';
-import { NPC_IDS } from './types';
-import { percentOf } from './violence';
+import { CHARACTERS } from './characters.js';
+import { isNaked } from './economy.js';
+import { CONFRONT_SUGGESTIONS, openerLine } from './opener.js';
+import { hashString, pick } from './rng.js';
+import type { Emotion, GameState, NpcId, TalkResult } from './types.js';
+import { NPC_IDS } from './types.js';
+import { percentOf } from './violence.js';
 
 /** Something about the player (or the NPC's own feelings) that makes an NPC walk up by itself. */
 export type Trigger = 'nu' | 'rumeur' | 'colere' | 'ami' | 'fauche' | 'riche' | 'celebre' | 'immobile' | 'nuit';

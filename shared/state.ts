@@ -1,9 +1,9 @@
-import { CHARACTERS } from './characters';
-import { applyRelationDelta, bondKey, tierOf } from './relations';
-import { playerLabel } from './player';
-import { factById, recordFact } from './rumors';
-import { NPC_IDS } from './types';
-import type { GameState, KnownRumor, PlayerLook, NpcId, NpcState, RelationChange, TalkContext, TalkResult } from './types';
+import { CHARACTERS } from './characters.js';
+import { applyRelationDelta, bondKey, tierOf } from './relations.js';
+import { playerLabel } from './player.js';
+import { factById, recordFact } from './rumors.js';
+import { NPC_IDS } from './types.js';
+import type { GameState, KnownRumor, PlayerLook, NpcId, NpcState, RelationChange, TalkContext, TalkResult } from './types.js';
 
 const MEMORY_LIMIT = 8;
 const HISTORY_LIMIT = 10;

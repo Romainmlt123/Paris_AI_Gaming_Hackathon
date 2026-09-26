@@ -1,9 +1,9 @@
-import { CHARACTERS } from './characters';
-import { applyRelationDelta, RELATION_MAX, RELATION_MIN } from './relations';
-import { recordFact } from './rumors';
-import { cleanName, playerLabel } from './player';
-import { NPC_IDS } from './types';
-import type { GameState, NpcId, RelationChange } from './types';
+import { CHARACTERS } from './characters.js';
+import { applyRelationDelta, RELATION_MAX, RELATION_MIN } from './relations.js';
+import { recordFact } from './rumors.js';
+import { cleanName, playerLabel } from './player.js';
+import { NPC_IDS } from './types.js';
+import type { GameState, NpcId, RelationChange } from './types.js';
 
 /** Gauge percentages (0 % = RELATION_MIN, 100 % = RELATION_MAX). */
 export const SLAP_PCT = 35;

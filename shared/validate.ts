@@ -1,6 +1,6 @@
-import { NPC_IDS, EMOTIONS } from './types';
-import type { Emotion, NpcId, SimResult, TalkEvent, TalkResult } from './types';
-import { clamp } from './relations';
+import { NPC_IDS, EMOTIONS } from './types.js';
+import type { Emotion, NpcId, SimResult, TalkEvent, TalkResult } from './types.js';
+import { clamp } from './relations.js';
 
 export const TALK_DELTA_MIN = -20;
 export const TALK_DELTA_MAX = 10;
