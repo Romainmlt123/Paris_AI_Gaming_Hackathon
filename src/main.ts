@@ -1,9 +1,11 @@
 import '@fontsource/pixelify-sans/400.css';
 import '@fontsource/pixelify-sans/700.css';
+import '@fontsource/unifrakturmaguntia/400.css';
 import * as THREE from 'three';
 import { CHARACTERS } from '../shared/characters';
 import { buy, CATALOG, haggle, placeDeco, SLOTS, startDeal, type Deal } from '../shared/economy';
 import { CONFRONT_SUGGESTIONS, openerLine } from '../shared/opener';
+import { buildGazette } from '../shared/gazette';
 import { applySimResult, buildSimRequest } from '../shared/simulate';
 import { applyTalkResult, buildTalkContext, createInitialState, npcsWithIntent } from '../shared/state';
 import { arrivalFactText, cleanIsland, cleanName, DEFAULT_LOOK, ISLAND_IDEAS } from '../shared/player';
@@ -23,7 +25,7 @@ import { createHud } from './ui/hud';
 import { runOnboarding, type Profile } from './ui/onboarding';
 import { createTips } from './ui/tips';
 import { playIntro } from './game/intro';
-import { bang, flash, sheet, showDeath, showRecap, toast } from './ui/overlays';
+import { bang, flash, sheet, showDeath, showGazette, toast } from './ui/overlays';
 import { unlockAudioOnGesture } from './voice';
 
 const ABSENCE_HOURS = 8;
@@ -301,7 +303,7 @@ async function absence(): Promise<void> {
   world.teleportPlayer({ x: 12, z: 20 });
   hud.setAiStatus('');
   document.body.classList.remove('night');
-  await showRecap(ui!, recap, ABSENCE_HOURS);
+  await showGazette(ui!, buildGazette(before, next, recap));
   busy = false;
   const first = recap.find((e) => e.kind === 'intent')?.npc;
   if (first) setTimeout(() => startTalk(first, true), 600);
