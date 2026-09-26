@@ -88,8 +88,12 @@ function startTalk(npc: NpcId, initiated = false): void {
     void dialogue.say(line, confront ? 'mefiance' : state.npcs[npc].emotion);
     dialogue.setChips(chipsFor(npc, confront ? CONFRONT_SUGGESTIONS : defaultSuggestions(npc)));
   };
-  if (interior.isOpen()) open();
-  else if (initiated) world.npcSeekPlayer(npc, open);
+  if (interior.isOpen()) {
+    const here = interior.current();
+    if (here && here in SHOP_OWNER && SHOP_OWNER[here as ShopId] === npc) return open();
+    return toast(ui!, `${CHARACTERS[npc].name} n’est pas ici.`, 'info');
+  }
+  if (initiated) world.npcSeekPlayer(npc, open);
   else world.approachNpc(npc, open);
 }
 
@@ -268,7 +272,9 @@ const OWNER_SAYS: Record<NpcId, string[]> = {
 function lookSpec(): SpriteSpec {
   const look = lookOf(state);
   const spec: SpriteSpec = { ...SPRITES.player, shirt: look.shirt ?? SPRITES.player.shirt };
+  const ownsScarf = state.owned.some((id) => SHOP_ITEMS[id].slot === 'scarf');
   if (look.scarf) spec.scarf = look.scarf;
+  else if (ownsScarf) delete spec.scarf;
   if (look.hat) {
     spec.hairStyle = look.hat.style;
     spec.hat = look.hat.color;
@@ -327,6 +333,7 @@ function onInteriorAction(a: Action): void {
     case 'wardrobe':
       return openWardrobe();
     case 'bed':
+      interior.exit();
       return void absence();
     case 'board':
       return openBoard();
