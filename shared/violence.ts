@@ -1,6 +1,7 @@
 import { CHARACTERS } from './characters';
 import { applyRelationDelta, RELATION_MAX, RELATION_MIN } from './relations';
 import { recordFact } from './rumors';
+import { cleanName, playerLabel } from './player';
 import { NPC_IDS } from './types';
 import type { GameState, NpcId, RelationChange } from './types';
 
@@ -45,7 +46,7 @@ export function resolveFight(state: GameState, npc: NpcId): { state: GameState; 
   const name = CHARACTERS[npc].name;
   const witnessed = recordFact(state, {
     actor: 'player',
-    text: `Le joueur et ${name} se sont battus comme des chiffonniers devant tout le monde`,
+    text: `${playerLabel(state.playerName)} et ${name} se sont battus comme des chiffonniers devant tout le monde`,
     severity: -2,
     witnesses: [npc],
   }).state;
@@ -60,7 +61,7 @@ export function resolveMurder(state: GameState, killer: NpcId): { state: GameSta
   const others = NPC_IDS.filter((id) => id !== killer);
   let next = recordFact(state, {
     actor: killer,
-    text: `${name} a assassiné le joueur avec ${WEAPONS[killer]}`,
+    text: `${name} a assassiné ${state.playerName ? cleanName(state.playerName) : 'le joueur'} avec ${WEAPONS[killer]}`,
     severity: -3,
     witnesses: [...NPC_IDS],
   }).state;

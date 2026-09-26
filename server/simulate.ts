@@ -1,4 +1,5 @@
 import { CHARACTERS } from '../shared/characters';
+import { cleanIsland, cleanName } from '../shared/player';
 import { parseSimResult } from '../shared/validate';
 import type { SimRequest, SimResult } from '../shared/types';
 import { GeminiError, generateJson, json } from './gemini';
@@ -27,7 +28,9 @@ function userPrompt(req: SimRequest): string {
   const rumors = req.rumors.length ? req.rumors.map((r) => `- ${r.holder} connaît ${r.factId} : « ${r.text} »`).join('\n') : '- personne';
   const bonds = Object.entries(req.bonds).map(([k, v]) => `- ${k} : ${v}/100`).join('\n');
   const relations = Object.entries(req.relations).map(([k, v]) => `- ${k} → joueur : ${v}/100`).join('\n');
-  return `Absence du joueur : ${req.hours} heures (jour ${req.day}).
+  const name = cleanName(req.playerName);
+  const island = cleanIsland(req.islandName);
+  return `${name ? `Le joueur s'appelle ${name} : utilise son prénom dans les résumés et intentions.\n` : ''}${island ? `L'île s'appelle ${island}.\n` : ''}Absence du joueur : ${req.hours} heures (jour ${req.day}).
 Faits réels :
 ${facts}
 Qui sait quoi :

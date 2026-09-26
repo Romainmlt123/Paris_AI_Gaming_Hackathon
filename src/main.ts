@@ -7,19 +7,24 @@ import { buy, CATALOG, haggle, placeDeco, SLOTS, startDeal, type Deal } from '..
 import { CONFRONT_SUGGESTIONS, openerLine } from '../shared/opener';
 import { buildGazette } from '../shared/gazette';
 import { applySimResult, buildSimRequest } from '../shared/simulate';
-import { applyTalkResult, buildTalkContext, npcsWithIntent } from '../shared/state';
+import { applyTalkResult, buildTalkContext, createInitialState, npcsWithIntent } from '../shared/state';
+import { arrivalFactText, cleanIsland, cleanName, DEFAULT_LOOK, ISLAND_IDEAS } from '../shared/player';
+import { recordFact } from '../shared/rumors';
 import { defaultSuggestions } from '../shared/fallback';
 import { clashFor, moodOf, resolveFight, resolveMurder, WEAPONS, type Clash } from '../shared/violence';
 import type { DecoId, GameState, NpcId, RelationChange, SlotId } from '../shared/types';
 import { NPC_IDS } from '../shared/types';
 import { simulate, talk } from './api';
-import { loadState, resetSave, saveState } from './game/save';
+import { loadState, resetSave, saveState, TIPS_KEY } from './game/save';
 import { createWorld, HOMES, type PlayerSkin } from './game/world';
-import { portraitDataUrl, SPRITES, drawSheet } from './render/sprites';
+import { lookSpec, portraitDataUrl, SPRITES, drawSheet } from './render/sprites';
 import { createQualityGovernor, createStage, type Quality } from './render/stage';
 import { createDialogue, type Chip } from './ui/dialogue';
 import { el } from './ui/dom';
 import { createHud } from './ui/hud';
+import { runOnboarding, type Profile } from './ui/onboarding';
+import { createTips } from './ui/tips';
+import { playIntro } from './game/intro';
 import { bang, flash, sheet, showDeath, showGazette, toast } from './ui/overlays';
 import { unlockAudioOnGesture } from './voice';
 
@@ -44,6 +49,7 @@ const portraits = Object.fromEntries(NPC_IDS.map((id) => [id, portraitDataUrl(dr
 const hud = createHud(portraits, (id) => startTalk(id), () => void absence(), () => openBag());
 const dialogue = createDialogue(portraits, (text) => void onPlayerLine(text), () => endTalk());
 ui.append(hud.root, dialogue.root);
+const tips = createTips(ui);
 
 function commit(next: GameState): void {
   state = next;
@@ -75,6 +81,7 @@ function startTalk(npc: NpcId, initiated = false): void {
   deal = null;
   const open = (): void => {
     world.facePlayerToward(npc);
+    tips.done('talk');
     dialogue.open(npc, state.npcs[npc].relation);
     const confront = state.npcs[npc].intent !== null;
     const line = confront ? openerLine(state, npc) : greeting(npc);
@@ -96,6 +103,9 @@ function greeting(npc: NpcId): string {
 }
 
 function endTalk(): void {
+  if (dialogue.isOpen()) {
+    tips.show('rumor', '👂 Tout ce que tu dis sera répété… et déformé. Touche « Revenir dans 8 h » pour voir les ragots circuler.');
+  }
   dialogue.close();
   world.setFrozen(null);
   deal = null;
@@ -104,7 +114,7 @@ function endTalk(): void {
 async function onPlayerLine(text: string): Promise<void> {
   const npc = dialogue.current();
   if (!npc || busy) return;
-  dialogue.playerSaid(text);
+  dialogue.playerSaid(text, state.playerName);
   if (deal && npc === 'gaston') return haggleLine(text);
   busy = true;
   dialogue.thinking(true);
@@ -281,6 +291,7 @@ function place(slot: SlotId, item: DecoId): void {
 
 async function absence(): Promise<void> {
   if (busy) return;
+  tips.done('rumor');
   busy = true;
   endTalk();
   document.body.classList.add('night');
@@ -410,6 +421,57 @@ commit(state);
 stage.resize();
 requestAnimationFrame(frame);
 
+function applyLook(): void {
+  world.setPlayerSpec(lookSpec(state.look ?? DEFAULT_LOOK, true));
+}
+
+function talkTip(): void {
+  tips.show('talk', matchMedia('(pointer: fine)').matches ? '💬 Approche un habitant et appuie sur E pour lui parler' : '💬 Touche un habitant pour lui parler');
+}
+
+async function newGame(profile: Profile, short: boolean): Promise<void> {
+  localStorage.removeItem(TIPS_KEY);
+  const fresh = createInitialState(profile.name, profile.island, profile.look);
+  commit(recordFact(fresh, { actor: 'player', text: arrivalFactText(profile.name, profile.island), severity: -1, witnesses: ['josette', 'gaston', 'marius'] }).state);
+  await playIntro(world, ui!, {
+    name: profile.name,
+    island: profile.island,
+    spec: lookSpec(profile.look, true),
+    short,
+  });
+  toast(ui!, `Bienvenue sur ${profile.island}, ${profile.name} !`, 'good');
+}
+
+async function boot(): Promise<void> {
+  applyLook();
+  const demo = params.has('demo');
+  const preset: Partial<Profile> = {};
+  const presetName = cleanName(params.get('name'));
+  const presetIsland = cleanIsland(params.get('island')) || (demo ? ISLAND_IDEAS[1] : '');
+  if (presetName) preset.name = presetName;
+  if (presetIsland) preset.island = presetIsland;
+  if (demo) preset.look = DEFAULT_LOOK;
+  if (params.has('skip-intro')) {
+    if (!state.playerName) commit({ ...state, playerName: presetName || 'Jury', islandName: presetIsland || ISLAND_IDEAS[1] || '', look: state.look ?? DEFAULT_LOOK });
+    applyLook();
+    talkTip();
+    return;
+  }
+  busy = true;
+  hud.root.hidden = true;
+  const hasProfile = state.playerName !== '';
+  const result = await runOnboarding(ui!, {
+    canContinue: hasProfile,
+    continueLabel: hasProfile ? `Continuer (${state.playerName}${state.islandName ? ` · ${state.islandName}` : ''})` : 'Continuer',
+    preset,
+  });
+  if (result.kind === 'new') await newGame(result.profile, demo);
+  hud.root.hidden = false;
+  busy = false;
+  talkTip();
+}
+void boot();
+
 declare global {
   interface Window {
     ragots: {
@@ -425,5 +487,6 @@ declare global {
   }
 }
 /** Hooks for the scripted demo recording (see CLAUDE.md §13). */
-window.ragots = { state: () => state, talk: (npc) => startTalk(npc), say: (text) => onPlayerLine(text), absence, clash: runClash, pos: () => ({ x: world.playerPos.x, z: world.playerPos.z }), homes: HOMES, skin: (skin) => world.setPlayerSkin(skin) };
+window.ragots = { state: () => state, talk: (npc) => startTalk(npc), say: (text) => onPlayerLine(text), absence, clash: runClash, pos: () => ({ x: world.playerPos.x, z: world.playerPos.z }), homes: HOMES, skin: (skin) => (skin === 'castaway' ? world.setPlayerSkin(skin) : applyLook()) };
 if (params.get('skin') === 'castaway') world.setPlayerSkin('castaway');
+
