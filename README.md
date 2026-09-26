@@ -33,8 +33,33 @@ Your goal: build the prettiest, most prestigious island in town — without beco
 - 🗞️ **Leave and come back** — "Come back in 8 h" simulates island life: islanders chat, rumors spread and mutate, relations shift. Read it all in the *Gossip Gazette*.
 - ❤️ **Relationships that bite** — friendship gauges go from BFF to slaps (35%), cartoon brawls (20%)… and murder (0%).
 - 🎣 **Fish** — tap the water, strike when the float dips, sell your catch to Gaston or gift it to win hearts.
-- 🤝 **Haggle** with Gaston, 🛋️ **shop** for furniture and clothes, 🏠 **decorate** your house and island to raise its prestige.
+- 🤝 **Haggle** with Gaston, 🛋️ **shop** for furniture and clothes, 🏠 **decorate** your house and island to raise its prestige (see below: *what you say sets the price*).
 - 🐔 A living island: chickens, cats, crabs, seagulls, smoking chimneys.
+
+## 🤝 Haggle: what you say sets the price
+
+Nothing on this island has a fixed price. Furniture, decorations, clothes: **how much you pay depends on your relationship and on your words.**
+
+Walk up to Gaston's stall, pick an item, and he opens with a price. Then it's a real negotiation, in free text:
+
+- 💬 **Make an offer**: *"I'll give you 250"*. A reasonable offer brings his price down, round after round.
+- 😍 **Flatter him**: *"You've got an eye for business!"*. Once per deal, a compliment knocks his price and his minimum down.
+- 😤 **Lowball him**: offer way too little and he gets offended, and the price goes **up**.
+- ⏳ **Don't push it**: after 4 rounds, it's his final price.
+
+And your **relationship** decides where the haggling starts. The price tags are the same for everyone, but Gaston's opening price isn't:
+
+| Your relationship with Gaston | Opening price | Example: velvet sofa (380 🪙 tag) |
+|---|---|---|
+| 💀 Sworn enemy | about +84% | opens at **699**, won't go under ~503 |
+| 😒 Holding a grudge | about +50% | opens at **568** |
+| 🙂 Neighbor | about +15% | opens at **437** |
+| 😊 Pal | about +6% | opens at **402** |
+| 💖 Confidant | about −6% | opens at **358**, can drop to **~232** with a compliment |
+
+The same goes for **clothes**: Josette (the bakery) and Marius (the shack) charge you from −20% if they love you to +50% if they can't stand you. So the naked castaway who insulted everyone stays naked a lot longer… 🍑
+
+**Every word counts, even at the till.** Be nice to people and you'll get bargains. Insult them and you'll pay double.
 
 ## Sponsor tech we used ⭐
 
