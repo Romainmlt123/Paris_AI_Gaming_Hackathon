@@ -11,15 +11,19 @@ export type BondKey = `${NpcId}|${NpcId}`; // clé triée alphabétiquement, voi
 
 // ---------- Objets ----------
 export type ItemKind = 'tool' | 'resource' | 'decor' | 'story';
+export type ItemTag = 'fish' | 'fruit' | 'shell' | 'bug' | 'pen' | 'nature' | 'luxe' | 'building' | 'pastry' | 'kitsch' | 'rotten' | 'legendary';
 export interface ItemDef {
   id: string;
   name: string;
   kind: ItemKind;
   icon: string; // emoji ou glyphe court pour l'UI
   stack: number; // taille max d'une pile (1 = non empilable)
-  price: number; // prix de référence chez Gaston (achat joueur)
+  price: number; // prix de référence chez Gaston (achat joueur), 0 = pas en vente
   sellPrice: number; // prix de rachat de référence par Gaston
   prestige: number; // points de valeur de l'île si posé (decor)
+  tags: ItemTag[];
+  requires?: { itemId: string; qty: number }; // ressource exigée à l'achat (déco de luxe)
+  slots?: SlotId[]; // emplacements autorisés (décor) ; absent = slots libres
 }
 export interface InvSlot {
   itemId: string;
@@ -27,15 +31,20 @@ export interface InvSlot {
 }
 
 // ---------- Faits et rumeurs ----------
+export const WORLD_EVENT_KINDS = ['stung', 'neglect', 'decor', 'catch', 'sale', 'feed', 'scam'] as const;
+export type WorldEventKind = (typeof WORLD_EVENT_KINDS)[number];
+export type FactKind = TalkEventKind | WorldEventKind;
+
 /** Ce qui s'est réellement passé. Jamais modifié par l'IA. */
 export interface Fact {
   id: string;
   day: number;
   actor: Actor;
   target: Actor | null;
-  kind: TalkEventKind;
+  kind: FactKind;
   text: string; // description neutre, ex : « Le joueur a traité Marius de vieux radoteur. »
   witnesses: NpcId[];
+  severity: number; // -3 (très grave) .. +3 (très positif)
 }
 /** Ce qu'un habitant croit, éventuellement déformé. */
 export interface Rumor {
@@ -49,7 +58,7 @@ export interface Rumor {
 }
 
 // ---------- Habitants ----------
-export type IntentKind = 'confront' | 'gossip' | 'thank' | 'ask' | 'offer' | 'mock';
+export type IntentKind = 'confront' | 'gossip' | 'thank' | 'ask' | 'offer' | 'mock' | 'react';
 export interface Intent {
   kind: IntentKind;
   text: string; // phrase d'accroche quand l'habitant vient parler au joueur
@@ -62,6 +71,7 @@ export interface NpcState {
   memories: string[]; // souvenirs courts, plafonnés
   intent: Intent | null; // non null => « ! » au-dessus de la tête
   lastTalkDay: number;
+  caughtLies: number;
 }
 
 export interface RelationChange {
@@ -73,16 +83,32 @@ export interface RelationChange {
 }
 
 // ---------- Île ----------
-export type SlotId = 'placette' | 'falaise' | 'ponton' | 'mairie' | 'plage' | 'verger';
+export const SLOT_IDS = ['placette', 'falaise', 'ponton', 'mairie', 'plage', 'verger', 'echoppe', 'boulangerie'] as const;
+export type SlotId = (typeof SLOT_IDS)[number];
 export interface Pickup {
   id: string;
   itemId: string;
   x: number;
   z: number;
 }
+export interface TreeState {
+  id: string;
+  fruit: 'pomme' | 'figue';
+  fruits: number; // fruits restants aujourd'hui
+  hive: boolean; // ruche cachée (tombée une fois par jour max)
+  shakenDay: number;
+}
+export interface Animal {
+  id: string;
+  kind: 'dodo' | 'mouton';
+  name: string;
+  lastFedDay: number;
+  readyToCollect: boolean;
+}
 
 export interface GameState {
-  version: 1;
+  version: 2;
+  seed: number;
   day: number;
   hour: number; // 0..24, heure affichée de l'île
   lastSavedAt: number;
@@ -95,24 +121,28 @@ export interface GameState {
     stungUntilDay: number | null; // visage gonflé après une ruche
   };
   npcs: Record<NpcId, NpcState>;
-  bonds: Record<BondKey, number>; // -100..100 entre habitants
+  bonds: Partial<Record<BondKey, number>>; // -100..100 entre habitants (clés triées)
   facts: Fact[];
   rumors: Rumor[];
   decor: Record<SlotId, string | null>;
   pickups: Pickup[];
+  trees: TreeState[];
+  animals: Animal[];
   relationLog: RelationChange[];
   pendingRecap: Recap | null;
+  counter: number; // générateur d'identifiants
 }
 
 // ---------- Conversation (IA) ----------
 export const TALK_EVENT_KINDS = [
-  'insult', 'compliment', 'flattery', 'lie', 'gift', 'promise', 'threat', 'apology', 'deal', 'confession', 'question', 'other',
+  'insult', 'compliment', 'flattery', 'lie', 'gift', 'promise', 'threat', 'apology', 'deal', 'confession', 'question', 'blackmail', 'other',
 ] as const;
 export type TalkEventKind = (typeof TALK_EVENT_KINDS)[number];
 
 export interface TalkEvent {
   kind: TalkEventKind;
   text: string; // description neutre de ce qui vient de se passer
+  target?: Actor | null; // qui est visé (ex. insulte envers Marius racontée à Josette)
 }
 
 export interface DealProposal {
@@ -120,6 +150,17 @@ export interface DealProposal {
   direction: 'buy' | 'sell'; // du point de vue du joueur
   qty: number;
   price: number; // prix total proposé par l'habitant
+}
+
+/** Négociation en cours, tenue par le code. */
+export interface Deal {
+  direction: 'buy' | 'sell';
+  items: InvSlot[];
+  reference: number; // prix de référence total
+  price: number; // offre actuelle de Gaston
+  floor: number; // bornes dures fixées par le code
+  ceil: number;
+  rounds: number;
 }
 
 export interface ChatTurn {
@@ -130,7 +171,7 @@ export interface ChatTurn {
 /** Ce que le client envoie au serveur. */
 export interface TalkRequest {
   npc: NpcId;
-  playerText: string;
+  playerText: string; // '' = l'habitant ouvre la conversation (intention)
   offeredItemId: string | null;
   history: ChatTurn[]; // derniers échanges de la conversation en cours
   context: NpcContext;
@@ -144,15 +185,23 @@ export interface NpcContext {
   tier: string;
   mood: Emotion;
   memories: string[];
-  knownFacts: string[]; // faits dont l'habitant a été témoin
-  heardRumors: string[]; // ce qu'on lui a raconté (peut être faux)
+  knownFacts: { id: string; text: string }[]; // faits dont l'habitant a été témoin
+  heardRumors: { id: string; factId: string | null; text: string; from: string }[]; // peut être faux
   bonds: { npc: NpcId; value: number }[];
   inventory: { itemId: string; name: string; qty: number }[];
   shopPrices?: { itemId: string; name: string; price: number; sellPrice: number }[];
+  deal: Deal | null;
   decor: string[]; // noms des objets posés sur l'île
   islandValue: number;
   playerStung: boolean;
   intent: Intent | null;
+  liesCaught: number;
+  denial: { factId: string; text: string } | null; // mensonge détecté par le code AVANT l'appel IA
+  offeredItem: { itemId: string; name: string; tags: ItemTag[] } | null;
+}
+
+export interface ClaimCheck {
+  deniesFactId: string; // le joueur nie ce fait connu de l'habitant
 }
 
 /** Réponse brute de l'IA : jamais appliquée telle quelle, toujours validée (logic/validate.ts). */
@@ -165,35 +214,38 @@ export interface TalkResponse {
   intent: Intent | null;
   suggestions: string[];
   deal: DealProposal | null;
+  denials: ClaimCheck[];
+  acceptGift: boolean;
   fallback?: boolean; // true si réplique de secours
 }
 
-// ---------- Simulation d'absence (IA) ----------
-export interface AbsenceRequest {
-  hours: number;
-  day: number;
-  npcs: { id: NpcId; relation: number; mood: Emotion; memories: string[] }[];
-  bonds: { a: NpcId; b: NpcId; value: number }[];
-  facts: { id: string; text: string; witnesses: NpcId[] }[];
-  rumors: { id: string; holder: NpcId; text: string; factId: string | null; distortion: number }[];
-  decor: string[];
-}
-
+// ---------- Simulation d'absence (calculée par le code, racontée par l'IA) ----------
 export interface RumorTransfer {
   from: NpcId;
   to: NpcId;
-  sourceId: string; // factId ou rumorId transmis
+  sourceId: string; // factId transmis
   text: string; // version racontée (peut être déformée)
   distortion: number;
 }
 
-export interface AbsenceResponse {
-  conversations: { a: NpcId; b: NpcId; summary: string }[];
+export interface AbsenceReport {
+  hours: number;
+  day: number;
   transfers: RumorTransfer[];
-  bondDeltas: { a: NpcId; b: NpcId; delta: number }[];
-  relationDeltas: { npc: NpcId; delta: number; reason: string }[];
+  relationChanges: RelationChange[];
   intents: { npc: NpcId; intent: Intent }[];
-  recap: string[]; // lignes du récap « Pendant ton absence… »
+  world: string[]; // faits du monde (fruits, animaux, objets trouvés)
+  lines: string[]; // récap factuel généré par le code
+}
+
+export interface GazetteRequest {
+  report: AbsenceReport;
+  playerName: string;
+  islandValue: number;
+}
+export interface Gazette {
+  headline: string;
+  articles: { title: string; body: string }[];
   fallback?: boolean;
 }
 
@@ -201,4 +253,5 @@ export interface Recap {
   hours: number;
   lines: string[];
   relationChanges: RelationChange[];
+  gazette: Gazette | null;
 }
