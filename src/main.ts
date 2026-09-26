@@ -40,6 +40,8 @@ let state: GameState = loadState();
 let deal: Deal | null = null;
 let busy = false;
 let seeking: NpcId | null = null;
+/** The open dialogue was started by the NPC: walking around doesn't end it, the NPC tags along. */
+let pinned = false;
 let skinOutfit: GameState['outfit'] | null = null;
 
 const portraits = Object.fromEntries(NPC_IDS.map((id) => [id, portraitDataUrl(drawSheet(SPRITES[id]))])) as Record<NpcId, string>;
@@ -80,11 +82,11 @@ function startTalk(npc: NpcId, initiated = false): void {
   if (busy || dialogue.current() === npc) return;
   seeking = null;
   world.stopSeeking();
-  dialogue.close();
-  deal = null;
+  endTalk();
   const open = (): void => {
     world.facePlayerToward(npc);
     dialogue.open(npc, state.npcs[npc].relation);
+    if (initiated) pin(npc);
     const confront = state.npcs[npc].intent !== null;
     const line = confront ? openerLine(state, npc) : greeting(npc);
     void dialogue.say(line, confront ? 'mefiance' : state.npcs[npc].emotion);
@@ -104,8 +106,15 @@ function greeting(npc: NpcId): string {
   return lines[npc][r < -15 ? 1 : 0];
 }
 
+function pin(npc: NpcId): void {
+  pinned = true;
+  world.setEscort(npc);
+}
+
 function endTalk(): void {
   dialogue.close();
+  pinned = false;
+  world.setEscort(null);
   world.setFrozen(null);
   deal = null;
 }
@@ -205,9 +214,9 @@ function runInitiative({ npc, trigger, reason, fallback }: Initiative): void {
     if (busy || dialogue.isOpen() || world.distance(npc) > REACH_DISTANCE) return;
     commit(markInitiative(state, npc, trigger));
     deal = null;
-    world.setFrozen(npc);
     world.facePlayerToward(npc);
     dialogue.open(npc, state.npcs[npc].relation);
+    pin(npc);
     dialogue.thinking(true);
     const result = await line;
     if (dialogue.current() !== npc) return;
@@ -423,7 +432,7 @@ canvas.addEventListener('pointerup', (e) => {
     const s = SLOTS.find((x) => x.id === target.slot);
     if (s) world.walkTo({ x: Math.round(s.x), z: Math.round(s.z) + 1 }, () => openSlot(target.slot));
   } else {
-    endTalk();
+    if (!pinned) endTalk();
     world.walkTo(target.tile);
   }
 });
@@ -457,7 +466,7 @@ window.addEventListener('keydown', (e) => {
   if (e.code in MOVE_KEYS) {
     held.add(e.code);
     e.preventDefault();
-    if (dialogue.isOpen() && !busy) endTalk();
+    if (dialogue.isOpen() && !busy && !pinned) endTalk();
     return;
   }
   if (busy || e.repeat) return;

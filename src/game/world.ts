@@ -70,6 +70,8 @@ export interface World {
   isBusy(id: NpcId): boolean;
   /** Cancels every NPC currently chasing the player. */
   stopSeeking(): void;
+  /** NPC that keeps walking beside the player (a conversation it started); null to release. */
+  setEscort(id: NpcId | null): void;
   /** The player is walking toward something with an arrival callback (e.g. an NPC to talk to). */
   playerHasErrand(): boolean;
   facePlayerToward(id: NpcId): void;
@@ -171,6 +173,7 @@ export function createWorld(stage: Stage): World {
   }
   const placed = new Map<SlotId, DecoId | null>();
   let frozen: NpcId | null = null;
+  let escort: NpcId | null = null;
   const raycaster = new THREE.Raycaster();
   let moods: Record<NpcId, Mood> = { gaston: null, josette: null, marius: null };
   const ghost = ghostSprite();
@@ -235,9 +238,14 @@ export function createWorld(stage: Stage): World {
   }
 
   function follow(n: Npc, dt: number): void {
-    if (!n.seek || frozen === n.id) return;
-    n.seekLeft -= dt;
-    if (n.seekLeft <= 0 || Math.hypot(n.pos.x - player.pos.x, n.pos.z - player.pos.z) <= SEEK_REACH) return endSeek(n);
+    const gap = Math.hypot(n.pos.x - player.pos.x, n.pos.z - player.pos.z);
+    if (escort === n.id) {
+      if (gap <= SEEK_REACH) return;
+    } else {
+      if (!n.seek || frozen === n.id) return;
+      n.seekLeft -= dt;
+      if (n.seekLeft <= 0 || gap <= SEEK_REACH) return endSeek(n);
+    }
     n.repath -= dt;
     if (n.repath > 0 && n.path.length > 0) return;
     n.repath = REPATH_SEC;
@@ -246,7 +254,7 @@ export function createWorld(stage: Stage): World {
   }
 
   function wander(n: Npc, dt: number): void {
-    if (n.path.length > 0 || frozen === n.id || n.seek) return;
+    if (n.path.length > 0 || frozen === n.id || n.seek || escort === n.id) return;
     n.idle -= dt;
     if (n.idle > 0) return;
     n.idle = 2 + Math.random() * 4;
@@ -303,6 +311,14 @@ export function createWorld(stage: Stage): World {
       n.seekLeft = SEEK_GIVE_UP_SEC;
       n.repath = 0;
       n.speed = SEEK_SPEED;
+    },
+    setEscort(id) {
+      if (escort) npc(escort).speed = NPC_SPEED;
+      escort = id;
+      if (id) {
+        frozen = null;
+        npc(id).speed = SEEK_SPEED;
+      }
     },
     stopSeeking() {
       for (const n of npcs.values()) {
