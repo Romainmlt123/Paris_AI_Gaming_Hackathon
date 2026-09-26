@@ -19,7 +19,7 @@ export interface Dialogue {
   focusInput(): void;
   close(): void;
   say(text: string, emotion: Emotion): Promise<void>;
-  playerSaid(text: string): void;
+  playerSaid(text: string, playerName: string): void;
   thinking(on: boolean): void;
   setChips(chips: Chip[]): void;
   setRelation(relation: number): void;
@@ -181,8 +181,8 @@ export function createDialogue(portraits: Record<NpcId, string>, onSend: (text: 
       skipTyping = typing.skip;
       await typing.done;
     },
-    playerSaid(line) {
-      you.textContent = `Toi : ${line}`;
+    playerSaid(line, playerName) {
+      you.textContent = `${playerName || 'Toi'} : ${line}`;
     },
     thinking(on) {
       busy = on;

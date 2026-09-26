@@ -18,6 +18,7 @@ import { createQualityGovernor, createStage, type Quality } from './render/stage
 import { createDialogue, type Chip } from './ui/dialogue';
 import { el } from './ui/dom';
 import { createHud } from './ui/hud';
+import { askPlayerName } from './ui/welcome';
 import { bang, flash, sheet, showDeath, showRecap, toast } from './ui/overlays';
 import { unlockAudioOnGesture } from './voice';
 
@@ -102,7 +103,7 @@ function endTalk(): void {
 async function onPlayerLine(text: string): Promise<void> {
   const npc = dialogue.current();
   if (!npc || busy) return;
-  dialogue.playerSaid(text);
+  dialogue.playerSaid(text, state.playerName);
   if (deal && npc === 'gaston') return haggleLine(text);
   busy = true;
   dialogue.thinking(true);
@@ -407,6 +408,17 @@ function frame(): void {
 commit(state);
 stage.resize();
 requestAnimationFrame(frame);
+
+async function welcome(): Promise<void> {
+  const preset = params.get('name') ?? '';
+  if (state.playerName && !params.has('name')) return;
+  hud.root.hidden = true;
+  const name = await askPlayerName(ui!, preset);
+  hud.root.hidden = false;
+  commit({ ...state, playerName: name });
+  toast(ui!, `Bienvenue sur l\u2019île, ${name} !`, 'good');
+}
+void welcome();
 
 declare global {
   interface Window {

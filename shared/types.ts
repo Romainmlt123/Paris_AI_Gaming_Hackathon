@@ -58,6 +58,8 @@ export interface GameState {
   day: number;
   /** Minutes since midnight. */
   clock: number;
+  /** First name typed on the welcome screen; '' until chosen. */
+  playerName: string;
   coins: number;
   islandValue: number;
   inventory: DecoId[];
@@ -104,6 +106,7 @@ export interface TalkContext {
   intent: string | null;
   day: number;
   islandValue: number;
+  playerName: string;
 }
 
 export interface TalkRequest {
@@ -165,6 +168,7 @@ export interface SimRequest {
   rumors: SimRumorView[];
   bonds: Record<string, number>;
   relations: Record<NpcId, number>;
+  playerName: string;
 }
 
 export type RecapKind = 'talk' | 'rumor' | 'relation' | 'intent';

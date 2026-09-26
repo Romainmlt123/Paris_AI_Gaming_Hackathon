@@ -1,5 +1,6 @@
 import { CHARACTERS } from './characters';
 import { applyRelationDelta, bondKey, tierOf } from './relations';
+import { playerLabel } from './player';
 import { factById, recordFact } from './rumors';
 import { NPC_IDS } from './types';
 import type { GameState, KnownRumor, NpcId, NpcState, RelationChange, TalkContext, TalkResult } from './types';
@@ -11,12 +12,13 @@ function freshNpc(relation: number): NpcState {
   return { relation, emotion: 'neutre', memories: [], intent: null, history: [] };
 }
 
-export function createInitialState(): GameState {
+export function createInitialState(playerName = ''): GameState {
   return {
     version: 1,
     nextId: 1,
     day: 1,
     clock: 17 * 60 + 40,
+    playerName,
     coins: 1200,
     islandValue: 0,
     inventory: [],
@@ -59,13 +61,14 @@ export function buildTalkContext(state: GameState, npc: NpcId): TalkContext {
     intent: npcState.intent,
     day: state.day,
     islandValue: state.islandValue,
+    playerName: state.playerName,
   };
 }
 
-function summarize(message: string, result: TalkResult): string {
+function summarize(message: string, result: TalkResult, playerName: string): string {
   const firstEvent = result.events[0];
   if (firstEvent) return firstEvent.text;
-  return `Le joueur a dit « ${message.trim().slice(0, 70)} »`;
+  return `${playerLabel(playerName)} a dit « ${message.trim().slice(0, 70)} »`;
 }
 
 /** Applies a validated talk result. The AI proposed it; this function decides what becomes true. */
@@ -87,7 +90,7 @@ export function applyTalkResult(
     { who: 'player' as const, text: message },
     { who: npc, text: result.reply },
   ].slice(-HISTORY_LIMIT);
-  npcState.memories = [...npcState.memories, `Jour ${next.day} : ${summarize(message, result)}`].slice(-MEMORY_LIMIT);
+  npcState.memories = [...npcState.memories, `Jour ${next.day} : ${summarize(message, result, next.playerName)}`].slice(-MEMORY_LIMIT);
   const reason = result.reason || `${CHARACTERS[npc].name} a apprécié l\u2019échange`;
   return applyRelationDelta(next, npc, result.relationDelta, reason);
 }

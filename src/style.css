@@ -141,3 +141,18 @@ body.night #scene { filter: brightness(0.35) saturate(0.6) hue-rotate(-20deg); t
 }
 .dialogue:not([hidden]) ~ .keys-help { display: none; }
 @media (max-width: 720px) { .keys-help { display: none; } }
+
+/* Welcome */
+.welcome-back { background: radial-gradient(ellipse at center, rgba(20, 16, 40, 0.35), rgba(20, 16, 40, 0.8)); z-index: 20; }
+.welcome-back.leaving { animation: fade 0.35s reverse forwards; }
+.modal.welcome { box-sizing: border-box; min-width: 0; text-align: center; display: flex; flex-direction: column; gap: 10px; padding: 20px 18px; animation: pop 0.45s ease-out; }
+.welcome-title { margin: 0; font-size: 46px; letter-spacing: 3px; color: var(--accent); text-shadow: 3px 3px 0 var(--ink); }
+.welcome-tag { margin: 0; font-size: 15px; opacity: 0.75; }
+.welcome-label { font-size: 18px; font-weight: 700; margin-top: 6px; }
+.welcome-input { box-sizing: border-box; width: 100%; min-width: 0; font: inherit; font-size: 22px; text-align: center; padding: 10px; border: 3px solid var(--ink); border-radius: 6px; background: #fffdf6; color: var(--ink); outline: none; }
+.welcome-input:focus { box-shadow: 0 0 0 3px #ffd25e; }
+.welcome-ideas { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.welcome-hint { margin: 0; font-size: 13px; font-style: italic; opacity: 0.6; }
+.welcome-go { padding: 12px; font-size: 18px; font-weight: 700; background: var(--accent); color: var(--paper); border: 3px solid var(--ink); border-radius: 6px; box-shadow: 0 3px 0 rgba(43,34,51,.55); }
+.welcome-go:disabled { opacity: 0.45; }
+.chip.who { font-weight: 700; background: #ffe9b8; }
