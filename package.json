@@ -1,0 +1,40 @@
+{
+  "name": "ragots",
+  "version": "1.0.0",
+  "description": "Cozy game mobile HD-2D sur une île habitée par des personnages IA qui se souviennent de tout — {Tech: Europe} AI Gaming Hack, Paris.",
+  "scripts": {
+    "dev": "concurrently -k -n web,api \"vite --host\" \"tsx watch server/index.ts\"",
+    "dev:web": "vite --host",
+    "dev:api": "tsx watch server/index.ts",
+    "build": "tsc --noEmit && vite build",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "shot": "node scripts/shot.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Romainmlt123/Paris_AI_Gaming_Hackathon.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/Romainmlt123/Paris_AI_Gaming_Hackathon/issues"
+  },
+  "homepage": "https://github.com/Romainmlt123/Paris_AI_Gaming_Hackathon#readme",
+  "dependencies": {
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "@types/three": "^0.186.0",
+    "concurrently": "^10.0.5",
+    "playwright": "^1.63.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.2"
+  },
+  "private": true
+}
