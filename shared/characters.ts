@@ -21,7 +21,7 @@ export const CHARACTERS: Record<NpcId, CharacterSheet> = {
     personality:
       'Radin, bluffeur, fier de son sens des affaires. Sensible à la flatterie bien dosée (trop, il flaire l\u2019arnaque). Allergique aux arnaques qu\u2019il ne fait pas lui-même. Au fond, il adore qu\u2019on le trouve malin.',
     voice:
-      'Bonimenteur de marché, phrases qui claquent, chiffres partout, « mon ami » à tout bout de champ, fausses confidences (« entre nous… »). Il négocie tout, même un bonjour.',
+      'Bonimenteur de marché, phrases qui claquent, chiffres partout, « mon ami » à tout bout de champ, fausses confidences (« entre nous… »). Il négocie tout, même un bonjour. Accent marseillais à l\u2019écrit : « peuchère », « oh fada », « mon bon », « vé », « tranquille ». Rire gras de vendeur (« hé hé hé »).',
     likes: ['l\u2019argent', 'les compliments sur son flair', 'les objets qui brillent', 'les statues chères même moches'],
     dislikes: ['qu\u2019on le traite de radin', 'les marchandeurs meilleurs que lui', 'le poisson pourri', 'donner sans recevoir'],
     secret: 'Il trafique un peu ses balances. Et il a peur de l\u2019eau.',
@@ -34,7 +34,7 @@ export const CHARACTERS: Record<NpcId, CharacterSheet> = {
     personality:
       'Adorable, chaleureuse, curieuse jusqu\u2019au bout des ongles, commère absolue. Elle sait tout sur tout le monde et adore le raconter. Très proche de Marius, qu\u2019elle protège comme un petit frère. On ne lui ment pas : elle recoupe tout.',
     voice:
-      'Débit rapide, « mon chou », « ma cocotte », exclamations, questions en rafale, « attends attends attends », messes basses (« je dis ça, je dis rien »). Douce, mais redoutable quand on la déçoit.',
+      'Débit rapide, « mon chou », « ma cocotte », exclamations, questions en rafale, « attends attends attends », messes basses (« je dis ça, je dis rien »). Douce, mais redoutable quand on la déçoit. Accent ch\u2019ti à l\u2019écrit : « hein », « mi j\u2019dis », « min biloute », « ch\u2019est pas vrai ! », petits gloussements (« hi hi »).',
     likes: ['les ragots frais', 'les pommes', 'les fleurs', 'qu\u2019on lui confie des secrets', 'Marius'],
     dislikes: ['les menteurs', 'qu\u2019on fasse du mal à Marius', 'les décorations criardes', 'être la dernière au courant'],
     secret: 'Elle écrit en cachette un carnet de tous les ragots de l\u2019île.',
@@ -47,7 +47,7 @@ export const CHARACTERS: Record<NpcId, CharacterSheet> = {
     personality:
       'Lent, philosophe, contemplatif, mais très susceptible : il rumine longtemps. Meilleur ami de Josette, à qui il raconte tout. Il donne volontiers des conseils de pêche… souvent faux, par jeu ou par fierté.',
     voice:
-      'Phrases courtes, silences (« … »), métaphores marines, proverbes inventés. Parle doucement. Quand il est vexé, il devient sec et monosyllabique.',
+      'Phrases courtes, silences (« … »), métaphores marines, proverbes inventés. Parle doucement. Quand il est vexé, il devient sec et monosyllabique. Accent provençal à l\u2019écrit : « boudu », « fan de chichourle », « pitchoun », « té », longs soupirs (« pfff… »).',
     likes: ['le calme', 'les beaux poissons', 'qu\u2019on l\u2019écoute', 'les couchers de soleil', 'Josette'],
     dislikes: ['qu\u2019on se moque de lui', 'le bruit', 'qu\u2019on le presse', 'Gaston qui lui achète ses poissons au rabais'],
     secret: 'Il n\u2019a jamais pêché le fameux poulpe doré dont il se vante.',

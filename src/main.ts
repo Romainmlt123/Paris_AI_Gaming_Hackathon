@@ -19,6 +19,7 @@ import { createDialogue, type Chip } from './ui/dialogue';
 import { el } from './ui/dom';
 import { createHud } from './ui/hud';
 import { bang, flash, sheet, showDeath, showRecap, toast } from './ui/overlays';
+import { unlockAudioOnGesture } from './voice';
 
 const ABSENCE_HOURS = 8;
 const params = new URLSearchParams(location.search);
@@ -30,6 +31,7 @@ if (!canvas || !ui) throw new Error('Missing #scene or #ui');
 
 const qualityParam = params.get('q');
 const initialQuality: Quality = qualityParam === 'low' || qualityParam === 'mid' || qualityParam === 'high' ? qualityParam : 'high';
+unlockAudioOnGesture();
 const stage = createStage(canvas, initialQuality);
 const world = createWorld(stage);
 let state: GameState = loadState();

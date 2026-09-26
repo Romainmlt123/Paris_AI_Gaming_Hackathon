@@ -64,3 +64,14 @@ Mémoire du projet : fait, reste, décisions, pièges.
 ## Onboarding / cinématique (branche feature/rouge)
 - Skin « naufragé » : `SPRITES.castaway` (`naked: true`, src/render/sprites.ts) — tout nu, fesses et corps dans la planche ; mosaïque de censure discrète façon JAV (6×4 blocs aux tons de peau assombris, éclairée Lambert, sans contour, rebrassée 3×/s) ajouté par l'acteur (src/render/actor.ts, censorMosaic) quand il fait face caméra, fesses visibles de dos (marque de bronzage + joues roses), algue dans les cheveux.
 - Changer le skin du joueur à chaud : `world.setPlayerSkin('castaway' | 'player')`, hook `ragots.skin(...)`, ou `?skin=castaway` au chargement.
+
+## Voix Gradium (server/gradium.ts, src/voice.ts)
+- Clé serveur : `GRADIUM_API_KEY` (ou `GRADIUM_KEY`). Jamais côté client.
+- TTS : `POST /api/tts {npc,text,emotion}` → WAV (Gradium `pcm_22050`). 204 si rien à dire, 503 si Gradium KO (texte seul). Le joueur n'a pas de voix.
+- STT : bouton 🎤 du dialogue → WAV mono 24 kHz → `POST /api/stt` → `{text}` → même chemin que la saisie (`onPlayerLine`). Limite 12 s.
+- Voix créées par Voice Design (ids dans shared/voices.ts) :
+  - Gaston `Wu2q0FniGgTdlkjn` : bonimenteur marseillais, rapide, très expressif.
+  - Josette `LyiWr3yppCQBVOtH` : commère ch'ti, débit mitraillette, gloussements.
+  - Marius `RyPxucblPbKsz0Xp` : vieux pêcheur provençal, lent, grave, soupirs.
+- Émotion → `padding_bonus`/`temp` (colère/joie plus vite, tristesse plus lent). `…` → `<break time="0.5s" />`.
+- Bouton 🔊/🔇 dans le HUD (localStorage `ragots.sound`).
