@@ -80,7 +80,10 @@ export interface World {
   setPlayerSpec(spec: SpriteSpec): void;
   /** Building whose door the player stands in front of. */
   doorHere(): BuildingId | null;
+  setPlayerSkin(skin: PlayerSkin): void;
 }
+
+export type PlayerSkin = 'player' | 'castaway';
 
 function tileY(map: TileMap, x: number, z: number): number {
   return surfaceHeight(kindAt(map, Math.round(x), Math.round(z)));
@@ -234,6 +237,7 @@ export function createWorld(stage: Stage): World {
     map,
     playerPos: player.pos,
     npcView: (id) => npc(id).view,
+    setPlayerSkin: (skin) => player.view.setSkin(SPRITES[skin]),
     pick(ndc) {
       raycaster.setFromCamera(ndc, stage.camera);
       const sprites = [...npcs.values()].map((n) => n.view.sprite);
@@ -335,7 +339,7 @@ export function createWorld(stage: Stage): World {
       }
     },
     setPlayerSpec(spec) {
-      player.view.setSpec(spec);
+      player.view.setSkin(spec);
     },
     doorHere() {
       const t = roundTile(player.pos);

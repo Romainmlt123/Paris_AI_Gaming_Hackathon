@@ -61,6 +61,10 @@ Mémoire du projet : fait, reste, décisions, pièges.
 - Eau : bandes de profondeur, caustiques cellulaires fines (masquées par bruit), rides, reflets, écume de rivage, sable mouillé.
 - Sable : damier 2×2 multi-tons, rides décalées aléatoirement, galets et coquillages.
 
+## Onboarding / cinématique (branche feature/rouge)
+- Skin « naufragé » : `SPRITES.castaway` (`naked: true`, src/render/sprites.ts) — tout nu, fesses et corps dans la planche ; mosaïque de censure discrète façon JAV (6×4 blocs aux tons de peau assombris, éclairée Lambert, sans contour, rebrassée 3×/s) ajouté par l'acteur (src/render/actor.ts, censorMosaic) quand il fait face caméra, fesses visibles de dos (marque de bronzage + joues roses), algue dans les cheveux.
+- Changer le skin du joueur à chaud : `world.setPlayerSkin('castaway' | 'player')`, hook `ragots.skin(...)`, ou `?skin=castaway` au chargement.
+
 ## Voix Gradium (server/gradium.ts, src/voice.ts)
 - Clé serveur : `GRADIUM_API_KEY` (ou `GRADIUM_KEY`). Jamais côté client.
 - TTS : `POST /api/tts {npc,text,emotion}` → WAV (Gradium `pcm_22050`). 204 si rien à dire, 503 si Gradium KO (texte seul). Le joueur n'a pas de voix.

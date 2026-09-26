@@ -14,7 +14,7 @@ import { NPC_IDS } from '../shared/types';
 import { simulate, talk } from './api';
 import { loadState, resetSave, saveState } from './game/save';
 import { BUILDINGS, type BuildingId } from './game/map';
-import { createWorld, doorTile, HOMES } from './game/world';
+import { createWorld, doorTile, HOMES, type PlayerSkin } from './game/world';
 import { createInterior } from './interior/interior';
 import type { Action } from './interior/layouts';
 import { drawIcon } from './interior/paint';
@@ -608,8 +608,10 @@ declare global {
       pos: () => { x: number; z: number };
       homes: typeof HOMES;
       enter: (id: BuildingId) => void;
+      skin: (skin: PlayerSkin) => void;
     };
   }
 }
 /** Hooks for the scripted demo recording (see CLAUDE.md §13). */
-window.ragots = { state: () => state, talk: (npc) => startTalk(npc), say: (text) => onPlayerLine(text), absence, clash: runClash, pos: () => ({ x: world.playerPos.x, z: world.playerPos.z }), homes: HOMES, enter: (id) => enterBuilding(id) };
+window.ragots = { state: () => state, talk: (npc) => startTalk(npc), say: (text) => onPlayerLine(text), absence, clash: runClash, pos: () => ({ x: world.playerPos.x, z: world.playerPos.z }), homes: HOMES, enter: (id) => enterBuilding(id), skin: (skin) => world.setPlayerSkin(skin) };
+if (params.get('skin') === 'castaway') world.setPlayerSkin('castaway');
