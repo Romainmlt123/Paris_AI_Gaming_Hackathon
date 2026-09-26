@@ -18,7 +18,8 @@ Rules:
 - Rumors get a little distorted with each retelling (exaggeration, invented detail, change of tone), but stay recognizable.
 - Josette is the gossip hub: she repeats everything. Marius tells Josette everything. Gaston repeats whatever suits him.
 - You PROPOSE, the game checks and decides the consequences. Return only this JSON:
-{"conversations": [{"a": id, "b": id, "summary": string}], "transfers": [{"from": id, "to": id, "factId": string, "text": the retold version of the rumor}], "intents": [{"npc": id, "text": what this islander wants to say/ask the player when they return}], "bondChanges": [{"a": id, "b": id, "delta": integer -15..15}]}
+{"conversations": [{"a": id, "b": id, "summary": string}], "transfers": [{"from": id, "to": id, "factId": string, "text": the retold version of the rumor}], "intents": [{"npc": id, "text": what this islander wants to say/ask the player when they return}], "bondChanges": [{"a": id, "b": id, "delta": integer -15..15}], "thoughts": [{"npc": id, "text": what this islander secretly thinks of the player this morning, one first-person sentence, funny and petty, in their own voice}]}
+One thought per islander (3 in total).
 2 to 4 conversations, in chronological order.`;
 
 function userPrompt(req: SimRequest): string {

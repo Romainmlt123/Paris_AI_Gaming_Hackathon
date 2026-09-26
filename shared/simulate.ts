@@ -1,5 +1,5 @@
 import { CHARACTERS } from './characters';
-import { applyRelationDelta, bondKey, bondOf, clamp } from './relations';
+import { applyRelationDelta, bondKey, bondOf, clamp, tierOf } from './relations';
 import { distortRumor, factById, rumorOf, transferRumor } from './rumors';
 import { hashString, pick } from './rng';
 import { NPC_IDS } from './types';
@@ -76,6 +76,20 @@ export function hearsayDelta(severity: number, distortion: number): number {
   return Math.round(severity * 4 * (1 + 0.25 * distortion));
 }
 
+const THOUGHTS: Record<string, string[]> = {
+  'Sworn enemy': ['If I see that creature coming, I cross the street. And the island.', 'I\u2019m preparing a speech. It\u2019s long. It\u2019s mean.'],
+  'Holding a grudge': ['I forget nothing. I even took notes.', 'I\u2019m owed an apology. With interest.'],
+  Neighbor: ['Neither hot nor cold. Lukewarm, like Josette\u2019s coffee.', 'I don\u2019t know the newcomer well enough to badmouth them. Yet.'],
+  Pal: ['Nice, the newcomer. But I won\u2019t say it too loud.', 'I\u2019d save the newcomer a slice of pie. A small one.'],
+  Confidant: ['My favorite on the island. Don\u2019t repeat that, especially not to Josette.', 'I\u2019d tell them my secrets. Well, almost all of them.'],
+};
+
+/** Fallback inner thought about the player, picked from the NPC's current tier. */
+export function fallbackThought(state: GameState, npc: NpcId): string {
+  const options = THOUGHTS[tierOf(state.npcs[npc].relation).label] ?? THOUGHTS.Neighbor!;
+  return pick(options, hashString(`${npc}-${state.day}-${state.nextId}`));
+}
+
 function confrontIntent(to: NpcId, from: NpcId, text: string): string {
   return `${CHARACTERS[to].name} heard ${CHARACTERS[from].name} say: "${text}". Wants an explanation.`;
 }
@@ -136,6 +150,10 @@ export function applySimResult(
   for (const [npc, text] of intents) {
     next.npcs[npc].intent = text;
     recap.push({ kind: 'intent', npc, text: `${CHARACTERS[npc].name} wants to talk to you.` });
+  }
+  for (const npc of NPC_IDS) {
+    const text = result.thoughts?.find((t) => t.npc === npc)?.text ?? fallbackThought(next, npc);
+    recap.push({ kind: 'thought', npc, text });
   }
   const total = next.clock + Math.round(hours * 60);
   next.day += Math.floor(total / (24 * 60));
