@@ -4,6 +4,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { env, hasGemini } from './env.ts';
 import { handleAbsence, handleHealth, handleTalk } from './handlers.ts';
 import type { HandlerResult } from './handlers.ts';
+import { handleTts } from './tts.ts';
 
 const MAX_BODY_BYTES = 64 * 1024;
 
@@ -40,18 +41,30 @@ function readJsonBody(req: IncomingMessage): Promise<unknown> {
   });
 }
 
-function send(res: ServerResponse, { status, json }: HandlerResult): void {
-  res.writeHead(status, {
-    'Content-Type': 'application/json; charset=utf-8',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-  });
-  res.end(status === 204 ? undefined : JSON.stringify(json));
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Content-Type',
+} as const;
+
+function send(res: ServerResponse, result: HandlerResult): void {
+  if ('binary' in result) {
+    res.writeHead(result.status, {
+      ...CORS_HEADERS,
+      'Content-Type': result.contentType,
+      'Content-Length': String(result.binary.length),
+      'Cache-Control': 'no-store',
+    });
+    res.end(result.binary);
+    return;
+  }
+  res.writeHead(result.status, { ...CORS_HEADERS, 'Content-Type': 'application/json; charset=utf-8' });
+  res.end(result.status === 204 ? undefined : JSON.stringify(result.json));
 }
 
 const POST_ROUTES: Record<string, (body: unknown) => Promise<HandlerResult>> = {
   '/api/talk': handleTalk,
   '/api/absence': handleAbsence,
+  '/api/tts': handleTts,
 };
 
 async function route(req: IncomingMessage): Promise<HandlerResult> {

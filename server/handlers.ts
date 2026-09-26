@@ -7,10 +7,10 @@ import { buildAbsencePrompt, ABSENCE_SCHEMA } from './prompts/absence.ts';
 import { NPC_IDS } from '../src/state/types.ts';
 import type { AbsenceRequest, AbsenceResponse, NpcId, TalkRequest, TalkResponse } from '../src/state/types.ts';
 
-export interface HandlerResult {
-  status: number;
-  json: unknown;
-}
+/** Réponse JSON (cas général) ou binaire (audio TTS) : les deux formes restent sérialisables côté Vercel. */
+export type HandlerResult =
+  | { status: number; json: unknown }
+  | { status: number; binary: Uint8Array; contentType: string };
 
 const TALK_TIMEOUT_MS = 6000;
 const ABSENCE_TIMEOUT_MS = 12000; // plus long : sortie plus riche, et un écran de récap masque l'attente
