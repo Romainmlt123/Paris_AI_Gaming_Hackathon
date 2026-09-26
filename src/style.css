@@ -116,7 +116,7 @@ body.is-night .chip, body.is-night .gauge, body.is-night .action {
 body.is-night .prestige { color: #ffd25e; }
 body.is-night .bar { background: #3a4677; border-color: #0e1333; }
 body.is-night .portrait { border-color: #0e1333; background: #8fa3d8; }
-body.is-night .gauge-tier, body.is-night .gauge-value { color: #c8c3ff; opacity: 1; }
+body.is-night .gauge .gauge-tier, body.is-night .gauge .gauge-value { color: #c8c3ff; opacity: 1; }
 body.is-night .ai-status, body.is-night .fps { color: #fff3c9; }
 body.is-night .gauge.wants { animation-name: wants-night; }
 body.is-night .gauge.hit { animation-name: hit-night; }

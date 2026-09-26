@@ -50,7 +50,7 @@ export function createFireflies(map: TileMap): Fireflies {
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(base.slice(), 3));
-  const mat = new THREE.PointsMaterial({ map: glowTexture(), color: 0xfff08a, size: 0.35, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
+  const mat = new THREE.PointsMaterial({ map: glowTexture(), color: 0xfff08a, size: 0.55, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
   const points = new THREE.Points(geo, mat);
   points.visible = false;
   const pos = geo.getAttribute('position');
