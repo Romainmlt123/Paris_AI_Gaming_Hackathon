@@ -1,4 +1,4 @@
-import type { GameState, NpcId, RelationChange } from './types';
+import type { GameState, NpcId, RelationChange } from './types.js';
 
 export const RELATION_MIN = -100;
 export const RELATION_MAX = 100;

@@ -1,6 +1,6 @@
-import { speakableText, VOICES, voiceSettings } from '../shared/voices';
-import { pcmToWav } from '../shared/wav';
-import type { Emotion, NpcId } from '../shared/types';
+import { speakableText, VOICES, voiceSettings } from '../shared/voices.js';
+import { pcmToWav } from '../shared/wav.js';
+import type { Emotion, NpcId } from '../shared/types.js';
 
 const BASE = 'https://api.gradium.ai/api/post/speech';
 const TTS_RATE = 22050;

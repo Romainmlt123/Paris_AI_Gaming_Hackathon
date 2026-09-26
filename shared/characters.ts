@@ -1,4 +1,4 @@
-import type { NpcId } from './types';
+import type { NpcId } from './types.js';
 
 export interface CharacterSheet {
   id: NpcId;

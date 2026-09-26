@@ -1,7 +1,7 @@
-import { CHARACTERS } from './characters';
-import { applyRelationDelta } from './relations';
-import { recordFact } from './rumors';
-import type { FishId, GameState, NpcId, RelationChange } from './types';
+import { CHARACTERS } from './characters.js';
+import { applyRelationDelta } from './relations.js';
+import { recordFact } from './rumors.js';
+import type { FishId, GameState, NpcId, RelationChange } from './types.js';
 
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'legendary' | 'junk';
 

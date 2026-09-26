@@ -1,9 +1,9 @@
-import { CHARACTERS } from './characters';
-import { applyRelationDelta, bondKey, bondOf, clamp, tierOf } from './relations';
-import { distortRumor, factById, rumorOf, transferRumor } from './rumors';
-import { hashString, pick } from './rng';
-import { NPC_IDS } from './types';
-import type { GameState, NpcId, RecapEntry, SimRequest, SimResult, SimTransfer } from './types';
+import { CHARACTERS } from './characters.js';
+import { applyRelationDelta, bondKey, bondOf, clamp, tierOf } from './relations.js';
+import { distortRumor, factById, rumorOf, transferRumor } from './rumors.js';
+import { hashString, pick } from './rng.js';
+import { NPC_IDS } from './types.js';
+import type { GameState, NpcId, RecapEntry, SimRequest, SimResult, SimTransfer } from './types.js';
 
 /** Minimum affinity for a rumor to travel between two NPCs (the gossip hub ignores it). */
 export const SPREAD_BOND = 40;

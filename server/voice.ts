@@ -1,7 +1,7 @@
-import { asNpcId } from '../shared/validate';
-import { EMOTIONS, type Emotion } from '../shared/types';
-import { json } from './gemini';
-import { GradiumError, synthesize, transcribe } from './gradium';
+import { asNpcId } from '../shared/validate.js';
+import { EMOTIONS, type Emotion } from '../shared/types.js';
+import { json } from './gemini.js';
+import { GradiumError, synthesize, transcribe } from './gradium.js';
 
 const TTS_TIMEOUT_MS = 8000;
 const STT_TIMEOUT_MS = 10000;

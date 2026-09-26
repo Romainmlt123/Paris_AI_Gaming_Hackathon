@@ -1,10 +1,10 @@
-import { CHARACTERS } from '../shared/characters';
-import { fallbackTalk } from '../shared/fallback';
-import { cleanIsland, cleanName } from '../shared/player';
-import { asNpcId, parseTalkResult } from '../shared/validate';
-import type { NpcId, TalkContext, TalkRequest, TalkResult } from '../shared/types';
-import { EMOTIONS } from '../shared/types';
-import { GeminiError, generateJson, json } from './gemini';
+import { CHARACTERS } from '../shared/characters.js';
+import { fallbackTalk } from '../shared/fallback.js';
+import { cleanIsland, cleanName } from '../shared/player.js';
+import { asNpcId, parseTalkResult } from '../shared/validate.js';
+import type { NpcId, TalkContext, TalkRequest, TalkResult } from '../shared/types.js';
+import { EMOTIONS } from '../shared/types.js';
+import { GeminiError, generateJson, json } from './gemini.js';
 
 const TALK_TIMEOUT_MS = 9000;
 

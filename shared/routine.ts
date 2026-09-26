@@ -1,7 +1,7 @@
-import { bondOf } from './relations';
-import { hashString, pick } from './rng';
-import type { GameState, NpcId } from './types';
-import { NPC_IDS } from './types';
+import { bondOf } from './relations.js';
+import { hashString, pick } from './rng.js';
+import type { GameState, NpcId } from './types.js';
+import { NPC_IDS } from './types.js';
 
 export interface Spot {
   x: number;
