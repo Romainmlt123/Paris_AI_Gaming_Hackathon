@@ -1,0 +1,73 @@
+import * as THREE from 'three';
+import { drawSheet, FRAME_H, FRAME_W, setFrame, sheetTexture, type Facing, type SpriteSpec } from './sprites';
+
+const HEIGHT = 1.35;
+
+export interface ActorView {
+  root: THREE.Group;
+  sprite: THREE.Mesh;
+  sheet: HTMLCanvasElement;
+  bubble: THREE.Sprite;
+  setPose(walking: boolean, facing: Facing, flip: boolean, time: number): void;
+  setBubble(visible: boolean, time: number): void;
+}
+
+function bubbleSprite(): THREE.Sprite {
+  const c = document.createElement('canvas');
+  c.width = 16;
+  c.height = 20;
+  const ctx = c.getContext('2d');
+  if (!ctx) throw new Error('2D canvas unavailable');
+  ctx.fillStyle = '#2b2233';
+  ctx.fillRect(2, 0, 12, 16);
+  ctx.fillRect(6, 16, 4, 3);
+  ctx.fillStyle = '#ffd25e';
+  ctx.fillRect(3, 1, 10, 14);
+  ctx.fillStyle = '#2b2233';
+  ctx.fillRect(7, 3, 2, 7);
+  ctx.fillRect(7, 11, 2, 2);
+  const tex = new THREE.CanvasTexture(c);
+  tex.magFilter = THREE.NearestFilter;
+  tex.minFilter = THREE.NearestFilter;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false }));
+  s.scale.set(0.4, 0.5, 1);
+  s.position.y = HEIGHT + 0.45;
+  s.renderOrder = 10;
+  s.visible = false;
+  return s;
+}
+
+/** Pixel-art billboard (Y-axis only) that casts a silhouette-accurate shadow. */
+export function createActorView(spec: SpriteSpec, name: string): ActorView {
+  const sheet = drawSheet(spec);
+  const tex = sheetTexture(sheet);
+  const width = (HEIGHT * FRAME_W) / FRAME_H;
+  const geo = new THREE.PlaneGeometry(width, HEIGHT);
+  geo.translate(0, HEIGHT / 2, 0);
+  const mat = new THREE.MeshLambertMaterial({ map: tex, alphaTest: 0.5, side: THREE.DoubleSide });
+  const sprite = new THREE.Mesh(geo, mat);
+  sprite.castShadow = true;
+  sprite.customDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: tex, alphaTest: 0.5 });
+  sprite.name = name;
+  const root = new THREE.Group();
+  root.add(sprite);
+  const bubble = bubbleSprite();
+  root.add(bubble);
+  setFrame(tex, 0, 'down');
+  return {
+    root,
+    sprite,
+    sheet,
+    bubble,
+    setPose(walking, facing, flip, time) {
+      const frame = walking ? 1 + (Math.floor(time * 8) % 2) : 0;
+      setFrame(tex, frame, facing);
+      sprite.scale.x = flip ? -1 : 1;
+    },
+    setBubble(visible, time) {
+      bubble.visible = visible;
+      bubble.position.y = HEIGHT + 0.45 + Math.sin(time * 5) * 0.06;
+    },
+  };
+}
