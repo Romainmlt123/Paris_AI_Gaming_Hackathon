@@ -115,7 +115,7 @@ export function runOnboarding(host: HTMLElement, opts: OnboardingOptions): Promi
         who.append(spriteCanvas(spec, 0, 6), el('span', 'onb-squad-name', label));
         squad.append(who);
       }
-      const play = button('onb-play', 'JOUER', () => creator());
+      const play = button('onb-play', 'PLAY', () => creator());
       const actions = el('div', 'onb-title-actions');
       actions.append(play);
       if (opts.canContinue) actions.append(button('onb-ghost', opts.continueLabel, () => finish({ kind: 'continue' })));
@@ -158,7 +158,7 @@ export function runOnboarding(host: HTMLElement, opts: OnboardingOptions): Promi
         draw();
       });
       turn.setAttribute('aria-label', 'Rotate character');
-      turn.append(preview, el('span', 'onb-turn-hint', '↻ Tourner'));
+      turn.append(preview, el('span', 'onb-turn-hint', '↻ Rotate'));
       stage.append(el('div', 'onb-step', 'STEP 1 / 2'), turn);
 
       const nameInput = textField('onb-name', 'Your name', NAME_MAX, name);
@@ -224,7 +224,7 @@ export function runOnboarding(host: HTMLElement, opts: OnboardingOptions): Promi
         if (profile.name && profile.island) finish({ kind: 'new', profile });
       });
       const actions = el('div', 'onb-actions');
-      actions.append(button('onb-ghost', '‹ Retour', () => creator()), go);
+      actions.append(button('onb-ghost', '‹ Back', () => creator()), go);
       card.append(
         input,
         ideaChips(ISLAND_IDEAS, (idea) => {

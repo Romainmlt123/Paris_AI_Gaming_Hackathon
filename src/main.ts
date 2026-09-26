@@ -560,7 +560,7 @@ function openStock(shop: ShopId, levels: number[], title: string): void {
 function buyShopItem(id: keyof typeof SHOP_ITEMS): void {
   const levelBefore = islandLevel(state.islandValue).level;
   const res = buyItem(state, id, islandValue);
-  if (!res.ok) return toast(ui!, res.reason === 'coins' ? 'Not enough coins…' : 'Indisponible.', 'bad');
+  if (!res.ok) return toast(ui!, res.reason === 'coins' ? 'Not enough coins…' : 'Unavailable.', 'bad');
   commit(res.state);
   const it = SHOP_ITEMS[id];
   const owner = SHOP_OWNER[it.shop];

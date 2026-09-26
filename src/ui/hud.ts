@@ -59,7 +59,7 @@ export function createHud(portraits: Record<NpcId, string>, onNpc: (id: NpcId) =
     cards.set(id, { card, fill, tier, value });
   }
   const bottom = el('div', 'hud-bottom');
-  const bag = button('action bag', '🎒 Sac', onBag);
+  const bag = button('action bag', '🎒 Bag', onBag);
   const sleep = button('action sleep', '🌙 Come back in 8 h', onSleep);
   bottom.append(bag, sleep);
   const status = el('div', 'ai-status');
