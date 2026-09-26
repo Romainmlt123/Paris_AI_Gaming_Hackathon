@@ -17,6 +17,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #1b2a3a; col
 #scene { position: fixed; inset: 0; width: 100vw; height: 100dvh; display: block; touch-action: none; }
 #ui { position: fixed; inset: 0; pointer-events: none; max-width: 520px; margin: 0 auto; }
 #ui > * { pointer-events: auto; }
+#ui > .flash, #ui > .stamp { pointer-events: none; }
 button { font: inherit; color: inherit; border: 0; cursor: pointer; }
 .title { font-family: 'Fredoka', 'Nunito', ui-rounded, system-ui, sans-serif; }
 

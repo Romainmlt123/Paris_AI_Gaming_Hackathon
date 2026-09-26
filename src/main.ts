@@ -22,7 +22,10 @@ import { btn, gaugeWidth, h, relColor, sleep } from './ui/dom.ts';
 
 const canvas = document.getElementById('scene') as HTMLCanvasElement;
 const ui = document.getElementById('ui') as HTMLDivElement;
+const params = new URLSearchParams(location.search);
+if (params.has('reset')) localStorage.removeItem('ragots-save-v2');
 const store = new Store();
+if (params.has('reset')) history.replaceState(null, '', location.pathname);
 const world = new World(canvas);
 const portraits: Record<NpcId, string> = { gaston: portraitUrl('gaston'), josette: portraitUrl('josette'), marius: portraitUrl('marius') };
 
@@ -529,7 +532,9 @@ async function send(text: string, offeredItemId: string | null = null): Promise<
   if (out.lieCaught) {
     sfx.bad();
     navigator.vibrate?.([80, 40, 120]);
-    ui.append(h('div', { class: 'flash' }));
+    const flash = h('div', { class: 'flash' });
+    ui.append(flash);
+    setTimeout(() => flash.remove(), 700);
     const stamp = h('div', { class: 'stamp title' }, 'MENSONGE', h('br'), 'DÉMASQUÉ');
     ui.append(stamp);
     setTimeout(() => stamp.remove(), 2300);
