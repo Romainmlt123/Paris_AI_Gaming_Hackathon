@@ -86,7 +86,27 @@ const REACT_TEXT: Record<NpcId, { good: string; bad: string }> = {
   marius: { good: '... Joli. La mer approuve.', bad: '... Hm. Les mouettes n\u2019aiment pas ça.' },
 };
 
+export function hasRotten(items: InvSlot[]): boolean {
+  return items.some((s) => item(s.itemId).tags.includes('rotten'));
+}
+
+/** Tenter de refourguer du pourri à Gaston : il déteste les arnaques qu'il ne fait pas lui-même. */
+export function applyScam(state: GameState, now: number): { state: GameState; change: RelationChange | null } {
+  const draft = structuredClone(state);
+  addFact(draft, { actor: 'player', target: 'gaston', kind: 'scam', text: `${draft.player.name} a tenté de refourguer du poisson pourri à Gaston.`, witnesses: ['gaston'] });
+  const change = applyRelation(draft, 'gaston', -12, 'A tenté de l’arnaquer avec du pourri', now);
+  draft.npcs.gaston.mood = 'colere';
+  return { state: draft, change };
+}
+
 export type PlaceResult = { ok: true; state: GameState; changes: RelationChange[] } | { ok: false; error: string };
+
+export function removeDecor(state: GameState, slotId: SlotId): GameState {
+  const draft = structuredClone(state);
+  const id = draft.decor[slotId];
+  if (id && addItem(draft.player.inventory, id, 1) === 1) draft.decor[slotId] = null;
+  return draft;
+}
 
 export function placeDecor(state: GameState, slotId: SlotId, itemId: string, now: number): PlaceResult {
   const def = item(itemId);
