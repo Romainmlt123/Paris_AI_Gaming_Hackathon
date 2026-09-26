@@ -42,7 +42,7 @@ export async function playIntro(world: World, host: HTMLElement, o: IntroOptions
   root.append(el('div', 'intro-bar intro-top'), el('div', 'intro-bar intro-bottom'), card, skip);
   host.append(root);
 
-  const pace = o.short ? 0.6 : 1;
+  const pace = o.short ? 0.8 : 1;
   const wait = (ms: number): Promise<void> => (skipped ? Promise.resolve() : Promise.race([new Promise<void>((r) => setTimeout(r, ms * pace)), skipSignal]));
   const show = async (c: Card): Promise<void> => {
     if (skipped) return;
@@ -57,11 +57,11 @@ export async function playIntro(world: World, host: HTMLElement, o: IntroOptions
   const beach = new THREE.Vector3(dock.x + 0.9, -0.1, dock.z + 0.6);
   const sea = new THREE.Vector3(dock.x + 2.5, -0.1, dock.z + DRIFT);
   const cards: Card[] = [
-    { kicker: 'Quelque part au large…', big: 'TOUT NU. SUR UN RADEAU.', sub: 'Pas de fringues. Pas de sous. Pas de plan.', ms: 3600 },
-    { kicker: 'Droit devant', big: o.island.toUpperCase(), sub: 'Trois habitants. Des ragots à la pelle.', ms: 3400 },
-    { kicker: 'Objectif', big: 'FAIS DE TON ÎLE LA PLUS BELLE', sub: 'Gagne des clochettes, décore, grimpe en prestige.', ms: 3800 },
-    { kicker: 'Comment ?', big: 'PARLE AUX HABITANTS', sub: 'Ils se souviennent de tout. Et ils le répètent… en pire.', ms: 3800 },
-    { kicker: 'Attention', big: 'CHAQUE MOT COMPTE', sub: 'Fais-toi tes meilleurs amis… ou tes pires ennemis.', ms: 4200 },
+    { kicker: 'Quelque part au large…', big: 'TOUT NU. SUR UN RADEAU.', sub: 'Pas de fringues. Pas de sous. Pas de plan.', ms: 5500 },
+    { kicker: 'Droit devant', big: o.island.toUpperCase(), sub: 'Trois habitants. Des ragots à la pelle.', ms: 5000 },
+    { kicker: 'Objectif', big: 'FAIS DE TON ÎLE LA PLUS BELLE', sub: 'Gagne des clochettes, décore, grimpe en prestige.', ms: 5800 },
+    { kicker: 'Comment ?', big: 'PARLE AUX HABITANTS', sub: 'Ils se souviennent de tout. Et ils le répètent… en pire.', ms: 5800 },
+    { kicker: 'Attention', big: 'CHAQUE MOT COMPTE', sub: 'Fais-toi tes meilleurs amis… ou tes pires ennemis.', ms: 6500 },
   ];
   const total = cards.reduce((t, c) => t + c.ms, 0) * pace;
 
@@ -96,7 +96,7 @@ export async function playIntro(world: World, host: HTMLElement, o: IntroOptions
   world.setRaft(beach, false);
   world.teleportPlayer(dock);
   world.face('player', 'up');
-  await show({ kicker: `Bienvenue sur ${o.island}`, big: o.name.toUpperCase(), sub: '(toujours tout nu)', ms: 2600 });
+  await show({ kicker: `Bienvenue sur ${o.island}`, big: o.name.toUpperCase(), sub: '(toujours tout nu)', ms: 4000 });
 
   world.setScripted(false);
   root.classList.add('leaving');
