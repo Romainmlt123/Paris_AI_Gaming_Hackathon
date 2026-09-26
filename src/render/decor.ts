@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { DecoId } from '../../shared/types';
+import { glowTexture, halo } from './night';
 import { P, planks, stoneWall } from './textures';
 
 function mesh(geo: THREE.BufferGeometry, mat: THREE.Material, x = 0, y = 0, z = 0): THREE.Mesh {
@@ -26,11 +27,21 @@ function lampadaire(): THREE.Group {
   const iron = lambert('#3b3a4a');
   g.add(mesh(new THREE.CylinderGeometry(0.05, 0.08, 1.6, 6), iron, 0, 0.8, 0));
   const glass = new THREE.MeshStandardMaterial({ color: P.window, emissive: P.window, emissiveIntensity: 2 });
+  glass.userData['glow'] = 2;
   g.add(mesh(new THREE.BoxGeometry(0.22, 0.26, 0.22), glass, 0, 1.72, 0));
   g.add(mesh(new THREE.ConeGeometry(0.2, 0.15, 4), iron, 0, 1.92, 0));
   const light = new THREE.PointLight(P.window, 2.5, 4, 1.5);
   light.position.y = 1.7;
-  g.add(light);
+  light.userData['lamp'] = 2.5;
+  const bulb = halo(0xffc070, 1.6);
+  bulb.position.y = 1.72;
+  const pool = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 2.6), new THREE.MeshBasicMaterial({ map: glowTexture(), color: 0xffa850, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+  pool.rotation.x = -Math.PI / 2;
+  pool.position.y = 0.03;
+  pool.name = 'nightGlow';
+  pool.userData['glow'] = 0.6;
+  pool.visible = false;
+  g.add(light, bulb, pool);
   return g;
 }
 

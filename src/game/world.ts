@@ -6,6 +6,7 @@ import { NPC_IDS } from '../../shared/types';
 import { createActorView, type ActorView } from '../render/actor';
 import { createBuildings } from '../render/buildings';
 import { createDeco, slotMarker } from '../render/decor';
+import { createFireflies } from '../render/night';
 import { createFlowers, createRocks, createTrees, type Swaying } from '../render/props';
 import { SPRITES } from '../render/sprites';
 import type { Stage } from '../render/stage';
@@ -60,6 +61,8 @@ export interface World {
   facePlayerToward(id: NpcId): void;
   syncDecor(state: GameState): void;
   syncForage(state: GameState): void;
+  /** Night ambience: water, lit windows and lamps, fireflies (0 = day, 1 = night). */
+  setNight(night: number): void;
   update(dt: number, time: number, intents: Set<NpcId>): void;
   teleportPlayer(tile: Tile): void;
 }
@@ -153,6 +156,9 @@ export function createWorld(stage: Stage): World {
   const water: Water = createWater(map);
   const trees = createTrees(map);
   const sway: Swaying[] = trees.sway;
+  const fireflies = createFireflies(map);
+  let night = 0;
+  stage.scene.add(fireflies.points);
   stage.scene.add(terrain.group, water.mesh, trees.group, createRocks(map), createFlowers(map), createBuildings(map));
 
   const player = makeActor(createActorView(SPRITES.player, 'player'), { x: 12, z: 20 }, map, SPEED);
@@ -326,7 +332,24 @@ export function createWorld(stage: Stage): World {
         stage.scene.add(g);
       }
     },
+    setNight(n) {
+      night = n;
+      water.setNight(n);
+      stage.scene.traverse((o) => {
+        if (o.name === 'nightGlow' && (o instanceof THREE.Sprite || o instanceof THREE.Mesh)) {
+          const m = o.material;
+          if (m instanceof THREE.SpriteMaterial || m instanceof THREE.MeshBasicMaterial) m.opacity = n * Number(o.userData['glow'] ?? 1);
+          o.visible = n > 0.02;
+        } else if (o instanceof THREE.Mesh && o.material instanceof THREE.MeshStandardMaterial && typeof o.material.userData['glow'] === 'number') {
+          o.material.emissiveIntensity = o.material.userData['glow'] * (1 + n * 1.6);
+        } else if (o instanceof THREE.PointLight && typeof o.userData['lamp'] === 'number') {
+          o.intensity = o.userData['lamp'] * (0.6 + n * 2.4);
+          o.distance = 4 + n * 3;
+        }
+      });
+    },
     update(dt, time, intents) {
+      fireflies.update(time, night);
       stepActor(player, map, dt, time);
       for (const n of npcs.values()) {
         wander(n, dt);

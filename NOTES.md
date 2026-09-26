@@ -32,3 +32,4 @@ Mémoire du projet : fait, reste, décisions, pièges.
 - Le secret Devin s'appelle `GOOGLE_STUDIO_KEY` : `server/gemini.ts` accepte aussi `GEMINI_API_KEY`.
 - InstancedMesh + BoxGeometry : passer UN matériau (pas un tableau d'un seul), sinon 5 faces sur 6 disparaissent.
 - Les emojis n'apparaissent pas en headless (pas de police emoji), OK sur téléphone.
+- Nuit : `nightness(minutes)` (stage) pilote eau (uNight : bleu nuit, reflets d'étoiles, reflet de lune), halos des fenêtres/lampadaires, lucioles et thème HUD `body.is-night` (cards bleu nuit). La fin d'après-midi (≤ 19h30) est inchangée.

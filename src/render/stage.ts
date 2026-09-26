@@ -26,6 +26,8 @@ export interface Stage {
   render(): void;
   /** Lights the island for a time of day, in minutes since midnight. */
   setClock(minutes: number): void;
+  /** 0 by day, 1 at full night (set by `setClock`). */
+  night: number;
 }
 
 interface Daylight {
@@ -40,15 +42,23 @@ interface Daylight {
 
 /** Keyframes of the day/night cycle; the island stays readable at night (moonlight, not black). */
 const DAY: readonly Daylight[] = [
-  { h: 0, sun: 0.75, sunColor: 0x8fa6ff, hemi: 0.72, sky: 0x3a4a8c, bg: 0x141a3a, exposure: 0.8 },
-  { h: 5, sun: 0.8, sunColor: 0x9fb0ff, hemi: 0.75, sky: 0x40508f, bg: 0x1a2046, exposure: 0.82 },
+  { h: 0, sun: 1.1, sunColor: 0x8fb0ff, hemi: 0.95, sky: 0x6f84f0, bg: 0x16224f, exposure: 0.92 },
+  { h: 5, sun: 1.1, sunColor: 0x9fb4ff, hemi: 0.95, sky: 0x7a86e8, bg: 0x1c2658, exposure: 0.92 },
   { h: 7, sun: 1.8, sunColor: 0xffc49a, hemi: 1.0, sky: 0xffc7b0, bg: 0xf3b9a2, exposure: 0.98 },
   { h: 10, sun: 2.6, sunColor: 0xfff1d6, hemi: 1.25, sky: 0xffffff, bg: 0xffffff, exposure: 1.05 },
   { h: 17, sun: 2.5, sunColor: 0xffe2b8, hemi: 1.2, sky: 0xffffff, bg: 0xffffff, exposure: 1.05 },
   { h: 19.5, sun: 1.6, sunColor: 0xff8a50, hemi: 0.9, sky: 0xff9f7a, bg: 0xe9805f, exposure: 0.95 },
-  { h: 21.5, sun: 0.8, sunColor: 0x8fa6ff, hemi: 0.75, sky: 0x4a4f94, bg: 0x1d2148, exposure: 0.82 },
-  { h: 24, sun: 0.75, sunColor: 0x8fa6ff, hemi: 0.72, sky: 0x3a4a8c, bg: 0x141a3a, exposure: 0.8 },
+  { h: 21.5, sun: 1.1, sunColor: 0x8fb0ff, hemi: 0.95, sky: 0x6f84f0, bg: 0x16224f, exposure: 0.92 },
+  { h: 24, sun: 1.1, sunColor: 0x8fb0ff, hemi: 0.95, sky: 0x6f84f0, bg: 0x16224f, exposure: 0.92 },
 ];
+
+/** How dark it is: ramps in after sunset, out at dawn. */
+export function nightness(minutes: number): number {
+  const h = (((minutes / 60) % 24) + 24) % 24;
+  const s = (a: number, b: number, x: number): number => Math.min(1, Math.max(0, (x - a) / (b - a)));
+  if (h >= 12) return s(19.5, 21.5, h);
+  return 1 - s(5, 7, h);
+}
 
 function daylightAt(hour: number): { a: Daylight; b: Daylight; t: number } {
   const h = ((hour % 24) + 24) % 24;
@@ -120,6 +130,7 @@ export function createStage(canvas: HTMLCanvasElement, initial: Quality): Stage 
     camera,
     sun,
     quality: initial,
+    night: 0,
     setQuality(q) {
       stage.quality = q;
       const size = q === 'low' ? 1024 : 2048;
@@ -165,6 +176,7 @@ export function createStage(canvas: HTMLCanvasElement, initial: Quality): Stage 
       scene.background = bg;
       scene.fog?.color.copy(bg);
       renderer.toneMappingExposure = mix(a.exposure, b.exposure);
+      stage.night = nightness(minutes);
     },
     render() {
       if (stage.quality === 'low') renderer.render(scene, camera);

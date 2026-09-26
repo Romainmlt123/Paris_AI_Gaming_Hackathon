@@ -50,6 +50,7 @@ function commit(next: GameState): void {
   hud.render(state);
   world.syncDecor(state);
   world.syncForage(state);
+  world.setNight(stage.night);
 }
 
 /** Grants tier rewards reached by these NPCs; returns what the NPC should say about it. */
@@ -298,6 +299,13 @@ function place(slot: SlotId, item: DecoId): void {
 
 // ---------- Absence ----------
 
+function applyClock(minutes: number): void {
+  stage.setClock(minutes);
+  world.setNight(stage.night);
+  document.body.style.setProperty('--night', stage.night.toFixed(2));
+  document.body.classList.toggle('is-night', stage.night > 0.5);
+}
+
 /** Plays the clock forward on the island's lights: sunset, night, dawn… whatever the 8 hours cross. */
 function playCycle(day: number, from: number, hours: number): Promise<void> {
   return new Promise((resolve) => {
@@ -306,7 +314,7 @@ function playCycle(day: number, from: number, hours: number): Promise<void> {
       const t = Math.min(1, (now - start) / CYCLE_MS);
       const eased = t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
       const minutes = from + eased * hours * 60;
-      stage.setClock(minutes);
+      applyClock(minutes);
       hud.showTime(day + Math.floor(minutes / (24 * 60)), minutes);
       if (t < 1) requestAnimationFrame(step);
       else resolve();
@@ -326,7 +334,7 @@ async function absence(): Promise<void> {
   const { state: after, recap } = applySimResult(before, result, ABSENCE_HOURS);
   const next = refreshForage(after, world.forageCandidates);
   commit(next);
-  stage.setClock(next.clock);
+  applyClock(next.clock);
   world.teleportPlayer({ x: 12, z: 20 });
   hud.setAiStatus('');
   hud.setSleeping(false);
@@ -384,7 +392,7 @@ function frame(): void {
 
 state = refreshForage(state, world.forageCandidates);
 commit(state);
-stage.setClock(state.clock);
+applyClock(state.clock);
 stage.resize();
 requestAnimationFrame(frame);
 
