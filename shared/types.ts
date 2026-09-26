@@ -96,6 +96,8 @@ export interface GameState {
   facts: Fact[];
   rumors: Rumor[];
   changes: RelationChange[];
+  /** Last day each `npc:trigger` initiative fired (NPCs don't repeat themselves the same day). */
+  initiatives: Record<string, number>;
 }
 
 export interface TalkEvent {
@@ -140,6 +142,8 @@ export interface TalkRequest {
   npc: NpcId;
   message: string;
   context: TalkContext;
+  /** Set when the NPC comes to the player on its own: why it came. `message` is then empty. */
+  initiative?: string;
 }
 
 export interface SimConversation {

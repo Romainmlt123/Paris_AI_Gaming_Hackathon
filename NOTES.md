@@ -76,6 +76,12 @@ Mémoire du projet : fait, reste, décisions, pièges.
 - Émotion → `padding_bonus`/`temp` (colère/joie plus vite, tristesse plus lent). `…` → `<break time="0.5s" />`.
 - Bouton 🔊/🔇 dans le HUD (localStorage `ragots.sound`).
 
+## Initiatives & vie des PNJ (shared/initiative.ts, shared/routine.ts)
+- Nu = aucun haut porté (`isNaked` : `outfit.top === null`). Gaston vend une marinière au naufragé (chip 👕, `CLOTHES_PRICE`), qui est aussi achetable à la cabane.
+- `pickInitiative(state, idleSec, blocked)` : règles déterministes par PNJ et priorité (nu, rumeur/intent, colère ≤25 %, ami ≥75 %, fauché, riche, île célèbre, immobile 45 s, nuit). Une fois par jour et par couple PNJ/déclencheur (`state.initiatives`).
+- Boucle client (src/main.ts `tickLife`) : horloge 1 s réelle = 1 min de jeu, 30 s entre deux initiatives, 90 s par PNJ, jamais pendant un dialogue/cinématique/fenêtre. Le joueur reste libre : le PNJ le suit en accélérant (`npcSeekPlayer`, nouvel itinéraire toutes les 0,4 s, abandon après 60 s), le dialogue s’ouvre seulement à côté de lui et reste ouvert si le joueur marche (le PNJ l’accompagne, `setEscort`) — idem pour toute conversation, même pendant l’attente de la réponse IA (`replying`), Gemini écrit la première réplique (`/api/talk` avec `initiative`), réplique écrite en secours.
+- Emploi du temps horaire par PNJ (`routineStep`), visites aux amis (lien ≥40) ; deux PNJ proches et le joueur à ≤7 cases → bavardage affiché + voix.
+
 ## Intérieurs & boutiques (src/interior/, shared/shop.ts)
 - Tap sur un bâtiment (ou flèche haut / E devant la porte) → marche jusqu'à la porte puis intérieur 2D vue de dessus (canvas 384×352, grille 12×11, pixel-art procédural, pas d'asset).
 - Sortie : bouton 🚪 ou revenir sur le paillasson. Tap sol = BFS local, tap meuble/rayon = s'approche + interagit.

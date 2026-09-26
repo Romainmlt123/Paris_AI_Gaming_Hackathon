@@ -3,20 +3,22 @@ import '@fontsource/pixelify-sans/700.css';
 import '@fontsource/unifrakturmaguntia/400.css';
 import * as THREE from 'three';
 import { CHARACTERS } from '../shared/characters';
-import { buy, CATALOG, haggle, islandValue, placeDeco, SLOTS, startDeal, type Deal } from '../shared/economy';
+import { buy, buyClothes, CATALOG, CLOTHES_PRICE, haggle, isNaked, islandValue, placeDeco, SLOTS, startDeal, type Deal } from '../shared/economy';
+import { comingToast, markInitiative, pickInitiative, type Initiative } from '../shared/initiative';
+import { advanceClock, chatterLine, routineStep } from '../shared/routine';
 import { CONFRONT_SUGGESTIONS, openerLine } from '../shared/opener';
 import { addCatch, BAG_FISH_MAX, FISH, giveFish, rollFish } from '../shared/fishing';
 import { buyItem, islandLevel, ISLAND_LEVELS, lookOf, nextLevel, SHOP_ITEMS, SHOP_OWNER, stockOf, toggleWear, type ShopId } from '../shared/shop';
 import { buildGazette } from '../shared/gazette';
 import { applySimResult, buildSimRequest } from '../shared/simulate';
-import { applyTalkResult, buildTalkContext, createInitialState, npcsWithIntent } from '../shared/state';
+import { applyOpener, applyTalkResult, buildTalkContext, createInitialState, npcsWithIntent } from '../shared/state';
 import { arrivalFactText, cleanIsland, cleanName, DEFAULT_LOOK, ISLAND_IDEAS } from '../shared/player';
 import { recordFact } from '../shared/rumors';
 import { defaultSuggestions } from '../shared/fallback';
 import { clashFor, moodOf, resolveFight, resolveMurder, resolveSlap, WEAPONS, type Clash } from '../shared/violence';
 import type { DecoId, FishId, GameState, NpcId, RelationChange, SlotId } from '../shared/types';
 import { NPC_IDS } from '../shared/types';
-import { simulate, talk } from './api';
+import { initiativeLine, simulate, talk } from './api';
 import { loadState, resetSave, saveState, TIPS_KEY } from './game/save';
 import { BUILDINGS, type BuildingId } from './game/map';
 import { createWorld, doorTile, HOMES, type FishSpot, type PlayerSkin } from './game/world';
@@ -33,7 +35,7 @@ import { runOnboarding, type Profile } from './ui/onboarding';
 import { createTips } from './ui/tips';
 import { playIntro } from './game/intro';
 import { bang, flash, sheet, showCatch, showDeath, showGazette, toast } from './ui/overlays';
-import { unlockAudioOnGesture } from './voice';
+import { speak, unlockAudioOnGesture } from './voice';
 
 const ABSENCE_HOURS = 8;
 const params = new URLSearchParams(location.search);
@@ -51,6 +53,11 @@ const world = createWorld(stage);
 let state: GameState = loadState();
 let deal: Deal | null = null;
 let busy = false;
+let seeking: NpcId | null = null;
+/** The open dialogue was started by the NPC: walking around doesn't end it, the NPC tags along. */
+let pinned = false;
+/** Waiting for an NPC's reply: the conversation is locked, but the player can still walk. */
+let replying = false;
 
 const portraits = Object.fromEntries(NPC_IDS.map((id) => [id, portraitDataUrl(drawSheet(SPRITES[id]))])) as Record<NpcId, string>;
 const hud = createHud(portraits, (id) => startTalk(id), () => void absence(), () => openBag());
@@ -83,6 +90,7 @@ function showChange(change: RelationChange | null): void {
 function chipsFor(npc: NpcId, suggestions: string[]): Chip[] {
   const chips: Chip[] = suggestions.slice(0, 3).map((s) => ({ label: s, action: () => void onPlayerLine(s) }));
   if (npc === 'gaston') chips.unshift({ label: '💰 Marchander', action: () => openShop() });
+  if (npc === 'gaston' && isNaked(state)) chips.unshift({ label: `👕 Habits (${CLOTHES_PRICE} 🪙)`, action: () => void buyOutfit() });
   if (state.fish.length > 0) chips.unshift({ label: npc === 'gaston' ? '🐟 Vendre un poisson' : '🐟 Offrir un poisson', action: () => openFishGift(npc) });
   return chips;
 }
@@ -90,12 +98,14 @@ function chipsFor(npc: NpcId, suggestions: string[]): Chip[] {
 function startTalk(npc: NpcId, initiated = false): void {
   if (busy || dialogue.current() === npc) return;
   if (fishing) stopFishing();
-  dialogue.close();
-  deal = null;
+  seeking = null;
+  world.stopSeeking();
+  endTalk();
   const open = (): void => {
     world.facePlayerToward(npc);
     tips.done('talk');
     dialogue.open(npc, state.npcs[npc].relation);
+    pin(npc);
     const confront = state.npcs[npc].intent !== null;
     const line = confront ? openerLine(state, npc) : greeting(npc);
     void dialogue.say(line, confront ? 'mefiance' : state.npcs[npc].emotion);
@@ -120,11 +130,18 @@ function greeting(npc: NpcId): string {
   return lines[npc][r < -15 ? 1 : 0];
 }
 
+function pin(npc: NpcId): void {
+  pinned = true;
+  world.setEscort(npc);
+}
+
 function endTalk(): void {
   if (dialogue.isOpen()) {
     tips.show('rumor', '👂 Tout ce que tu dis sera répété… et déformé. Touche « Revenir dans 8 h » pour voir les ragots circuler.');
   }
   dialogue.close();
+  pinned = false;
+  world.setEscort(null);
   world.setFrozen(null);
   deal = null;
 }
@@ -135,6 +152,7 @@ async function onPlayerLine(text: string): Promise<void> {
   dialogue.playerSaid(text, state.playerName);
   if (deal && npc === 'gaston') return haggleLine(text);
   busy = true;
+  replying = true;
   dialogue.thinking(true);
   const result = await talk(npc, text, buildTalkContext(state, npc));
   const before = state.npcs[npc].relation;
@@ -142,6 +160,7 @@ async function onPlayerLine(text: string): Promise<void> {
   commit(applied.state);
   hud.setAiStatus(result.source === 'ai' ? '' : 'IA hors ligne · répliques de secours');
   dialogue.thinking(false);
+  replying = false;
   showChange(applied.change);
   const clash = clashFor(before, state.npcs[npc].relation);
   if (!clash) {
@@ -163,6 +182,105 @@ async function onPlayerLine(text: string): Promise<void> {
   await dialogue.say(result.reply, 'colere');
   await new Promise((r) => setTimeout(r, 900));
   await runClash(npc, clash);
+}
+
+async function buyOutfit(): Promise<void> {
+  const dressed = buyClothes(state, CLOTHES_PRICE);
+  if (!dressed) {
+    await dialogue.say('Sans pièces, pas de pantalon, mon ami. C\u2019est la loi du marché. Et de la pudeur.', 'mefiance');
+    return;
+  }
+  commit(dressed);
+  toast(ui!, `👕 Habillé pour ${CLOTHES_PRICE} 🪙`, 'good');
+  dialogue.setChips(chipsFor('gaston', defaultSuggestions('gaston')));
+  await dialogue.say('Vé ! Te voilà présentable. Presque élégant. Le reste de l\u2019île va être déçu, hé hé.', 'joie');
+}
+
+// ---------- Life: clock, routines, initiatives, chatter ----------
+
+const GAME_MINUTES_PER_SEC = 1;
+const INITIATIVE_GAP_SEC = 30;
+const NPC_INITIATIVE_GAP_SEC = 90;
+const FIRST_INITIATIVE_SEC = 3;
+const CHATTER_GAP_SEC = 16;
+const CHATTER_RANGE = 7;
+const REACH_DISTANCE = 2.2;
+
+let lastInputAt = 0;
+let lastLifeTick = 0;
+let lastInitiativeAt = FIRST_INITIATIVE_SEC - INITIATIVE_GAP_SEC;
+let lastChatterAt = 0;
+const npcInitiativeAt: Partial<Record<NpcId, number>> = {};
+
+function overlayOpen(): boolean {
+  return interior.isOpen() || ui!.querySelector('.sheet-back, .modal-back, .recap, .death') !== null;
+}
+
+function tickLife(now: number): void {
+  if (now - lastLifeTick < 1) return;
+  const minutes = Math.floor((now - lastLifeTick) * GAME_MINUTES_PER_SEC);
+  lastLifeTick = now;
+  if (!busy) {
+    state = advanceClock(state, minutes);
+    hud.render(state);
+    if (state.clock % 10 === 0) saveState(state);
+  }
+  for (const id of NPC_IDS) world.setAnchor(id, routineStep(state, id).spot);
+  tickInitiative(now);
+  tickChatter(now);
+}
+
+function tickInitiative(now: number): void {
+  if (busy || seeking || dialogue.isOpen() || overlayOpen() || world.playerHasErrand()) return;
+  if (now - lastInitiativeAt < INITIATIVE_GAP_SEC) return;
+  const blocked = new Set(NPC_IDS.filter((id) => world.isBusy(id) || now - (npcInitiativeAt[id] ?? -Infinity) < NPC_INITIATIVE_GAP_SEC));
+  const initiative = pickInitiative(state, now - lastInputAt, blocked);
+  if (!initiative) return;
+  lastInitiativeAt = now;
+  npcInitiativeAt[initiative.npc] = now;
+  runInitiative(initiative);
+}
+
+function runInitiative({ npc, trigger, reason, fallback }: Initiative): void {
+  seeking = npc;
+  const line = initiativeLine(npc, buildTalkContext(state, npc), reason, fallback);
+  toast(ui!, comingToast(npc), 'info');
+  world.npcSeekPlayer(npc, () => void arrive());
+  async function arrive(): Promise<void> {
+    if (seeking !== npc) return;
+    seeking = null;
+    if (busy || dialogue.isOpen() || world.distance(npc) > REACH_DISTANCE) return;
+    commit(markInitiative(state, npc, trigger));
+    deal = null;
+    world.facePlayerToward(npc);
+    dialogue.open(npc, state.npcs[npc].relation);
+    pin(npc);
+    dialogue.thinking(true);
+    const result = await line;
+    if (dialogue.current() !== npc) return;
+    dialogue.thinking(false);
+    commit(applyOpener(state, npc, result));
+    hud.setAiStatus(result.source === 'ai' ? '' : 'IA hors ligne · répliques de secours');
+    dialogue.setChips(chipsFor(npc, result.suggestions));
+    await dialogue.say(result.reply, result.emotion);
+  }
+}
+
+function tickChatter(now: number): void {
+  if (busy || dialogue.isOpen() || interior.isOpen() || now - lastChatterAt < CHATTER_GAP_SEC) return;
+  for (const a of NPC_IDS) {
+    for (const b of NPC_IDS) {
+      if (a >= b || seeking === a || seeking === b || world.isBusy(a) || world.isBusy(b)) continue;
+      if (world.distance(a, b) > 2.5 || world.distance(a) > CHATTER_RANGE) continue;
+      const [speaker, listener] = Math.floor(now / CHATTER_GAP_SEC) % 2 === 0 ? [a, b] : [b, a];
+      const line = chatterLine(speaker, listener, Math.floor(now));
+      if (!line) continue;
+      lastChatterAt = now;
+      toast(ui!, `${CHARACTERS[speaker].name} → ${CHARACTERS[listener].name} : « ${line} »`, 'info');
+      void speak(speaker, line, 'amuse');
+      return;
+    }
+  }
 }
 
 // ---------- Fights & murders ----------
@@ -647,9 +765,11 @@ async function absence(): Promise<void> {
 // ---------- Input & loop ----------
 
 const down = new THREE.Vector2();
+window.addEventListener('pointerdown', () => (lastInputAt = timer.getElapsed()), { capture: true });
+window.addEventListener('keydown', () => (lastInputAt = timer.getElapsed()), { capture: true });
 canvas.addEventListener('pointerdown', (e) => down.set(e.clientX, e.clientY));
 canvas.addEventListener('pointerup', (e) => {
-  if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > 12 || busy) return;
+  if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > 12 || (busy && !replying)) return;
   if (fishing && fishing.phase !== 'walk') return strike();
   fishing = null;
   const ndc = new THREE.Vector2((e.clientX / canvas.clientWidth) * 2 - 1, -(e.clientY / canvas.clientHeight) * 2 + 1);
@@ -664,11 +784,12 @@ canvas.addEventListener('pointerup', (e) => {
     const spot = world.fishSpot(target.tile, 3);
     if (spot) goFish(spot);
   } else if (target.kind === 'slot') {
+    if (replying) return;
     endTalk();
     const s = SLOTS.find((x) => x.id === target.slot);
     if (s) world.walkTo({ x: Math.round(s.x), z: Math.round(s.z) + 1 }, () => openSlot(target.slot));
   } else {
-    endTalk();
+    if (!pinned) endTalk();
     world.walkTo(target.tile);
   }
 });
@@ -702,7 +823,7 @@ window.addEventListener('keydown', (e) => {
   if (e.code in MOVE_KEYS) {
     held.add(e.code);
     e.preventDefault();
-    if (dialogue.isOpen() && !busy) endTalk();
+    if (dialogue.isOpen() && !busy && !pinned) endTalk();
     return;
   }
   if (busy || e.repeat) return;
@@ -732,7 +853,7 @@ function keyboardMove(dt: number): void {
       dz += v[1];
     }
   }
-  if (busy) dx = dz = 0;
+  if (busy && !replying) dx = dz = 0;
   if (interior.isOpen()) return interior.move(dx, dz, dt);
   if ((dx || dz) && fishing) stopFishing();
   world.move(dx, dz, dt);
@@ -765,6 +886,7 @@ function frame(): void {
   const dt = Math.min(timer.getDelta(), 0.1);
   const time = timer.getElapsed();
   keyboardMove(dt);
+  tickLife(time);
   updateFishing(dt);
   world.update(dt, time, new Set(npcsWithIntent(state)));
   if (interior.isOpen()) interior.update(dt, time);
