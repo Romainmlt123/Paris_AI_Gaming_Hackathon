@@ -1,0 +1,18 @@
+:root {
+  --ink: #2a1e18;
+  --paper: #fff8e8;
+  --paper-2: #f3e3c3;
+  --accent: #e0533d;
+  --gold: #e8b33a;
+  --good: #5aa845;
+  --bad: #d4473a;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  font-family: 'Trebuchet MS', system-ui, sans-serif;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #1d5f7e; overscroll-behavior: none; touch-action: none; }
+#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+#ui { position: fixed; inset: 0; pointer-events: none; }
+#ui > * { pointer-events: auto; }
+.fps { position: fixed; left: 6px; bottom: calc(6px + var(--safe-bottom)); font: 11px monospace; color: #fff; background: #0006; padding: 2px 5px; border-radius: 4px; pointer-events: none; z-index: 99; }
