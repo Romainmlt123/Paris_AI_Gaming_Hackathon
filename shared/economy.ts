@@ -1,5 +1,6 @@
-import { classifyMessage } from './fallback';
+import { classifyMessage, normalize } from './fallback';
 import { applyRelationDelta, clamp, tierOf } from './relations';
+import { recordFact } from './rumors';
 import { pick, hashString } from './rng';
 import type { DecoId, GameState, NpcId, RelationChange, SlotId } from './types';
 
@@ -42,6 +43,7 @@ export interface Deal {
   floor: number;
   round: number;
   flattered: boolean;
+  blackmailed: boolean;
 }
 
 export type HaggleOutcome =
@@ -63,7 +65,7 @@ const MAX_ROUNDS = 4;
 export function startDeal(state: GameState, item: DecoId): Deal {
   const markup = TIER_MARKUP[tierOf(state.npcs.gaston.relation).label] ?? 1;
   const ask = Math.round(CATALOG[item].price * markup * 1.15);
-  return { item, ask, floor: Math.round(ask * 0.72), round: 0, flattered: false };
+  return { item, ask, floor: Math.round(ask * 0.72), round: 0, flattered: false, blackmailed: false };
 }
 
 /** First integer in the message, if any ("je t'en donne 600" → 600). */
@@ -80,16 +82,29 @@ const LINES = {
   offended: ['Pardon ?! Tu me prends pour un bienfaiteur ? Maintenant c\u2019est {ask}.', 'Ha ! Même Marius n\u2019oserait pas. {ask}, et estime-toi heureux.'],
   final: ['Dernier prix, mon ami : {ask}. Après, je ferme boutique.'],
   flattery: ['Ah… tu sais parler aux artistes du commerce. Bon, {ask}, pour toi.'],
+  blackmail: ['Chut ! Pas si fort… Qui t\u2019a dit ça ? Josette, hein ? Bon. {ask}. Et on n\u2019en parle plus.'],
 };
+
+const SCALES = /balance|truqu/;
+export const BLACKMAIL_CHIP = 'Et tes balances truquées ?';
 
 function line(kind: keyof typeof LINES, ask: number, seed: string): string {
   return pick(LINES[kind], hashString(seed)).replace('{ask}', String(ask));
 }
 
-/** Pure haggling rules. Flattery lowers the floor once; lowballing offends and raises the ask. */
-export function haggle(deal: Deal, message: string): { deal: Deal; outcome: HaggleOutcome } {
+/**
+ * Pure haggling rules. Flattery lowers the floor once; lowballing offends and raises the ask.
+ * Knowing Josette's secret about the scales lets the player squeeze Gaston once per deal.
+ */
+export function haggle(deal: Deal, message: string, knowsScales = false): { deal: Deal; outcome: HaggleOutcome } {
   const next: Deal = { ...deal, round: deal.round + 1 };
   const offer = parseOffer(message);
+  if (offer === null && knowsScales && !deal.blackmailed && SCALES.test(normalize(message))) {
+    next.blackmailed = true;
+    next.floor = Math.round(deal.floor * 0.8);
+    next.ask = Math.round(deal.ask * 0.85);
+    return { deal: next, outcome: { kind: 'counter', ask: next.ask, line: line('blackmail', next.ask, message) } };
+  }
   if (offer === null) {
     if (classifyMessage(message) === 'compliment' && !deal.flattered) {
       next.flattered = true;
@@ -139,6 +154,12 @@ export function decoReactions(deco: Deco): DecoReaction[] {
   return [gaston, josette];
 }
 
+/** How big a deal the island makes of it: pricey pieces are news, garish ones are divisive. */
+export function decoSeverity(deco: Deco): number {
+  if (deco.garish) return 1;
+  return deco.prestige >= 200 ? 2 : 1;
+}
+
 export function placeDeco(
   state: GameState,
   slot: SlotId,
@@ -154,6 +175,13 @@ export function placeDeco(
   next.islandValue = islandValue(next);
   const deco = CATALOG[item];
   const reactions = decoReactions(deco);
+  const where = SLOTS.find((s) => s.id === slot)?.name ?? slot;
+  next = recordFact(next, {
+    actor: 'player',
+    text: `Le joueur a installé « ${deco.name} » (${where.toLowerCase()})`,
+    severity: decoSeverity(deco),
+    witnesses: reactions.map((r) => r.npc),
+  }).state;
   const changes: RelationChange[] = [];
   for (const r of reactions) {
     if (r.delta === 0) continue;

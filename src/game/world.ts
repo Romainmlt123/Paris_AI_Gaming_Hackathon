@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { SLOTS } from '../../shared/economy';
-import type { DecoId, GameState, NpcId, SlotId } from '../../shared/types';
+import type { ForageCandidates } from '../../shared/forage';
+import type { DecoId, ForageId, GameState, NpcId, SlotId } from '../../shared/types';
 import { NPC_IDS } from '../../shared/types';
 import { createActorView, type ActorView } from '../render/actor';
 import { createBuildings } from '../render/buildings';
@@ -10,7 +11,7 @@ import { SPRITES } from '../render/sprites';
 import type { Stage } from '../render/stage';
 import { createTerrain, type Terrain } from '../render/terrain';
 import { createWater, type Water } from '../render/water';
-import { findPath, generateMap, kindAt, nearestWalkable, surfaceHeight, type Tile, type TileMap } from './map';
+import { findPath, generateMap, isWalkable, kindAt, nearestWalkable, surfaceHeight, type Tile, type TileMap } from './map';
 
 const SPEED = 3.2;
 const NPC_SPEED = 1.4;
@@ -37,10 +38,16 @@ export const HOMES: Record<NpcId, Tile> = {
   marius: { x: 14, z: 24 },
 };
 
-export type TapTarget = { kind: 'npc'; npc: NpcId } | { kind: 'slot'; slot: SlotId } | { kind: 'ground'; tile: Tile };
+export type TapTarget =
+  | { kind: 'npc'; npc: NpcId }
+  | { kind: 'slot'; slot: SlotId }
+  | { kind: 'forage'; spot: string; tile: Tile }
+  | { kind: 'ground'; tile: Tile };
 
 export interface World {
   map: TileMap;
+  /** Tiles where pickups may spawn. */
+  forageCandidates: ForageCandidates;
   playerPos: THREE.Vector3;
   npcView(id: NpcId): ActorView;
   /** Resolve a screen tap into a target (NPC, deco slot, or ground). */
@@ -52,6 +59,7 @@ export interface World {
   setFrozen(id: NpcId | null): void;
   facePlayerToward(id: NpcId): void;
   syncDecor(state: GameState): void;
+  syncForage(state: GameState): void;
   update(dt: number, time: number, intents: Set<NpcId>): void;
   teleportPlayer(tile: Tile): void;
 }
@@ -94,6 +102,47 @@ function stepActor(actor: Actor, map: TileMap, dt: number, time: number): void {
   actor.view.setPose(actor.path.length > 0, actor.facing, actor.flip, time);
 }
 
+const PICKUP_COLOR: Record<ForageId, number> = { coquillage: 0xffb3c1, pomme: 0xe0412f, perle: 0xf4f1ff };
+
+function pickupMesh(item: ForageId): THREE.Group {
+  const g = new THREE.Group();
+  const shape =
+    item === 'coquillage'
+      ? new THREE.ConeGeometry(0.16, 0.14, 7)
+      : new THREE.SphereGeometry(item === 'perle' ? 0.12 : 0.15, 10, 8);
+  const mat = new THREE.MeshStandardMaterial({
+    color: PICKUP_COLOR[item],
+    roughness: item === 'perle' ? 0.15 : 0.55,
+    emissive: item === 'perle' ? 0x6f6aa8 : 0x000000,
+  });
+  const body = new THREE.Mesh(shape, mat);
+  body.castShadow = true;
+  body.name = 'body';
+  g.add(body);
+  const glint = new THREE.Mesh(new THREE.RingGeometry(0.2, 0.26, 16), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7, side: THREE.DoubleSide }));
+  glint.rotation.x = -Math.PI / 2;
+  glint.position.y = 0.02;
+  glint.name = 'glint';
+  g.add(glint);
+  return g;
+}
+
+function candidatesOf(map: TileMap): ForageCandidates {
+  const clear = (x: number, z: number): boolean => isWalkable(map, x, z) && !SLOTS.some((s) => Math.hypot(s.x - x, s.z - z) < 1.6) && !Object.values(HOMES).some((h) => h.x === x && h.z === z);
+  const beach: Tile[] = [];
+  for (let z = 0; z < map.h; z++) for (let x = 0; x < map.w; x++) if (kindAt(map, x, z) === 'sand' && clear(x, z)) beach.push({ x, z });
+  const orchard: Tile[] = [];
+  const seen = new Set<string>();
+  for (const t of map.trees) {
+    const c = [{ x: t.x, z: t.z + 1 }, { x: t.x + 1, z: t.z }, { x: t.x - 1, z: t.z }].find((n) => clear(n.x, n.z) && kindAt(map, n.x, n.z) !== 'path');
+    if (c && !seen.has(`${c.x},${c.z}`)) {
+      seen.add(`${c.x},${c.z}`);
+      orchard.push(c);
+    }
+  }
+  return { beach, orchard };
+}
+
 function roundTile(v: THREE.Vector3): Tile {
   return { x: Math.round(v.x), z: Math.round(v.z) };
 }
@@ -132,6 +181,8 @@ export function createWorld(stage: Stage): World {
     stage.scene.add(g);
   }
   const placed = new Map<SlotId, DecoId | null>();
+  const pickups = new Map<string, THREE.Group>();
+  const forageCandidates = candidatesOf(map);
   let frozen: NpcId | null = null;
   const raycaster = new THREE.Raycaster();
 
@@ -179,6 +230,7 @@ export function createWorld(stage: Stage): World {
 
   return {
     map,
+    forageCandidates,
     playerPos: player.pos,
     npcView: (id) => npc(id).view,
     pick(ndc) {
@@ -189,6 +241,10 @@ export function createWorld(stage: Stage): World {
         const id = NPC_IDS.find((i) => i === hitNpc.object.name);
         if (id) return { kind: 'npc', npc: id };
       }
+      const hitPickup = raycaster.intersectObjects([...pickups.values()].map((g) => g.getObjectByName('hit')).filter((o): o is THREE.Object3D => o !== undefined), false)[0];
+      const spot = hitPickup?.object.userData['spot'];
+      const spotGroup = typeof spot === 'string' ? pickups.get(spot) : undefined;
+      if (typeof spot === 'string' && spotGroup) return { kind: 'forage', spot, tile: { x: Math.round(spotGroup.position.x), z: Math.round(spotGroup.position.z) } };
       const hitSlot = raycaster.intersectObjects(slotHit, false)[0];
       const slot = hitSlot?.object.userData['slot'];
       if (typeof slot === 'string') {
@@ -249,6 +305,27 @@ export function createWorld(stage: Stage): World {
         }
       }
     },
+    syncForage(state) {
+      const live = new Set(state.forage.map((f) => f.id));
+      for (const [id, g] of pickups) {
+        if (live.has(id)) continue;
+        g.removeFromParent();
+        pickups.delete(id);
+      }
+      for (const f of state.forage) {
+        if (pickups.has(f.id)) continue;
+        const g = pickupMesh(f.item);
+        g.position.set(f.x, tileY(map, f.x, f.z), f.z);
+        const hit = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.9, 8), new THREE.MeshBasicMaterial({ visible: false }));
+        hit.position.y = 0.45;
+        hit.name = 'hit';
+        hit.userData['spot'] = f.id;
+        g.add(hit);
+        g.userData['phase'] = (f.x * 7 + f.z * 3) % 6;
+        pickups.set(f.id, g);
+        stage.scene.add(g);
+      }
+    },
     update(dt, time, intents) {
       stepActor(player, map, dt, time);
       for (const n of npcs.values()) {
@@ -263,6 +340,16 @@ export function createWorld(stage: Stage): World {
       for (const g of slotGroups.values()) {
         const marker = g.getObjectByName('marker');
         if (marker) marker.scale.setScalar(1 + Math.sin(time * 3) * 0.08);
+      }
+      for (const g of pickups.values()) {
+        const phase = Number(g.userData['phase'] ?? 0);
+        const body = g.getObjectByName('body');
+        if (body) {
+          body.position.y = 0.16 + Math.sin(time * 2.4 + phase) * 0.05;
+          body.rotation.y = time * 1.2 + phase;
+        }
+        const glint = g.getObjectByName('glint');
+        if (glint) glint.scale.setScalar(1 + ((time * 0.8 + phase) % 1) * 0.6);
       }
       water.update(time);
     },

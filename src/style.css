@@ -102,7 +102,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .toast.out { opacity: 0; transform: translate(-50%, -12px); }
 .toast + .toast { top: calc(146px + var(--safe-top)); }
 
-body.night #scene { filter: brightness(0.35) saturate(0.6) hue-rotate(-20deg); transition: filter 0.8s; }
 #scene { transition: filter 0.8s; }
 
 @keyframes rise { from { transform: translateY(30px); opacity: 0; } }

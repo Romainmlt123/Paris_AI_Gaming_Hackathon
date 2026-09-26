@@ -22,4 +22,4 @@ export function openerLine(state: GameState, npc: NpcId): string {
   return OPENERS[npc](rumor?.text ?? null);
 }
 
-export const CONFRONT_SUGGESTIONS = ['C\u2019est faux, j\u2019ai jamais dit ça !', 'Pardon, j\u2019ai été nul…', 'Et alors ?'];
+export const CONFRONT_SUGGESTIONS = ['C\u2019est faux, j\u2019ai jamais dit ça !', 'C\u2019est exagéré, ça !', 'Pardon, j\u2019ai été nul…'];
