@@ -9,7 +9,7 @@
 A cozy, mobile-first HD-2D island game where every islander is an AI with a personality, a memory and a very loose tongue.
 Built in one day for the [Paris AI Gaming Hackathon](https://luma.com/par-hack) ({Tech: Europe}).
 
-📱💻 **Play it on your phone or on your computer, it's fully responsive.** Portrait, one thumb on mobile: tap to walk, tap an islander to talk. On desktop: WASD / arrows to walk, `E` to talk, or just click. Same game, same save, right in the browser, nothing to install.
+📱💻 **Play it on your phone or on your computer, it's fully responsive.** Portrait, one thumb on mobile: tap to walk, tap an islander to talk. On desktop: WASD / arrows to walk, `E` to talk, or just click. Same game, right in the browser, nothing to install.
 
 ## The pitch
 
