@@ -22,6 +22,15 @@ describe('gazette', () => {
     expect(g.articles.map((a) => a.rubric)).toEqual(expect.arrayContaining(['Ragots', 'Petites annonces']));
   });
 
+  it('quotes what each islander thinks of the player', () => {
+    const s = createInitialState();
+    const result = { ...simulateFallback(s, 8), thoughts: [{ npc: 'gaston' as const, text: 'Il me doit trois clochettes.' }] };
+    const { state, recap } = applySimResult(s, result, 8);
+    const voices = buildGazette(s, state, recap).articles.find((a) => a.rubric === 'Micro-trottoir');
+    expect(voices?.body).toContain('Il me doit trois clochettes.');
+    expect(voices?.body).toMatch(/Josette/);
+  });
+
   it('prints a calm headline when nothing happened', () => {
     const s = createInitialState();
     const g = buildGazette(s, s, []);
