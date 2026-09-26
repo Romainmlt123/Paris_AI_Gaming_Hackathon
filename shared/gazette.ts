@@ -93,7 +93,7 @@ function headlineFor(
   const caller = wanting[0];
   if (caller) {
     return [
-      `${name(caller).toUpperCase()} VEUT TE PARLER : ÇA SENT LE ROUSSI`,
+      `${name(caller).toUpperCase()} VEUT TE PARLER : L\u2019ÎLE TEND L\u2019OREILLE`,
       'Personne ne sait de quoi il retourne. Tout le monde a un avis.',
     ];
   }
@@ -151,7 +151,9 @@ export function buildGazette(before: GameState, after: GameState, recap: RecapEn
   const list = moods(before, after);
   const sorted = [...list].sort((a, b) => a.delta - b.delta);
   const rumors = newRumors(before, after);
-  const wanting = NPC_IDS.filter((npc) => recap.some((e) => e.kind === 'intent' && e.npc === npc));
+  const wanting = NPC_IDS.filter(
+    (npc) => after.npcs[npc].intent !== before.npcs[npc].intent && recap.some((e) => e.kind === 'intent' && e.npc === npc),
+  );
   const [headline, subhead] = headlineFor(sorted[0], sorted[sorted.length - 1], rumors, wanting, seed);
   const articles = [rumorArticle(rumors), societyArticle(recap), popularityArticle(list, recap), adsArticle(after, wanting), economyArticle(after)];
   return {
