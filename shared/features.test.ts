@@ -86,6 +86,16 @@ describe('contesting rumors', () => {
     const applied = applyTalkResult(s, 'marius', 'C’est exagéré !', praise(5), v);
     expect(applied.change?.delta).toBeLessThan(0);
   });
+  it('judges the rumor the NPC confronts the player with, not the most distorted one', () => {
+    const old = insulted(3);
+    const { state } = recordFact(old, { actor: 'player', text: 'Le joueur a menti à Gaston', severity: -1, witnesses: ['gaston'] });
+    const s = structuredClone(state);
+    const fresh = s.rumors.at(-1)!;
+    s.rumors.push({ ...fresh, id: 'rj2', holder: 'josette', source: 'gaston', distortion: 1 });
+    const v = judgeContest(s, 'josette', 'C’est exagéré !')!;
+    expect(v.factId).toBe(fresh.factId);
+    expect(v.upheld).toBe(false);
+  });
   it('only kicks in for contest-like messages about the player', () => {
     expect(judgeContest(insulted(3), 'josette', 'Bonjour !')).toBeNull();
     expect(judgeContest(createInitialState(), 'josette', 'C’est exagéré !')).toBeNull();

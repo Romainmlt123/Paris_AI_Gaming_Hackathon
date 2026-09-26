@@ -1,5 +1,6 @@
 import { CHARACTERS } from './characters';
 import { classifyMessage } from './fallback';
+import { latestBadRumor } from './opener';
 import { bondKey, clamp } from './relations';
 import { factById } from './rumors';
 import { hearsayDelta } from './simulate';
@@ -11,21 +12,18 @@ const REJECTED_DELTA = -8;
 const UPHELD_BONUS = 4;
 const BOND_PENALTY = 10;
 
-/** Decides, in code, whether the player's "c'est exagéré !" holds against what this NPC heard. */
+/** Decides, in code, whether the player's "c'est exagéré !" holds against the rumor this NPC confronts them with (see `openerLine`). */
 export function judgeContest(state: GameState, npc: NpcId, message: string): ContestVerdict | null {
   if (classifyMessage(message) !== 'contest') return null;
-  const target = state.rumors
-    .filter((r) => r.holder === npc)
-    .map((r) => ({ rumor: r, fact: factById(state, r.factId) }))
-    .filter((x) => x.fact?.actor === 'player' && x.fact.severity < 0)
-    .sort((a, b) => b.rumor.distortion - a.rumor.distortion)[0];
-  if (!target?.fact) return null;
+  const rumor = latestBadRumor(state, npc, true) ?? latestBadRumor(state, npc, false);
+  const fact = rumor ? factById(state, rumor.factId) : undefined;
+  if (!rumor || fact?.actor !== 'player') return null;
   return {
-    upheld: target.rumor.distortion >= CONTEST_DISTORTION,
-    factId: target.fact.id,
-    rumor: target.rumor.text,
-    truth: target.fact.text,
-    source: target.rumor.source,
+    upheld: rumor.distortion >= CONTEST_DISTORTION,
+    factId: fact.id,
+    rumor: rumor.text,
+    truth: fact.text,
+    source: rumor.source,
   };
 }
 
