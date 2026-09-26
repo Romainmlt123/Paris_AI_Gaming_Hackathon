@@ -5,6 +5,7 @@ import { NPC_IDS } from '../../shared/types';
 import { DANGER_PCT, percentOf } from '../../shared/violence';
 import { button, el } from './dom';
 import { isSoundOn, setSound } from '../voice';
+import { syncSound } from '../sound';
 
 export interface Hud {
   root: HTMLElement;
@@ -34,9 +35,10 @@ export function createHud(portraits: Record<NpcId, string>, onNpc: (id: NpcId) =
   const soundLabel = (): string => (isSoundOn() ? '🔊' : '🔇');
   const sound = button('chip sound', soundLabel(), () => {
     setSound(!isSoundOn());
+    syncSound();
     sound.textContent = soundLabel();
   });
-  sound.setAttribute('aria-label', 'Voix des habitants');
+  sound.setAttribute('aria-label', 'Son : musique, bruitages et voix');
   top.append(who, clock, prestige, coins, sound);
   const gauges = el('div', 'gauges');
   const cards = new Map<NpcId, { card: HTMLElement; fill: HTMLElement; tier: HTMLElement; value: HTMLElement }>();

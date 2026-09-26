@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { SpriteSpec } from '../render/sprites';
 import { button, el } from '../ui/dom';
 import { bang, flash } from '../ui/overlays';
+import { sfx } from '../sound';
 import { kindAt, PONTOON_X, type Tile } from './map';
 import type { World } from './world';
 
@@ -90,6 +91,7 @@ export async function playIntro(world: World, host: HTMLElement, o: IntroOptions
 
   if (!skipped) {
     flash(host);
+    sfx('bonk');
     bang(host, 'BONK !');
     await wait(500);
   }

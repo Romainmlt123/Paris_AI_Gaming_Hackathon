@@ -34,6 +34,7 @@ import { createTips } from './ui/tips';
 import { playIntro } from './game/intro';
 import { bang, flash, sheet, showCatch, showDeath, showGazette, toast } from './ui/overlays';
 import { unlockAudioOnGesture } from './voice';
+import { currentMusic, music, sfx, unlockMusicOnGesture } from './sound';
 
 const ABSENCE_HOURS = 8;
 const params = new URLSearchParams(location.search);
@@ -46,6 +47,15 @@ if (!canvas || !ui) throw new Error('Missing #scene or #ui');
 const qualityParam = params.get('q');
 const initialQuality: Quality = qualityParam === 'low' || qualityParam === 'mid' || qualityParam === 'high' ? qualityParam : 'high';
 unlockAudioOnGesture();
+unlockMusicOnGesture();
+document.addEventListener('click', (e) => {
+  if (e.target instanceof Element && e.target.closest('button')) sfx('tap');
+}, true);
+
+/** Background track for wherever the player currently is. */
+function ambient(): void {
+  music(interior.isOpen() ? 'interior' : 'island');
+}
 const stage = createStage(canvas, initialQuality);
 const world = createWorld(stage);
 let state: GameState = loadState();
@@ -97,6 +107,7 @@ function startTalk(npc: NpcId, initiated = false): void {
     tips.done('talk');
     dialogue.open(npc, state.npcs[npc].relation);
     const confront = state.npcs[npc].intent !== null;
+    if (confront) music('tension');
     const line = confront ? openerLine(state, npc) : greeting(npc);
     void dialogue.say(line, confront ? 'mefiance' : state.npcs[npc].emotion);
     dialogue.setChips(chipsFor(npc, confront ? CONFRONT_SUGGESTIONS : defaultSuggestions(npc)));
@@ -125,6 +136,7 @@ function endTalk(): void {
     tips.show('rumor', '👂 Tout ce que tu dis sera répété… et déformé. Touche « Revenir dans 8 h » pour voir les ragots circuler.');
   }
   dialogue.close();
+  if (currentMusic() === 'tension') ambient();
   world.setFrozen(null);
   deal = null;
 }
@@ -182,7 +194,10 @@ const LAST_WORDS: Record<NpcId, string> = {
 
 /** Warning shot under 35 %: a quick slap, the conversation goes on. */
 async function slap(npc: NpcId): Promise<void> {
-  const hit = (): void => bang(ui!, SLAPS[state.nextId % SLAPS.length] ?? 'PAF !');
+  const hit = (): void => {
+    sfx('slap');
+    bang(ui!, SLAPS[state.nextId % SLAPS.length] ?? 'PAF !');
+  };
   if (interior.isOpen()) {
     hit();
     interior.root.classList.remove('slapped');
@@ -216,10 +231,15 @@ async function runClash(npc: NpcId, clash: Clash): Promise<void> {
 
 async function fight(npc: NpcId): Promise<void> {
   toast(ui!, `💥 BAGARRE avec ${CHARACTERS[npc].name} !`, 'bad');
+  music('fight');
   let i = 0;
-  const words = setInterval(() => bang(ui!, BANGS[i++ % BANGS.length] ?? 'POW !'), 380);
+  const words = setInterval(() => {
+    sfx('punch');
+    bang(ui!, BANGS[i++ % BANGS.length] ?? 'POW !');
+  }, 380);
   await world.fight(npc);
   clearInterval(words);
+  ambient();
   const applied = resolveFight(state, npc);
   commit(applied.state);
   showChange(applied.change);
@@ -232,7 +252,9 @@ async function fight(npc: NpcId): Promise<void> {
 async function murder(npc: NpcId): Promise<void> {
   await world.murder(npc, () => {
     flash(ui!);
+    sfx('bonk');
     bang(ui!, 'BONK !!');
+    music('death');
   });
   await showDeath(ui!, CHARACTERS[npc].name, WEAPONS[npc], LAST_WORDS[npc]);
   const coinsBefore = state.coins;
@@ -241,6 +263,7 @@ async function murder(npc: NpcId): Promise<void> {
   world.revive();
   world.teleportPlayer({ x: 12, z: 20 });
   world.setFrozen(null);
+  ambient();
   toast(ui!, `Réveil au matin… délesté de ${coinsBefore - state.coins} 🪙`, 'bad');
   setTimeout(() => showChange(applied.change), 1400);
   const next = npcsWithIntent(state)[0];
@@ -302,6 +325,7 @@ async function haggleLine(text: string): Promise<void> {
   }
   commit(bought);
   deal = null;
+  sfx('coin');
   toast(ui!, `${CATALOG[next.item].name} acheté ${outcome.price} 🪙 → dans ton sac`, 'good');
   dialogue.setChips(chipsFor('gaston', defaultSuggestions('gaston')));
   await dialogue.say(outcome.line, 'joie');
@@ -343,10 +367,14 @@ function enterBuilding(id: BuildingId): void {
   endTalk();
   held.clear();
   interior.enter(id, state);
+  sfx('door');
+  music('interior');
 }
 
 function leaveBuilding(id: BuildingId): void {
   endTalk();
+  sfx('door');
+  music('island');
   held.clear();
   const b = BUILDINGS.find((x) => x.id === id);
   if (b) world.teleportPlayer(doorTile(b));
@@ -417,10 +445,12 @@ function buyShopItem(id: keyof typeof SHOP_ITEMS): void {
   commit(res.state);
   const it = SHOP_ITEMS[id];
   const owner = SHOP_OWNER[it.shop];
+  sfx('coin');
   toast(ui!, `${it.name} −${res.price} 🪙 ${it.slot ? '· tu le portes !' : `→ chez toi · ★${state.islandValue}`}`, 'good');
   const lines = OWNER_SAYS[owner];
   setTimeout(() => toast(ui!, `${CHARACTERS[owner].name} : « ${lines[state.nextId % lines.length] ?? ''} »`, 'info'), 1300);
   const lvl = islandLevel(state.islandValue);
+  if (lvl.level > levelBefore) setTimeout(() => sfx('sparkle'), 2700);
   if (lvl.level > levelBefore) setTimeout(() => toast(ui!, `🎉 L’île devient « ${lvl.name} » ! Les boutiques s’agrandissent.`, 'good'), 2700);
 }
 
@@ -503,6 +533,7 @@ function openSlot(slot: SlotId): void {
 function place(slot: SlotId, item: DecoId): void {
   const result = placeDeco(state, slot, item);
   if (!result) return;
+  sfx('place');
   commit(result.state);
   toast(ui!, `★ Valeur de l\u2019île : ${state.islandValue}`, 'good');
   result.reactions.forEach((r, i) => setTimeout(() => toast(ui!, `${CHARACTERS[r.npc].name} : « ${r.line} »`, r.delta < 0 ? 'bad' : 'info'), 900 + i * 1400));
@@ -534,6 +565,7 @@ function goFish(spot: FishSpot): void {
     if (fishing?.phase !== 'walk') return;
     fishing = { phase: 'wait', spot, t: 1.6 + Math.random() * 3 };
     world.setFishing(spot.spot);
+    sfx('splash');
     toast(ui!, '🎣 Touche l’écran quand le bouchon plonge !', 'info');
   });
 }
@@ -555,6 +587,8 @@ function strike(): void {
   const added = addCatch(state, id);
   if (!added.ok) return toast(ui!, 'Sac plein !', 'bad');
   commit(added.state);
+  sfx('splash');
+  sfx('catch');
   bang(ui!, 'PLOUF !');
   void showCatch(ui!, fishIconUrl(id, 96), FISH[id].name, FISH[id].rarity, `Dans ton sac · ${state.fish.length}/${BAG_FISH_MAX}`);
   const comment = MARIUS_ON_CATCH[FISH[id].rarity === 'légendaire' ? 'légendaire' : FISH[id].rarity === 'rare' ? 'rare' : FISH[id].rarity === 'déchet' ? 'déchet' : ''];
@@ -571,6 +605,7 @@ function updateFishing(dt: number): void {
     fishing = { ...fishing, phase: 'bite', t: BITE_WINDOW };
     world.setFishing(fishing.spot.spot, true);
     fishBtn.classList.add('bite');
+    sfx('bite');
     bang(ui!, '!');
   } else if (fishing.phase === 'bite' && fishing.t <= 0) {
     stopFishing();
@@ -630,6 +665,8 @@ async function absence(): Promise<void> {
   busy = true;
   endTalk();
   document.body.classList.add('night');
+  sfx('whoosh');
+  music('night');
   hud.setAiStatus('Le temps passe sur l\u2019île…');
   const before = state;
   const result = await simulate(before, buildSimRequest(before, ABSENCE_HOURS));
@@ -638,7 +675,10 @@ async function absence(): Promise<void> {
   world.teleportPlayer({ x: 12, z: 20 });
   hud.setAiStatus('');
   document.body.classList.remove('night');
+  sfx('paper');
+  music('gazette');
   await showGazette(ui!, buildGazette(before, next, recap));
+  ambient();
   busy = false;
   const first = recap.find((e) => e.kind === 'intent')?.npc;
   if (first) setTimeout(() => startTalk(first, true), 600);
@@ -760,12 +800,29 @@ window.visualViewport?.addEventListener('resize', () => {
 const governor = createQualityGovernor(stage, (q) => console.info(`[perf] quality → ${q}`));
 const timer = new THREE.Timer();
 timer.connect(document);
+const STEP = 0.55;
+const lastStep = new THREE.Vector3(Number.NaN, 0, 0);
+function footsteps(): void {
+  const p = world.playerPos;
+  if (Number.isNaN(lastStep.x) || interior.isOpen()) {
+    lastStep.copy(p);
+    return;
+  }
+  const d = Math.hypot(p.x - lastStep.x, p.z - lastStep.z);
+  if (d > 3) lastStep.copy(p);
+  else if (d >= STEP) {
+    lastStep.copy(p);
+    sfx('step');
+  }
+}
+
 function frame(): void {
   timer.update();
   const dt = Math.min(timer.getDelta(), 0.1);
   const time = timer.getElapsed();
   keyboardMove(dt);
   updateFishing(dt);
+  footsteps();
   world.update(dt, time, new Set(npcsWithIntent(state)));
   if (interior.isOpen()) interior.update(dt, time);
   else {
@@ -793,6 +850,7 @@ async function newGame(profile: Profile, short: boolean): Promise<void> {
   localStorage.removeItem(TIPS_KEY);
   const fresh = createInitialState(profile.name, profile.island, profile.look);
   commit(recordFact(fresh, { actor: 'player', text: arrivalFactText(profile.name, profile.island), severity: -1, witnesses: ['josette', 'gaston', 'marius'] }).state);
+  music('raft');
   await playIntro(world, ui!, {
     name: profile.name,
     island: profile.island,
@@ -814,18 +872,21 @@ async function boot(): Promise<void> {
   if (params.has('skip-intro')) {
     if (!state.playerName) commit({ ...state, playerName: presetName || 'Jury', islandName: presetIsland || ISLAND_IDEAS[1] || '', look: state.look ?? DEFAULT_LOOK });
     applyLook();
+    music('island');
     talkTip();
     return;
   }
   busy = true;
   hud.root.hidden = true;
   const hasProfile = state.playerName !== '';
+  music('title');
   const result = await runOnboarding(ui!, {
     canContinue: hasProfile,
     continueLabel: hasProfile ? `Continuer (${state.playerName}${state.islandName ? ` · ${state.islandName}` : ''})` : 'Continuer',
     preset,
   });
   if (result.kind === 'new') await newGame(result.profile, demo);
+  music('island');
   hud.root.hidden = false;
   busy = false;
   talkTip();

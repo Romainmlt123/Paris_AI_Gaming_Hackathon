@@ -23,7 +23,7 @@ export function button(className: string, text: string, onClick: () => void): HT
 }
 
 /** Retro typewriter; resolves when done. Tapping the element (or calling `skip`) jumps to the end. */
-export function typewrite(node: HTMLElement, text: string, cps = 45): { done: Promise<void>; skip: () => void } {
+export function typewrite(node: HTMLElement, text: string, cps = 45, onChar?: (ch: string) => void): { done: Promise<void>; skip: () => void } {
   let skip = (): void => undefined;
   const done = new Promise<void>((resolve) => {
     let i = 0;
@@ -41,6 +41,7 @@ export function typewrite(node: HTMLElement, text: string, cps = 45): { done: Pr
       if (done) return;
       i += 1;
       node.textContent = text.slice(0, i);
+      onChar?.(text[i - 1] ?? '');
       if (i >= text.length) finish();
       else setTimeout(tick, /[.,!?…]/.test(text[i - 1] ?? '') ? 1000 / cps * 5 : 1000 / cps);
     };

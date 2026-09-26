@@ -1,6 +1,7 @@
 import { CHARACTERS } from '../../shared/characters';
 import type { Gazette } from '../../shared/gazette';
 import { button, el } from './dom';
+import { sfx } from '../sound';
 
 export function showGazette(host: HTMLElement, gazette: Gazette): Promise<void> {
   return new Promise((resolve) => {
@@ -32,6 +33,7 @@ export function showGazette(host: HTMLElement, gazette: Gazette): Promise<void> 
 }
 
 export function toast(host: HTMLElement, text: string, tone: 'good' | 'bad' | 'info' = 'info'): void {
+  sfx(tone === 'good' ? 'good' : tone === 'bad' ? 'bad' : 'pop');
   const t = el('div', `toast ${tone}`, text);
   host.append(t);
   setTimeout(() => t.classList.add('out'), 3200);

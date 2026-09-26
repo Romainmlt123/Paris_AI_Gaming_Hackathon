@@ -4,7 +4,10 @@ import type { Emotion, NpcId } from '../../shared/types';
 import { button, el, typewrite } from './dom';
 import { gaugeFill } from './hud';
 import { percentOf } from '../../shared/violence';
+import { duckMusic, sfx } from '../sound';
 import { micSupported, speak, startRecording, stopSpeaking, transcribe, type Recording } from '../voice';
+
+const BLIP_PITCH: Record<NpcId, number> = { gaston: 1, josette: 1.35, marius: 0.72 };
 
 export interface Chip {
   label: string;
@@ -153,6 +156,7 @@ export function createDialogue(portraits: Record<NpcId, string>, onSend: (text: 
       cancelRecording();
       npc = id;
       root.hidden = false;
+      duckMusic(true);
       root.dataset['npc'] = id;
       portrait.src = portraits[id];
       name.firstChild?.remove();
@@ -171,13 +175,18 @@ export function createDialogue(portraits: Record<NpcId, string>, onSend: (text: 
       cancelRecording();
       npc = null;
       root.hidden = true;
+      duckMusic(false);
       input.blur();
     },
     async say(line, emotion) {
       mood.textContent = EMOJI[emotion];
       skipTyping();
       if (npc) void speak(npc, line, emotion);
-      const typing = typewrite(text, line);
+      const pitch = npc ? BLIP_PITCH[npc] : 1;
+      let n = 0;
+      const typing = typewrite(text, line, 45, (ch) => {
+        if (/\p{L}/u.test(ch) && n++ % 2 === 0) sfx('blip', pitch);
+      });
       skipTyping = typing.skip;
       await typing.done;
     },

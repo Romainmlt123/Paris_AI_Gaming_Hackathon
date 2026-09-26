@@ -12,6 +12,10 @@ let current: AudioBufferSourceNode | null = null;
 let speakToken = 0;
 let soundOn = localStorage.getItem(SOUND_KEY) !== 'off';
 
+export function audioContext(): AudioContext {
+  return audio();
+}
+
 function audio(): AudioContext {
   ctx ??= new AudioContext();
   return ctx;
