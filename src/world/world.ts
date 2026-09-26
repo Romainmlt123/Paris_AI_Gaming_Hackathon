@@ -106,6 +106,8 @@ export class World {
   private fpsFrames = 0;
   private lowFpsStreak = 0;
   onFrame: ((dt: number) => void) | null = null;
+  /** Qualité forcée par l'URL (?q=) : pas de dégradation automatique. */
+  qualityLocked = new URLSearchParams(location.search).has('q');
 
   constructor(canvas: HTMLCanvasElement, quality: Quality, private readonly events: WorldEvents) {
     this.stage = new Stage(canvas, quality);
@@ -307,7 +309,7 @@ export class World {
     this.fpsFrames = 0;
     // Dégradation automatique si le téléphone peine (3 s consécutives sous 45 fps).
     this.lowFpsStreak = this.fps < 45 ? this.lowFpsStreak + 1 : 0;
-    if (this.lowFpsStreak >= 3 && worldUniforms.uTime.value > 5) {
+    if (this.lowFpsStreak >= 3 && worldUniforms.uTime.value > 5 && !this.qualityLocked) {
       this.lowFpsStreak = 0;
       if (this.stage.quality === 'high') this.stage.setQuality('medium');
       else if (this.stage.quality === 'medium') this.stage.setQuality('low');

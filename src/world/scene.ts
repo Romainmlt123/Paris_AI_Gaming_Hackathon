@@ -59,6 +59,7 @@ export class Stage {
   readonly scene = new THREE.Scene();
   readonly camera: THREE.PerspectiveCamera;
   readonly sun: THREE.DirectionalLight;
+  private readonly hemi: THREE.HemisphereLight;
   readonly camTarget = new THREE.Vector3();
   quality: Quality;
   private composer: EffectComposer | null = null;
@@ -82,8 +83,8 @@ export class Stage {
     this.camOffset = new THREE.Vector3(0, Math.sin(CAM_PITCH) * CAM_DIST, Math.cos(CAM_PITCH) * CAM_DIST);
 
     // Lumière de fin de journée : soleil bas, orangé, venant de la gauche.
-    const hemi = new THREE.HemisphereLight(PAL.hemiSky, PAL.hemiGround, 1.1);
-    this.scene.add(hemi);
+    this.hemi = new THREE.HemisphereLight(PAL.hemiSky, PAL.hemiGround, 1.1);
+    this.scene.add(this.hemi);
     this.sun = new THREE.DirectionalLight(PAL.sun, 3.0);
     this.sun.position.copy(SUN_OFFSET);
     this.sun.castShadow = true;
@@ -162,6 +163,14 @@ export class Stage {
     this.camera.lookAt(this.camTarget);
     this.sun.target.position.copy(this.camTarget);
     this.sun.position.copy(this.camTarget).add(SUN_OFFSET);
+  }
+
+  /** Couleur de lumière selon l'heure : matin clair, fin de journée dorée. */
+  setHour(hour: number): void {
+    const golden = THREE.MathUtils.smoothstep(hour, 12, 17);
+    this.sun.color.set(PAL.sun).lerp(new THREE.Color('#fff4e0'), 1 - golden);
+    this.sun.intensity = THREE.MathUtils.lerp(2.7, 3.0, golden);
+    this.hemi.intensity = THREE.MathUtils.lerp(1.3, 1.1, golden);
   }
 
   render(): void {

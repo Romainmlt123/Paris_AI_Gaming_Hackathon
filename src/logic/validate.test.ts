@@ -30,7 +30,7 @@ describe('validateTalkResponse', () => {
       relationDelta: -9999,
       reason: 42,
       events: [{ kind: 'insult', text: 'Insulte' }, { kind: 'hack', text: 'x' }, 'n', { kind: 'lie', text: 'a' }, { kind: 'gift', text: 'b' }, { kind: 'deal', text: 'c' }],
-      suggestions: ['Ok', 'x'.repeat(41), 3, 'Non', 'Peut-être', 'Encore'],
+      suggestions: ['Ok', 'x'.repeat(49), 3, 'Non', 'Peut-être', 'Encore'],
       intent: { kind: 'dance', text: 'x' },
       deal: { itemId: 'canne-a-peche', direction: 'buy', qty: 1, price: 5 },
     }, ctx);

@@ -8,7 +8,7 @@ import {
 import { MAX_DISTORTION } from './rumors';
 
 export const REPLY_MAX = 280;
-export const SUGGESTION_MAX = 40;
+export const SUGGESTION_MAX = 48;
 export const TALK_DELTA_MAX = 15;
 export const ABSENCE_RELATION_MAX = 20;
 export const ABSENCE_BOND_MAX = 15;

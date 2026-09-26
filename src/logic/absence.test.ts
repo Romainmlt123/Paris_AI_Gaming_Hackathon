@@ -34,7 +34,7 @@ describe('absence (repli sans IA)', () => {
     expect(s1.day).toBe(2);
     expect(s1.hour).toBe(8);
     expect(s1.npcs.josette.intent?.kind).toBe('confront');
-    expect(s1.npcs.josette.relation).toBeLessThan(10);
+    expect(s1.npcs.josette.relation).toBeLessThan(s0.npcs.josette.relation);
     expect(s1.pendingRecap?.relationChanges[0]?.npc).toBe('josette');
     expect(s1.pickups.every((p) => p.id.startsWith('p2-'))).toBe(true);
     const josette = buildNpcContext(s1, 'josette');

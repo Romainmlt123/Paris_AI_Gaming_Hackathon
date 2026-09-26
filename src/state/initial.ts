@@ -1,7 +1,7 @@
 import type { GameState, NpcId, NpcState } from './types';
 
-const npc = (id: NpcId, memories: string[]): NpcState => ({
-  id, relation: 10, mood: 'neutre', memories, intent: null, lastTalkDay: 0,
+const npc = (id: NpcId, memories: string[], relation = 10): NpcState => ({
+  id, relation, mood: 'neutre', memories, intent: null, lastTalkDay: 0,
 });
 
 /** État de départ : jour 1, 17 h (lumière de fin de journée). `now` = horodatage de création. */
@@ -25,7 +25,7 @@ export function createInitialState(now = 0): GameState {
     },
     npcs: {
       gaston: npc('gaston', ["Un nouveau venu vient de débarquer sur l'île. Un client potentiel."]),
-      josette: npc('josette', ["Un nouveau visage sur l'île ! Il faut absolument tout savoir sur lui."]),
+      josette: npc('josette', ["Un nouveau visage sur l'île ! Il faut absolument tout savoir sur lui."], 25),
       marius: npc('marius', ["Quelqu'un de nouveau est arrivé par le bateau de ce matin."]),
     },
     // Seules les 3 clés triées existent (voir relations.bondKey) ; le type Record<BondKey> liste aussi les paires non triées.
