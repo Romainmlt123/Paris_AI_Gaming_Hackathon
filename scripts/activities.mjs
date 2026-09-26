@@ -1,0 +1,25 @@
+import { chromium } from 'playwright';
+const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+page.on('pageerror', (e) => console.log('[pageerror]', e.message));
+page.on('console', (m) => { if (m.type() === 'error') console.log('[err]', m.text()); });
+const dir = 'shots';
+await page.goto('http://localhost:5173/?q=medium'); await page.evaluate(() => localStorage.clear()); await page.goto('http://localhost:5173/?q=medium');
+await page.waitForTimeout(2500);
+const R = (f, a) => page.evaluate(f, a);
+// arbre le plus proche du joueur : index 6 (-2.4, 4.4)
+await R(() => { window.__ragots.forceShake(0.05); window.__ragots.shake(6); });
+await page.waitForTimeout(900);
+await page.screenshot({ path: `${dir}/a1-bees.png` });
+await page.waitForTimeout(5000);
+await page.screenshot({ path: `${dir}/a2-josette-mock.png` });
+await R(() => window.__ragots.close());
+await R(() => { window.__ragots.give('canne-a-peche'); window.__ragots.forceFish('poulpe-dore'); window.__ragots.fishAt(3, 10.5); });
+await page.waitForTimeout(1000);
+await page.waitForFunction(() => document.querySelector('.fish-prompt.urgent'), null, { timeout: 8000 });
+await page.screenshot({ path: `${dir}/a4-bite.png` });
+await page.mouse.click(200, 400);
+await page.waitForTimeout(800);
+await page.screenshot({ path: `${dir}/a5-catch.png` });
+console.log(await R(() => JSON.stringify(window.__ragots.state().player.inventory)));
+await browser.close();

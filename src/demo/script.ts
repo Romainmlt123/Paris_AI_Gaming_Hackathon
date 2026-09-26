@@ -18,6 +18,10 @@ export interface DemoApi {
   place(slot: SlotId, itemId: string): void;
   tap(x: number, y: number): void;
   state(): unknown;
+  forceShake(r: number): void;
+  forceFish(itemId: string): void;
+  shake(tree: number): void;
+  fishAt(x: number, z: number): void;
 }
 
 export function installDemo(game: Game): void {
@@ -39,6 +43,10 @@ export function installDemo(game: Game): void {
     place: (slot, itemId) => game.place(slot, itemId),
     tap: (x, y) => game.world.handleTap(x, y),
     state: () => store.get(),
+    forceShake: (r) => (game.force.shake = r),
+    forceFish: (itemId) => (game.force.fish = itemId),
+    shake: (tree) => game.shakeTree(tree),
+    fishAt: (x, z) => game.fishAt(x, z),
   };
   (window as unknown as { __ragots: DemoApi }).__ragots = api;
 }

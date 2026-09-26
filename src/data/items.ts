@@ -18,6 +18,7 @@ export const ITEMS: readonly ItemDef[] = [
 
   res('pomme', 'Pomme', '🍎', 20, 10),
   res('figue', 'Figue', '🫐', 30, 15),
+  res('pomme-doree', 'Pomme dorée', '🍏', 1200, 600),
   res('coquillage', 'Coquillage', '🐚', 30, 15),
   res('bar-commun', 'Bar commun', '🐟', 80, 40),
   res('sardine', 'Sardine', '🐠', 50, 25),

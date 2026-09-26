@@ -287,8 +287,12 @@ function canopyGeometry(): THREE.BufferGeometry {
 export interface TreeInfo {
   x: number;
   z: number;
+  y: number;
+  scale: number;
   fruit: 'pomme' | 'figue';
 }
+/** Canopées instanciées (raycast pour secouer un arbre, animation de secousse). */
+export const treeMeshes: { canopies: THREE.InstancedMesh | null; fruits: THREE.InstancedMesh | null } = { canopies: null, fruits: null };
 export const trees: TreeInfo[] = [];
 
 function scatterTrees(scene: THREE.Scene): void {
@@ -325,9 +329,11 @@ function scatterTrees(scene: THREE.Scene): void {
       fruits.setColorAt(fi, new THREE.Color(fruit === 'pomme' ? '#e0412f' : '#7b3f8c'));
       fi++;
     }
-    trees.push({ x, z, fruit });
+    trees.push({ x, z, y, scale: s, fruit });
     if (!onHill) colliders.push({ x, z, r: 0.45 });
   });
+  treeMeshes.canopies = canopies;
+  treeMeshes.fruits = fruits;
   for (const im of [trunks, canopies, fruits]) {
     im.castShadow = true;
     im.receiveShadow = true;

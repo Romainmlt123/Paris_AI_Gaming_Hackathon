@@ -4,7 +4,8 @@ import type { NpcId } from '../state/types';
 
 const MUTE_KEY = 'ragots.muted';
 /** Le son est un bonus activable : muet tant que le joueur ne l'a pas activé. */
-const DEFAULT_MUTED = true;
+// Son actif par défaut (il ne démarre qu'au premier geste) ; bouton 🔊 pour couper.
+const DEFAULT_MUTED = false;
 const MASTER_VOLUME = 0.7;
 
 let ctx: AudioContext | null = null;

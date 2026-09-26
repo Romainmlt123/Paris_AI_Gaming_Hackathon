@@ -102,6 +102,8 @@ export interface GameState {
   pickups: Pickup[];
   relationLog: RelationChange[];
   pendingRecap: Recap | null;
+  /** Activités du jour (optionnel : absent des anciennes sauvegardes). */
+  activity?: { day: number; shakenTrees: number[]; penFedDay: number };
 }
 
 // ---------- Conversation (IA) ----------

@@ -38,7 +38,7 @@ export class Hud {
 
   constructor(
     root: HTMLElement,
-    actions: { bag(): void; decor(): void; sleep(): void; chip(id: NpcId): void },
+    actions: { bag(): void; decor(): void; sleep(): void; chip(id: NpcId): void; mute(): boolean },
   ) {
     this.bellsEl = h('span.num');
     this.valueEl = h('span.num');
@@ -57,7 +57,18 @@ export class Hud {
       'div.hud-top',
       {},
       h('div.hud-left', {}, this.timeEl, h('div.pill.value', { title: "Valeur de l'île" }, h('span.star', {}, '★'), this.valueEl), chipRow),
-      h('div.pill.bells', {}, h('span.bell', {}, '🔔'), this.bellsEl),
+      h(
+        'div.hud-right',
+        {},
+        h('div.pill.bells', {}, h('span.bell', {}, '🔔'), this.bellsEl),
+        h('button.pill.mute', {
+          onclick: (e: Event) => {
+            const muted = actions.mute();
+            (e.currentTarget as HTMLElement).textContent = muted ? '🔇' : '🔊';
+          },
+          'aria-label': 'Son',
+        }, '🔊'),
+      ),
     );
     const bottom = h(
       'div.hud-bottom',
@@ -137,6 +148,8 @@ export class Dialogue {
   private typing = 0;
   private fullText = '';
   npc: NpcId | null = null;
+  /** Appelé à chaque lettre écrite (bip rétro). */
+  onType: ((npc: NpcId) => void) | null = null;
 
   constructor(root: HTMLElement, private readonly handlers: DialogueHandlers) {
     this.portrait = h('canvas.portrait');
@@ -224,6 +237,7 @@ export class Dialogue {
     return new Promise((resolve) => {
       const step = (): void => {
         const n = Math.min(text.length, Math.floor((performance.now() - t0) / 22));
+        if (n > (this.textEl.textContent?.length ?? 0) && this.npc && text[n - 1] !== ' ') this.onType?.(this.npc);
         this.textEl.textContent = text.slice(0, n);
         if (n < text.length && this.fullText === text) this.typing = requestAnimationFrame(step);
         else resolve();

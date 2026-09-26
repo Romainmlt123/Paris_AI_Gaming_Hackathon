@@ -13,8 +13,12 @@ import { applyAbsence, buildAbsenceRequest, simulateAbsenceFallback } from './lo
 import { recordFact } from './logic/rumors';
 import { seededRng } from './logic/rng';
 import { tierOf } from './logic/relations';
+import { applyCatch, applyShake, feedPen, neglectFact, rollFish, rollShake } from './logic/activities';
+import { trees } from './world/props';
 import { Bag, Dialogue, Hud, nightFade, npcInfo, picker, showRecap, toast } from './ui/ui';
 import { h } from './ui/dom';
+import * as sfx from './audio/sfx';
+import { speak, stopSpeaking, isVoiceAvailable } from './audio/voice';
 import { NPC_IDS } from './state/types';
 import type { AbsenceResponse, ChatTurn, DealProposal, Emotion, GameState, Intent, NpcId, Pickup, SlotId } from './state/types';
 
@@ -70,6 +74,11 @@ export class Game {
   private decorBanner: HTMLElement | null = null;
   private busy = false;
   private barks: { el: HTMLElement; npc: NpcId; until: number }[] = [];
+  private fishTimer = 0;
+  private fishState: 'idle' | 'waiting' | 'bite' = 'idle';
+  private fishPrompt: HTMLElement | null = null;
+  /** Forçages pour le script de démo (tirages déterministes). */
+  force: { shake: number | null; fish: string | null } = { shake: null, fish: null };
 
   constructor(canvas: HTMLCanvasElement, ui: HTMLElement, quality: Quality) {
     this.ui = ui;
@@ -77,14 +86,21 @@ export class Game {
       tapNpc: (id) => this.openTalk(id),
       tapPickup: (p) => this.pickUp(p),
       tapSlot: (slot) => this.chooseDecor(slot),
-      tapWater: () => this.tapWater(),
+      tapWater: (x, z) => this.tapWater(x, z),
       arrivedNpc: (id) => this.openTalk(id),
+      tapTree: (i) => this.shake(i),
+      tapPen: () => this.feed(),
     });
     this.hud = new Hud(ui, {
       bag: () => this.openBag(),
       decor: () => this.toggleDecorMode(),
       sleep: () => void this.sleep(8),
       chip: (id) => npcInfo(ui, store.get(), id),
+      mute: () => {
+        sfx.setMuted(!sfx.isMuted());
+        if (!sfx.isMuted()) sfx.startAmbience();
+        return sfx.isMuted();
+      },
     });
     this.dialogue = new Dialogue(ui, {
       send: (text) => void this.say(text, null),
@@ -95,6 +111,13 @@ export class Game {
       catalog: () => this.catalog(),
     });
     this.bag = new Bag(ui);
+    this.dialogue.onType = (npc) => {
+      if (!isVoiceAvailable()) sfx.blip(npc);
+    };
+    document.addEventListener('pointerdown', () => sfx.initAudio(), { capture: true });
+    const muteBtn = ui.querySelector('.mute');
+    if (muteBtn) muteBtn.textContent = sfx.isMuted() ? '🔇' : '🔊';
+    sfx.startAmbience();
     store.subscribe((s, prev) => this.sync(s, prev));
     this.world.onFrame = () => this.updateBarks();
   }
@@ -114,6 +137,7 @@ export class Game {
 
   // ---------- Synchronisation état → rendu ----------
   private sync(s: GameState, prev: GameState | null): void {
+    if (prev && prev.player.bells !== s.player.bells) sfx.coins(s.player.bells > prev.player.bells);
     this.hud.render(s, islandValue(s));
     for (const id of NPC_IDS) this.world.setBang(id, s.npcs[id].intent !== null && this.talking !== id);
     if (!prev || prev.pickups !== s.pickups) this.world.setPickups(s.pickups);
@@ -157,6 +181,7 @@ export class Game {
     this.history.push({ who: 'npc', text: opening });
     this.dialogue.setEmotion(emotion);
     void this.dialogue.say(opening);
+    void speak(id, opening);
     this.dialogue.setSuggestions(suggestions);
   }
 
@@ -166,6 +191,7 @@ export class Game {
     this.talking = null;
     this.deal = null;
     this.dialogue.close();
+    stopSpeaking();
     this.bag.close();
     this.world.setFrozen(false);
     this.hud.setVisible(true);
@@ -198,12 +224,17 @@ export class Game {
     this.history.push({ who: 'npc', text: resp.reply });
     this.dialogue.setEmotion(resp.emotion);
     this.dialogue.showDelta(change);
-    if (change) this.hud.bumpChip(id, change.delta);
+    if (change) {
+      this.hud.bumpChip(id, change.delta);
+      if (change.delta > 0) sfx.gaugeUp();
+      else sfx.gaugeDown();
+    }
     const tierBefore = tierOf(before.npcs[id].relation).name;
     const tierAfter = tierOf(after.npcs[id].relation).name;
     if (tierBefore !== tierAfter) toast(this.ui, `${NPCS[id].name} : ${tierBefore} → ${tierAfter}`, after.npcs[id].relation > before.npcs[id].relation ? 'good' : 'bad');
     this.dialogue.setBusy(false);
     this.busy = false;
+    void speak(id, resp.reply);
     await this.dialogue.say(resp.reply);
     if (this.talking !== id) return;
     this.dialogue.setSuggestions(resp.suggestions.length ? resp.suggestions : DEFAULT_SUGGESTIONS[id]);
@@ -291,13 +322,128 @@ export class Game {
       return;
     }
     store.set({ ...r.state, pickups: r.state.pickups.filter((x) => x.id !== p.id) });
+    sfx.pickup();
     const item = getItem(p.itemId);
     toast(this.ui, `+1 ${item.icon} ${item.name}`, 'good');
   }
 
-  private tapWater(): void {
-    if (countItem(store.get(), 'canne-a-peche') === 0) toast(this.ui, 'Il te faudrait une canne à pêche… Gaston en vend.');
-    else toast(this.ui, 'Approche-toi du ponton pour pêcher 🎣');
+  private tapWater(x: number, z: number): void {
+    if (this.talking || this.busy) return;
+    if (countItem(store.get(), 'canne-a-peche') === 0) {
+      toast(this.ui, 'Il te faudrait une canne à pêche… Gaston en vend.');
+      return;
+    }
+    const p = this.world.playerPos();
+    const d = Math.hypot(x - p.x, z - p.z);
+    if (d > 5) {
+      this.world.walkTo(p.x + ((x - p.x) / d) * (d - 2.5), p.z + ((z - p.z) / d) * (d - 2.5));
+      toast(this.ui, "Approche-toi du bord de l'eau 🎣");
+      return;
+    }
+    this.startFishing(x, z);
+  }
+
+  // ---------- Pêche : un tap lance, un tap au bon moment ferre ----------
+  private startFishing(x: number, z: number): void {
+    this.busy = true;
+    this.world.setFrozen(true);
+    this.world.fishing.cast(x, z);
+    sfx.splash();
+    this.world.captureTap = () => this.fishTap();
+    this.fishState = 'waiting';
+    this.showFishPrompt('Attends que ça morde…', false);
+    const delay = 1500 + Math.random() * 2500;
+    this.fishTimer = window.setTimeout(() => {
+      this.fishState = 'bite';
+      this.world.fishing.dip(true);
+      sfx.bite();
+      this.showFishPrompt('TAPE !', true);
+      this.fishTimer = window.setTimeout(() => this.endFishing('Il s’est échappé… trop lent !'), 1200);
+    }, delay);
+  }
+
+  private fishTap(): void {
+    window.clearTimeout(this.fishTimer);
+    if (this.fishState !== 'bite') {
+      this.endFishing('Trop tôt ! Le poisson a filé.');
+      return;
+    }
+    const itemId = this.force.fish ?? rollFish(Math.random).itemId;
+    this.force.fish = null;
+    const r = applyCatch(store.get(), itemId);
+    sfx.reel();
+    const pos = this.world.fishing.group.children[0]?.position;
+    if (pos) this.world.particles.splash(pos.x, pos.z);
+    if (!r.ok) {
+      this.endFishing(r.message);
+      return;
+    }
+    store.set(r.state);
+    const item = getItem(itemId);
+    this.endFishing(itemId === 'poulpe-dore' ? `✨ INCROYABLE ! Un ${item.name} ! ✨` : `Tu as pêché : ${item.icon} ${item.name} !`, itemId === 'poisson-pourri' ? 'bad' : 'good');
+    if (itemId === 'poulpe-dore') this.bark('marius', '… Un poulpe doré. Hm. J’en ai vu des plus gros.', 600);
+  }
+
+  private endFishing(message: string, kind: 'info' | 'good' | 'bad' = 'info'): void {
+    window.clearTimeout(this.fishTimer);
+    this.fishState = 'idle';
+    this.world.fishing.stop();
+    this.world.captureTap = null;
+    this.world.setFrozen(false);
+    this.fishPrompt?.remove();
+    this.fishPrompt = null;
+    this.busy = false;
+    toast(this.ui, message, kind);
+  }
+
+  private showFishPrompt(text: string, urgent: boolean): void {
+    this.fishPrompt?.remove();
+    this.fishPrompt = h('div.fish-prompt', { class: `fish-prompt${urgent ? ' urgent' : ''}` }, text);
+    this.ui.append(this.fishPrompt);
+  }
+
+  // ---------- Arbres et enclos ----------
+  private shake(i: number): void {
+    if (this.talking || this.busy) return;
+    const tree = trees[i];
+    if (!tree) return;
+    const s = store.get();
+    const forced = this.force.shake;
+    this.force.shake = null;
+    const outcome = rollShake(s, i, tree.fruit, forced !== null ? () => forced : Math.random);
+    if (outcome.kind === 'already') {
+      toast(this.ui, 'Cet arbre a déjà été secoué aujourd’hui.');
+      return;
+    }
+    this.world.shakeTree(i);
+    sfx.shake();
+    window.setTimeout(() => {
+      store.set((st) => applyShake(st, i, outcome, { x: tree.x, z: tree.z }));
+      if (outcome.kind === 'bees') {
+        const p = this.world.playerPos();
+        this.world.particles.bees(p.x, p.z);
+        sfx.buzz();
+        toast(this.ui, 'Aïe aïe aïe ! Une ruche ! 🐝', 'bad');
+        // Josette a tout vu et accourt pour se moquer.
+        window.setTimeout(() => this.world.approachPlayer('josette'), 1600);
+      } else if (outcome.kind === 'rare') {
+        toast(this.ui, '✨ Une pomme dorée est tombée !', 'good');
+      }
+    }, 380);
+  }
+
+  private feed(): void {
+    if (this.talking || this.busy) return;
+    const r = feedPen(store.get());
+    if (!r.ok) {
+      toast(this.ui, r.message);
+      return;
+    }
+    store.set(r.state);
+    this.world.pen.happy();
+    sfx.pickup();
+    this.world.particles.hearts(this.world.pen.sheep.position.x, 1.0, this.world.pen.sheep.position.z);
+    toast(this.ui, 'Flocon se régale et te donne une 🧶 laine dorée !', 'good');
   }
 
   private openBag(): void {
@@ -349,6 +495,7 @@ export class Game {
       text: `Le joueur a installé « ${item.name} » (${SLOT_POSITIONS[slot].label}).`, witnesses: [...NPC_IDS],
     }));
     const gain = islandValue(store.get()) - before;
+    sfx.place();
     toast(this.ui, `${item.icon} ${item.name} installé · ★ +${gain}`, 'good');
     this.reactToDecor(itemId);
   }
@@ -392,7 +539,9 @@ export class Game {
     if (this.decorMode) this.toggleDecorMode();
     this.world.setFrozen(true);
     this.hud.setVisible(false);
+    sfx.night();
     const night = await nightFade(this.ui, hours);
+    store.set((st) => neglectFact(st));
     const s = store.get();
     const res = await absenceApi(buildAbsenceRequest(s, hours));
     const fallback = simulateAbsenceFallback(s, hours, seededRng(s.day * 131 + s.facts.length));
@@ -423,6 +572,12 @@ export class Game {
   }
 
   // ---------- API de démo scriptable ----------
+  shakeTree(i: number): void {
+    this.shake(i);
+  }
+  fishAt(x: number, z: number): void {
+    this.startFishing(x, z);
+  }
   debugState(): GameState {
     return store.get();
   }

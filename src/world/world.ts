@@ -4,6 +4,8 @@ import { buildIsland, groundHeight, isWalkable, worldUniforms } from './island';
 import { SLOT_POSITIONS, buildProps, colliders, onPier } from './props';
 import { CharacterSprite } from './sprites';
 import { buildDecor } from './decor';
+import { FishingRig, PEN, Particles, Pen, shakeTree, treeIndexFromHit, updateTreeShakes } from './activities';
+import { treeMeshes, trees } from './props';
 import type { NpcId, Pickup, SlotId } from '../state/types';
 
 export interface WorldEvents {
@@ -12,6 +14,8 @@ export interface WorldEvents {
   tapSlot(slot: SlotId): void;
   tapWater(x: number, z: number): void;
   arrivedNpc(id: NpcId): void;
+  tapTree(index: number): void;
+  tapPen(): void;
 }
 
 const NPC_HOME: Record<NpcId, { x: number; z: number; wander: number }> = {
@@ -98,6 +102,13 @@ export class World {
   private pendingNpc: NpcId | null = null;
   private pendingPickup: Pickup | null = null;
   private pendingSlot: SlotId | null = null;
+  private pendingTree: number | null = null;
+  private pendingPen = false;
+  readonly particles = new Particles();
+  readonly fishing = new FishingRig();
+  readonly pen: Pen;
+  /** Quand défini, tous les taps lui sont envoyés (mini-jeu de pêche). */
+  captureTap: (() => void) | null = null;
   private approaching: NpcId | null = null;
   private frozen = false;
   private flag: THREE.Object3D | null = null;
@@ -115,6 +126,8 @@ export class World {
     buildIsland(scene);
     this.flag = buildProps(scene, quality).flag;
     scene.add(this.pickupGroup, this.slotGroup, this.decorGroup);
+    this.pen = new Pen();
+    scene.add(this.pen.group, this.particles.group, this.fishing.group);
 
     this.player = new Actor('player', 0.5, 3.5, PLAYER_SPEED);
     this.npcs = {
@@ -159,6 +172,10 @@ export class World {
   /** Un habitant avec une intention vient de lui-même vers le joueur. */
   approachPlayer(id: NpcId): void {
     this.approaching = id;
+  }
+
+  shakeTree(i: number): void {
+    shakeTree(i);
   }
 
   playerPos(): { x: number; z: number } {
@@ -246,6 +263,12 @@ export class World {
       a.sprite.root.position.copy(a.pos);
     }
     this.animateProps(dt);
+    updateTreeShakes(dt);
+    this.pen.update(dt);
+    this.particles.follow(this.player.pos.x, this.player.pos.z, dt);
+    this.particles.update(dt);
+    const tip = this.player.pos.clone().add(new THREE.Vector3(0.45 * this.player.sprite.facing, 1.6, 0));
+    this.fishing.update(dt, tip);
     this.stage.follow(this.player.pos, dt);
     this.onFrame?.(dt);
     this.stage.render();
@@ -325,6 +348,14 @@ export class World {
       const p = this.pendingPickup;
       this.pendingPickup = null;
       if (Math.hypot(p.x - this.player.pos.x, p.z - this.player.pos.z) < 1.2) this.events.tapPickup(p);
+    } else if (this.pendingTree !== null) {
+      const i = this.pendingTree;
+      this.pendingTree = null;
+      const t = trees[i];
+      if (t && Math.hypot(t.x - this.player.pos.x, t.z - this.player.pos.z) < 1.8) this.events.tapTree(i);
+    } else if (this.pendingPen) {
+      this.pendingPen = false;
+      if (Math.hypot(PEN.x - this.player.pos.x, PEN.z - this.player.pos.z) < PEN.r + 1.4) this.events.tapPen();
     } else if (this.pendingSlot) {
       const s = this.pendingSlot;
       this.pendingSlot = null;
@@ -343,8 +374,12 @@ export class World {
       downT = performance.now();
     });
     canvas.addEventListener('pointerup', (e) => {
-      if (this.frozen) return;
       if (Math.hypot(e.clientX - downX, e.clientY - downY) > 14 || performance.now() - downT > 600) return;
+      if (this.captureTap) {
+        this.captureTap();
+        return;
+      }
+      if (this.frozen) return;
       this.handleTap(e.clientX, e.clientY);
     });
   }
@@ -374,6 +409,21 @@ export class World {
       return;
     }
     this.pendingNpc = null;
+    this.pendingTree = null;
+    this.pendingPen = false;
+
+    // 1b. Mouton de l'enclos.
+    const sheep = this.pen.sheep.position.clone().add(new THREE.Vector3(0, 0.35, 0));
+    if (this.raycaster.ray.distanceToPoint(sheep) < 0.8) {
+      this.pendingPen = true;
+      this.pendingPickup = null;
+      this.pendingSlot = null;
+      if (Math.hypot(PEN.x - this.player.pos.x, PEN.z - this.player.pos.z) < PEN.r + 1.4) {
+        this.pendingPen = false;
+        this.events.tapPen();
+      } else this.walkTo(PEN.x - 0.4, PEN.z + PEN.r + 0.6);
+      return;
+    }
 
     // 2. Emplacements de décoration (quand visibles).
     if (this.slotGroup.visible) {
@@ -394,6 +444,22 @@ export class World {
         this.pendingPickup = p;
         this.pendingSlot = null;
         this.walkTo(p.x, p.z);
+        return;
+      }
+    }
+
+    // 3b. Arbres (tap sur la canopée).
+    if (treeMeshes.canopies) {
+      const idx = treeIndexFromHit(this.raycaster.intersectObject(treeMeshes.canopies, false)[0]);
+      const t = idx !== null ? trees[idx] : undefined;
+      if (idx !== null && t) {
+        this.pendingPickup = null;
+        this.pendingSlot = null;
+        if (Math.hypot(t.x - this.player.pos.x, t.z - this.player.pos.z) < 1.6) this.events.tapTree(idx);
+        else {
+          this.pendingTree = idx;
+          this.walkTo(t.x + (this.player.pos.x < t.x ? -0.8 : 0.8), t.z + 0.7);
+        }
         return;
       }
     }
@@ -438,7 +504,7 @@ function findUserData(o: THREE.Object3D, key: string): unknown {
 }
 
 function pickupMesh(itemId: string): THREE.Mesh {
-  const color = itemId === 'pomme' ? '#e0412f' : itemId === 'figue' ? '#7b3f8c' : itemId === 'coquillage' ? '#f7c9c0' : '#f2d36b';
+  const color = itemId === 'pomme-doree' ? '#ffd23f' : itemId === 'pomme' ? '#e0412f' : itemId === 'figue' ? '#7b3f8c' : itemId === 'coquillage' ? '#f7c9c0' : '#f2d36b';
   const geo = itemId === 'coquillage' ? new THREE.ConeGeometry(0.16, 0.14, 6) : new THREE.IcosahedronGeometry(0.15, 0);
   const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color, emissive: new THREE.Color(color).multiplyScalar(0.25), flatShading: true }));
   mesh.castShadow = true;

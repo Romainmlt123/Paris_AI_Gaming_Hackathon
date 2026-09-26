@@ -13,6 +13,18 @@ const canvas = document.getElementById('scene');
 const ui = document.getElementById('ui');
 if (!(canvas instanceof HTMLCanvasElement) || !ui) throw new Error('#scene ou #ui introuvable');
 
+// Clavier virtuel iOS : le viewport visuel rétrécit sans redimensionner la page.
+// On remonte l'UI de la hauteur du clavier pour garder la boîte de dialogue visible.
+const vv = window.visualViewport;
+if (vv) {
+  const onVv = (): void => {
+    const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    document.documentElement.style.setProperty('--kb', `${kb}px`);
+  };
+  vv.addEventListener('resize', onVv);
+  vv.addEventListener('scroll', onVv);
+}
+
 const game = new Game(canvas, ui, pickQuality());
 game.start();
 installDemo(game);
