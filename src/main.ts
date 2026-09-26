@@ -156,6 +156,7 @@ const NPC_INITIATIVE_GAP_SEC = 90;
 const FIRST_INITIATIVE_SEC = 3;
 const CHATTER_GAP_SEC = 16;
 const CHATTER_RANGE = 7;
+const REACH_DISTANCE = 2.2;
 
 let lastInputAt = 0;
 let lastLifeTick = 0;
@@ -182,24 +183,26 @@ function tickLife(now: number): void {
 }
 
 function tickInitiative(now: number): void {
-  if (busy || seeking || dialogue.isOpen() || overlayOpen() || now - lastInitiativeAt < INITIATIVE_GAP_SEC) return;
-  const blocked = new Set(NPC_IDS.filter((id) => now - (npcInitiativeAt[id] ?? -Infinity) < NPC_INITIATIVE_GAP_SEC));
+  if (busy || seeking || dialogue.isOpen() || overlayOpen() || world.playerHasErrand()) return;
+  if (now - lastInitiativeAt < INITIATIVE_GAP_SEC) return;
+  const blocked = new Set(NPC_IDS.filter((id) => world.isBusy(id) || now - (npcInitiativeAt[id] ?? -Infinity) < NPC_INITIATIVE_GAP_SEC));
   const initiative = pickInitiative(state, now - lastInputAt, blocked);
   if (!initiative) return;
   lastInitiativeAt = now;
   npcInitiativeAt[initiative.npc] = now;
-  commit(markInitiative(state, initiative.npc, initiative.trigger));
   runInitiative(initiative);
 }
 
-function runInitiative({ npc, reason, fallback }: Initiative): void {
+function runInitiative({ npc, trigger, reason, fallback }: Initiative): void {
   seeking = npc;
   const line = initiativeLine(npc, buildTalkContext(state, npc), reason, fallback);
   toast(ui!, comingToast(npc), 'info');
   world.npcSeekPlayer(npc, () => void arrive());
   async function arrive(): Promise<void> {
-    if (seeking !== npc || busy || dialogue.isOpen()) return;
+    if (seeking !== npc) return;
     seeking = null;
+    if (busy || dialogue.isOpen() || world.distance(npc) > REACH_DISTANCE) return;
+    commit(markInitiative(state, npc, trigger));
     deal = null;
     world.setFrozen(npc);
     world.facePlayerToward(npc);

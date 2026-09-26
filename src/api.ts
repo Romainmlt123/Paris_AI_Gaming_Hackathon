@@ -36,7 +36,7 @@ export async function talk(npc: NpcId, message: string, context: TalkContext): P
 export async function initiativeLine(npc: NpcId, context: TalkContext, reason: string, fallback: TalkResult): Promise<TalkResult> {
   try {
     const parsed = parseTalkResult(await post('/api/talk', { npc, message: '', context, initiative: reason }, CLIENT_TIMEOUT_MS));
-    if (parsed) return { ...parsed, suggestions: parsed.suggestions.length ? parsed.suggestions : fallback.suggestions };
+    if (parsed?.source === 'ai') return { ...parsed, suggestions: parsed.suggestions.length ? parsed.suggestions : fallback.suggestions };
   } catch (err) {
     console.warn(`[api] initiative failed, using scripted line — ${describe(err)}`);
   }

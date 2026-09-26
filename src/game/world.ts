@@ -61,6 +61,8 @@ export interface World {
   /** Distance in tiles from an NPC to the player, or to another NPC. */
   distance(id: NpcId, other?: NpcId): number;
   isBusy(id: NpcId): boolean;
+  /** The player is walking toward something with an arrival callback (e.g. an NPC to talk to). */
+  playerHasErrand(): boolean;
   facePlayerToward(id: NpcId): void;
   syncDecor(state: GameState): void;
   update(dt: number, time: number, intents: Set<NpcId>): void;
@@ -286,6 +288,9 @@ export function createWorld(stage: Stage): World {
       const a = npc(id).pos;
       const b = other ? npc(other).pos : player.pos;
       return Math.hypot(a.x - b.x, a.z - b.z);
+    },
+    playerHasErrand() {
+      return player.onArrive !== null;
     },
     isBusy(id) {
       return frozen === id || npc(id).onArrive !== null;
