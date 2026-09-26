@@ -56,15 +56,6 @@ export async function synthesize(npc: NpcId, text: string, emotion: Emotion, tim
   return pcmToWav(new Uint8Array(await readBody(() => res.arrayBuffer())), TTS_RATE);
 }
 
-/** Short-lived, single-use token so the browser can open the STT WebSocket without the API key. */
-export async function sttToken(timeoutMs: number): Promise<string> {
-  const res = await call('https://api.gradium.ai/api/api-keys/token', { headers: { 'x-api-key': gradiumKey() } }, timeoutMs);
-  const data: unknown = await readBody(() => res.json());
-  const token = typeof data === 'object' && data !== null && 'token' in data ? data.token : null;
-  if (typeof token !== 'string') throw new GradiumError('token: unexpected response');
-  return token;
-}
-
 interface AsrMessage {
   type?: string;
   text?: string;

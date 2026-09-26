@@ -68,7 +68,7 @@ Mémoire du projet : fait, reste, décisions, pièges.
 ## Voix Gradium (server/gradium.ts, src/voice.ts)
 - Clé serveur : `GRADIUM_API_KEY` (ou `GRADIUM_KEY`). Jamais côté client.
 - TTS : `POST /api/tts {npc,text,emotion}` → WAV (Gradium `pcm_22050`). 204 si rien à dire, 503 si Gradium KO (texte seul). Le joueur n'a pas de voix.
-- STT en direct : bouton 🎤 → `POST /api/stt-token` (jeton Gradium à usage unique, la clé reste côté serveur) → WebSocket `wss://api.gradium.ai/api/speech/asr?token=…` en PCM 24 kHz ; les mots s’écrivent dans le champ pendant qu’on parle. Si le WebSocket échoue : WAV → `POST /api/stt` (REST). Limite 12 s.
+- STT : bouton 🎤 du dialogue → WAV mono 24 kHz → `POST /api/stt` → `{text}` → même chemin que la saisie (`onPlayerLine`). Limite 12 s.
 - Voix créées par Voice Design (ids dans shared/voices.ts) :
   - Gaston `Wu2q0FniGgTdlkjn` : bonimenteur marseillais, rapide, très expressif.
   - Josette `LyiWr3yppCQBVOtH` : commère ch'ti, débit mitraillette, gloussements.

@@ -1,12 +1,11 @@
 import { asNpcId } from '../shared/validate';
 import { EMOTIONS, type Emotion } from '../shared/types';
 import { json } from './gemini';
-import { GradiumError, sttToken, synthesize, transcribe } from './gradium';
+import { GradiumError, synthesize, transcribe } from './gradium';
 
 const TTS_TIMEOUT_MS = 8000;
 const STT_TIMEOUT_MS = 10000;
 const MAX_AUDIO_BYTES = 2_000_000;
-const TOKEN_TIMEOUT_MS = 5000;
 
 function asEmotion(value: unknown): Emotion {
   return EMOTIONS.find((e) => e === value) ?? 'neutre';
@@ -44,16 +43,6 @@ export async function handleStt(req: Request): Promise<Response> {
   } catch (err) {
     if (!(err instanceof GradiumError)) throw err;
     console.warn(`[stt] Gradium failed — ${err.message}`);
-    return json({ error: 'stt unavailable' }, 503);
-  }
-}
-
-export async function handleSttToken(): Promise<Response> {
-  try {
-    return json({ token: await sttToken(TOKEN_TIMEOUT_MS) });
-  } catch (err) {
-    if (!(err instanceof GradiumError)) throw err;
-    console.warn(`[stt-token] Gradium failed — ${err.message}`);
     return json({ error: 'stt unavailable' }, 503);
   }
 }
