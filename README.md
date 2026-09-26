@@ -39,6 +39,21 @@ Your goal: build the prettiest, most prestigious island in town — without beco
 ## Sponsor tech we used ⭐
 
 - **Google DeepMind — Gemini** (via Google AI Studio): the islanders' brain. Gemini writes every reply, emotion and relationship change, and simulates what happens while you're away (who told what to whom, and how the rumor got distorted). *The AI proposes, the game decides*: code validates and caps everything, and a local fallback keeps the game playable if the API is down.
+- **Google DeepMind — Lyria 3.5**: the island's whole soundtrack. We generated one cue per game moment, and the game crossfades between them as you play (the music ducks while an islander speaks):
+
+  | Cue | When it plays | Length |
+  |---|---|---|
+  | 🎬 `title` | Title screen | ~1 min 40 |
+  | 🛶 `raft` | Intro: washing ashore on your raft | 30 s loop |
+  | 🏝️ `island` | Walking around the island | ~2 min loop |
+  | 🏠 `interior` | Inside houses and shops | 30 s loop |
+  | 🌙 `night` | "Come back later": time skips while you're away | 30 s loop |
+  | 😠 `tension` | An islander confronts you about a rumor | 30 s loop |
+  | 🥊 `fight` | Cartoon brawl | 30 s loop |
+  | 💀 `death` | Friendship hits 0%… | 12 s stinger |
+  | 🗞️ `gazette` | The *Gossip Gazette* opens | 10 s stinger |
+
+  The short `death` and `gazette` stingers play once, like big sound effects. Small UI and gameplay sounds (taps, dialogue blips, coins, slaps, punches, splashes, fish bites, doors…) are synthesized live with the Web Audio API, so they stay tiny and instant on mobile. All tracks live in `public/audio/`, and the 🔊/🔇 button mutes music, sound effects and voices together.
 - **Gradium**: real-world voice models. Text-to-speech gives each islander a distinct voice (Gaston's is a custom voice), and speech-to-text lets you talk to them with your mic.
 - **Cognition — Devin**: our AI teammate for building, testing and shipping the game during the hackathon.
 - Designed for the **Voodoo** jury: portrait, one-thumb, playable in 30 seconds on a phone.
