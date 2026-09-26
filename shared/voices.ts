@@ -11,9 +11,9 @@ export interface VoiceProfile {
 }
 
 export const VOICES: Record<NpcId, VoiceProfile> = {
-  gaston: { voiceId: 'Wu2q0FniGgTdlkjn', accent: 'marseillais, bonimenteur de marché', pace: -0.6, temp: 0.95 },
-  josette: { voiceId: 'LyiWr3yppCQBVOtH', accent: 'ch\u2019ti, commère pétillante', pace: -1.0, temp: 0.9 },
-  marius: { voiceId: 'RyPxucblPbKsz0Xp', accent: 'provençal traînant, vieux loup de mer', pace: 1.2, temp: 0.6 },
+  gaston: { voiceId: 'N2nkV9rUGFUXumgM', accent: 'fast-talking market-stall hustler, theatrical salesman', pace: -0.6, temp: 0.95 },
+  josette: { voiceId: 'GgfEkEJtxZR7gnpy', accent: 'warm, bubbly village gossip', pace: -1.0, temp: 0.9 },
+  marius: { voiceId: 's_k3kLBbgeK9-xUg', accent: 'slow, low drawl of an old sea dog', pace: 1.2, temp: 0.6 },
 };
 
 const EMOTION_PACE: Record<Emotion, number> = {

@@ -142,7 +142,7 @@ export function createInterior(hooks: InteriorHooks): Interior {
   function targets(): Target[] {
     if (!layout) return [];
     const out: Target[] = [];
-    if (layout.owner) out.push({ piece: { ...layout.owner, w: 1, d: 1, solid: true, label: 'Parler', draw: () => undefined }, action: { kind: 'talk', npc: layout.owner.npc } });
+    if (layout.owner) out.push({ piece: { ...layout.owner, w: 1, d: 1, solid: true, label: 'Talk', draw: () => undefined }, action: { kind: 'talk', npc: layout.owner.npc } });
     for (const p of layout.pieces) if (p.action && p.w > 0) out.push({ piece: p, action: p.action });
     return out;
   }
@@ -322,7 +322,7 @@ export function createInterior(hooks: InteriorHooks): Interior {
       if (!open) return;
       near = targets().find(adjacent) ?? null;
       prompt.hidden = !near;
-      if (near) prompt.textContent = `✋ ${near.piece.label ?? 'Utiliser'}`;
+      if (near) prompt.textContent = `✋ ${near.piece.label ?? 'Use'}`;
       draw(time);
     },
   };

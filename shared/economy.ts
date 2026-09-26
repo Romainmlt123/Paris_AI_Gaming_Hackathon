@@ -14,19 +14,19 @@ export interface Deco {
 }
 
 export const CATALOG: Record<DecoId, Deco> = {
-  parterre: { id: 'parterre', name: 'Parterre d\u2019œillets', price: 120, prestige: 30, garish: false },
-  banc: { id: 'banc', name: 'Banc en bois flotté', price: 220, prestige: 45, garish: false },
-  lampadaire: { id: 'lampadaire', name: 'Lampadaire rétro', price: 380, prestige: 80, garish: false },
-  fontaine: { id: 'fontaine', name: 'Fontaine sculptée', price: 900, prestige: 220, garish: false },
-  statue: { id: 'statue', name: 'Statue dorée de Gaston', price: 1100, prestige: 260, garish: true },
+  parterre: { id: 'parterre', name: 'Carnation bed', price: 120, prestige: 30, garish: false },
+  banc: { id: 'banc', name: 'Driftwood bench', price: 220, prestige: 45, garish: false },
+  lampadaire: { id: 'lampadaire', name: 'Retro street lamp', price: 380, prestige: 80, garish: false },
+  fontaine: { id: 'fontaine', name: 'Carved fountain', price: 900, prestige: 220, garish: false },
+  statue: { id: 'statue', name: 'Golden statue of Gaston', price: 1100, prestige: 260, garish: true },
 };
 
 export const SLOTS: readonly { id: SlotId; name: string; x: number; z: number }[] = [
-  { id: 'placette', name: 'Placette', x: 13.5, z: 19.5 },
-  { id: 'falaise', name: 'Bord de falaise', x: 8, z: 10 },
-  { id: 'ponton', name: 'Entrée du ponton', x: 16, z: 24 },
-  { id: 'mairie', name: 'Jardin de la mairie', x: 14.5, z: 9 },
-  { id: 'boulangerie', name: 'Devant la boulangerie', x: 8, z: 18.5 },
+  { id: 'placette', name: 'Little square', x: 13.5, z: 19.5 },
+  { id: 'falaise', name: 'Clifftop', x: 8, z: 10 },
+  { id: 'ponton', name: 'Pier entrance', x: 16, z: 24 },
+  { id: 'mairie', name: 'Town hall garden', x: 14.5, z: 9 },
+  { id: 'boulangerie', name: 'Outside the bakery', x: 8, z: 18.5 },
 ];
 
 export function islandValue(state: GameState): number {
@@ -52,11 +52,11 @@ export type HaggleOutcome =
   | { kind: 'final'; ask: number; line: string };
 
 const TIER_MARKUP: Record<string, number> = {
-  'Ennemi juré': 1.6,
-  Rancunier: 1.3,
-  Voisin: 1,
-  Copain: 0.92,
-  Confident: 0.82,
+  'Sworn enemy': 1.6,
+  'Holding a grudge': 1.3,
+  Neighbor: 1,
+  Pal: 0.92,
+  Confidant: 0.82,
 };
 
 const MAX_ROUNDS = 4;
@@ -76,11 +76,11 @@ export function parseOffer(message: string): number | null {
 }
 
 const LINES = {
-  accept: ['Tope là, mon ami ! Tu fais une affaire… enfin, surtout moi.', 'Vendu ! Ne le dis à personne, j\u2019ai une réputation.'],
-  counter: ['Allons, allons… {ask} pièces, et c\u2019est parce que je t\u2019aime bien.', 'Tu veux ma ruine ? {ask}, pas une de moins… enfin presque.'],
-  offended: ['Pardon ?! Tu me prends pour un bienfaiteur ? Maintenant c\u2019est {ask}.', 'Ha ! Même Marius n\u2019oserait pas. {ask}, et estime-toi heureux.'],
-  final: ['Dernier prix, mon ami : {ask}. Après, je ferme boutique.'],
-  flattery: ['Ah… tu sais parler aux artistes du commerce. Bon, {ask}, pour toi.'],
+  accept: ['Shake on it, my friend! You got a bargain… well, mostly I did.', 'Sold! Don\u2019t tell a soul, I have a reputation to keep.'],
+  counter: ['Come on, come on… {ask} coins, and only because I like you.', 'You want to ruin me? {ask}, not a coin less… well, almost.'],
+  offended: ['Excuse me?! Do I look like a charity? Now it\u2019s {ask}.', 'Ha! Even Marius wouldn\u2019t dare. {ask}, and count yourself lucky.'],
+  final: ['Final price, my friend: {ask}. After that, I close up shop.'],
+  flattery: ['Ah… you know how to talk to an artist of commerce. Fine, {ask}, just for you.'],
 };
 
 function line(kind: keyof typeof LINES, ask: number, seed: string): string {
@@ -148,11 +148,11 @@ export interface DecoReaction {
 export function decoReactions(deco: Deco): DecoReaction[] {
   const gaston: DecoReaction =
     deco.price >= 800
-      ? { npc: 'gaston', line: 'Ça, c\u2019est de la classe ! On voit que ça coûte.', delta: 5 }
-      : { npc: 'gaston', line: 'Mouais. Ça fait un peu… économique.', delta: 0 };
+      ? { npc: 'gaston', line: 'Now THAT is class! You can tell it cost a fortune.', delta: 5 }
+      : { npc: 'gaston', line: 'Meh. Looks a bit… budget.', delta: 0 };
   const josette: DecoReaction = deco.garish
-    ? { npc: 'josette', line: 'Entre nous, mon chou… ça gâche un peu la vue.', delta: -3 }
-    : { npc: 'josette', line: 'Oh que c\u2019est mignon ! Je vais le dire à tout le monde !', delta: 3 };
+    ? { npc: 'josette', line: 'Between us, sweetie… it kind of ruins the view.', delta: -3 }
+    : { npc: 'josette', line: 'Ooh, how cute! I\u2019m telling everyone!', delta: 3 };
   return [gaston, josette];
 }
 
@@ -174,7 +174,7 @@ export function placeDeco(
   const changes: RelationChange[] = [];
   for (const r of reactions) {
     if (r.delta === 0) continue;
-    const applied = applyRelationDelta(next, r.npc, clamp(r.delta, -5, 5), `${deco.name} sur l\u2019île`);
+    const applied = applyRelationDelta(next, r.npc, clamp(r.delta, -5, 5), `${deco.name} on the island`);
     next = applied.state;
     if (applied.change) changes.push(applied.change);
   }

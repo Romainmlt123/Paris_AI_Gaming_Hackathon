@@ -20,12 +20,12 @@ export function cleanName(raw: unknown): string {
 
 /** How the island refers to the player in facts and prompts. */
 export function playerLabel(name: string): string {
-  return cleanName(name) || 'Le joueur';
+  return cleanName(name) || 'The player';
 }
 
 export const ISLAND_MAX = 20;
-export const NAME_IDEAS = ['Jean-Kévin', 'Brigitte', 'Momo', 'Paquita', 'Didier'];
-export const ISLAND_IDEAS = ['Île-aux-Commères', 'Potinville', 'Ragot-sur-Mer'];
+export const NAME_IDEAS = ['Kevin', 'Brenda', 'Momo', 'Trixie', 'Nigel'];
+export const ISLAND_IDEAS = ['Gossip Isle', 'Whisperton', 'Rumor-on-Sea'];
 
 export const LOOK_OPTIONS = {
   skin: ['#f6d7bd', '#f3c9a5', '#d39b72', '#8d5a3b'],
@@ -64,5 +64,5 @@ export function cleanIsland(raw: unknown): string {
 /** Arrival rumor planted by the intro cutscene. */
 export function arrivalFactText(playerName: string, islandName: string): string {
   const island = cleanIsland(islandName);
-  return `${playerLabel(playerName)} a débarqué tout nu sur un radeau${island ? ` à ${island}` : ''}`;
+  return `${playerLabel(playerName)} washed up stark naked on a raft${island ? ` at ${island}` : ''}`;
 }

@@ -90,8 +90,8 @@ function showChange(change: RelationChange | null): void {
 function chipsFor(npc: NpcId, suggestions: string[]): Chip[] {
   const chips: Chip[] = suggestions.slice(0, 3).map((s) => ({ label: s, action: () => void onPlayerLine(s) }));
   if (npc === 'gaston') chips.unshift({ label: '💰 Marchander', action: () => openShop() });
-  if (npc === 'gaston' && isNaked(state)) chips.unshift({ label: `👕 Habits (${CLOTHES_PRICE} 🪙)`, action: () => void buyOutfit() });
-  if (state.fish.length > 0) chips.unshift({ label: npc === 'gaston' ? '🐟 Vendre un poisson' : '🐟 Offrir un poisson', action: () => openFishGift(npc) });
+  if (npc === 'gaston' && isNaked(state)) chips.unshift({ label: `👕 Clothes (${CLOTHES_PRICE} 🪙)`, action: () => void buyOutfit() });
+  if (state.fish.length > 0) chips.unshift({ label: npc === 'gaston' ? '🐟 Sell a fish' : '🐟 Give a fish', action: () => openFishGift(npc) });
   return chips;
 }
 
@@ -114,7 +114,7 @@ function startTalk(npc: NpcId, initiated = false): void {
   if (interior.isOpen()) {
     const here = interior.current();
     if (here && here in SHOP_OWNER && SHOP_OWNER[here as ShopId] === npc) return open();
-    return toast(ui!, `${CHARACTERS[npc].name} n’est pas ici.`, 'info');
+    return toast(ui!, `${CHARACTERS[npc].name} isn’t here.`, 'info');
   }
   if (initiated) world.npcSeekPlayer(npc, open);
   else world.approachNpc(npc, open);
@@ -123,9 +123,9 @@ function startTalk(npc: NpcId, initiated = false): void {
 function greeting(npc: NpcId): string {
   const r = state.npcs[npc].relation;
   const lines: Record<NpcId, [string, string]> = {
-    gaston: ['Mon ami ! Tu tombes bien, j\u2019ai des affaires en or. Enfin, en plaqué or.', 'Tiens, toi. Les prix ont augmenté. Pour toi seulement.'],
-    josette: ['Coucou mon chou ! Alors, quoi de neuf ? Raconte, raconte !', 'Ah… c\u2019est toi. Bonjour quand même.'],
-    marius: ['… Ah. Te voilà. La mer est calme ce soir. Comme moi.', '… Tu viens encore te moquer ? La mer, elle, ne se moque pas.'],
+    gaston: ['My friend! Perfect timing, I\u2019ve got golden deals. Well, gold-plated.', 'Oh, it’s you. Prices went up. Just for you.'],
+    josette: ['Hiya sweetie! So, what’s new? Tell me, tell me!', 'Oh… it\u2019s you. Hello anyway.'],
+    marius: ['… Ah. There you are. The sea is calm tonight. Like me.', '… Come to mock me again? The sea never mocks.'],
   };
   return lines[npc][r < -15 ? 1 : 0];
 }
@@ -137,7 +137,7 @@ function pin(npc: NpcId): void {
 
 function endTalk(): void {
   if (dialogue.isOpen()) {
-    tips.show('rumor', '👂 Tout ce que tu dis sera répété… et déformé. Touche « Revenir dans 8 h » pour voir les ragots circuler.');
+    tips.show('rumor', '👂 Everything you say will be repeated… and twisted. Tap "Come back in 8 h" to watch the gossip spread.');
   }
   dialogue.close();
   pinned = false;
@@ -158,7 +158,7 @@ async function onPlayerLine(text: string): Promise<void> {
   const before = state.npcs[npc].relation;
   const applied = applyTalkResult(state, npc, text, result);
   commit(applied.state);
-  hud.setAiStatus(result.source === 'ai' ? '' : 'IA hors ligne · répliques de secours');
+  hud.setAiStatus(result.source === 'ai' ? '' : 'AI offline · backup lines');
   dialogue.thinking(false);
   replying = false;
   showChange(applied.change);
@@ -187,13 +187,13 @@ async function onPlayerLine(text: string): Promise<void> {
 async function buyOutfit(): Promise<void> {
   const dressed = buyClothes(state, CLOTHES_PRICE);
   if (!dressed) {
-    await dialogue.say('Sans pièces, pas de pantalon, mon ami. C\u2019est la loi du marché. Et de la pudeur.', 'mefiance');
+    await dialogue.say('No coins, no pants, my friend. That\u2019s the law of the market. And of modesty.', 'mefiance');
     return;
   }
   commit(dressed);
-  toast(ui!, `👕 Habillé pour ${CLOTHES_PRICE} 🪙`, 'good');
+  toast(ui!, `👕 Dressed for ${CLOTHES_PRICE} 🪙`, 'good');
   dialogue.setChips(chipsFor('gaston', defaultSuggestions('gaston')));
-  await dialogue.say('Vé ! Te voilà présentable. Presque élégant. Le reste de l\u2019île va être déçu, hé hé.', 'joie');
+  await dialogue.say('Look at you! Presentable. Almost elegant. The rest of the island will be disappointed, heh heh.', 'joie');
 }
 
 // ---------- Life: clock, routines, initiatives, chatter ----------
@@ -260,7 +260,7 @@ function runInitiative({ npc, trigger, reason, fallback }: Initiative): void {
     if (dialogue.current() !== npc) return;
     dialogue.thinking(false);
     commit(applyOpener(state, npc, result));
-    hud.setAiStatus(result.source === 'ai' ? '' : 'IA hors ligne · répliques de secours');
+    hud.setAiStatus(result.source === 'ai' ? '' : 'AI offline · backup lines');
     dialogue.setChips(chipsFor(npc, result.suggestions));
     await dialogue.say(result.reply, result.emotion);
   }
@@ -285,22 +285,22 @@ function tickChatter(now: number): void {
 
 // ---------- Fights & murders ----------
 
-const SLAPS = ['PAF !', 'CLAC !', 'BAFFE !', 'TAC !', 'PIF !'];
-const BANGS = ['POW !', 'BAM !', 'KRAK !', 'SBAF !', 'AÏE !', 'BONK !', 'TCHAC !', 'OUILLE !'];
+const SLAPS = ['SMACK!', 'WHAP!', 'SLAP!', 'THWACK!', 'BIFF!'];
+const BANGS = ['POW!', 'BAM!', 'KRAK!', 'SPLAT!', 'OUCH!', 'BONK!', 'WHACK!', 'OOF!'];
 const AFTER_FIGHT: Record<NpcId, string> = {
-  gaston: 'Pfff… T’as une sacrée droite, mon ami. Bon. On est quittes. Pour cette fois.',
-  josette: 'Ouf… mon chignon ! Bon… ça défoule, faut l’avouer. On repart de zéro, mon chou ?',
-  marius: '… La tempête est passée. Après la houle, toujours le calme.',
+  gaston: 'Pfff… That’s a mean right hook, my friend. Fine. We’re even. This time.',
+  josette: 'Phew… my bun! Well… that felt good, I’ll admit. Fresh start, sweetie?',
+  marius: '… The storm has passed. After the swell, always the calm.',
 };
 const LAST_WORDS: Record<NpcId, string> = {
-  gaston: 'Rien de personnel, mon ami. C’est le commerce.',
-  josette: 'Oups. Bon… je dirai que c’était un accident, mon chou.',
-  marius: '… La mer reprend toujours ce qu’on lui doit.',
+  gaston: 'Nothing personal, my friend. It’s business.',
+  josette: 'Oopsie. Well… I’ll say it was an accident, sweetie.',
+  marius: '… The sea always takes back what it’s owed.',
 };
 
 /** Warning shot under 35 %: a quick slap, the conversation goes on. */
 async function slap(npc: NpcId): Promise<void> {
-  const hit = (): void => bang(ui!, SLAPS[state.nextId % SLAPS.length] ?? 'PAF !');
+  const hit = (): void => bang(ui!, SLAPS[state.nextId % SLAPS.length] ?? 'SMACK!');
   if (interior.isOpen()) {
     hit();
     interior.root.classList.remove('slapped');
@@ -309,7 +309,7 @@ async function slap(npc: NpcId): Promise<void> {
     await new Promise((r) => setTimeout(r, 450));
   } else await world.slap(npc, hit);
   commit(resolveSlap(state, npc));
-  toast(ui!, `🖐️ ${CHARACTERS[npc].name} t’a collé une baffe !`, 'bad');
+  toast(ui!, `🖐️ ${CHARACTERS[npc].name} slapped you!`, 'bad');
 }
 
 async function runClash(npc: NpcId, clash: Clash): Promise<void> {
@@ -333,9 +333,9 @@ async function runClash(npc: NpcId, clash: Clash): Promise<void> {
 }
 
 async function fight(npc: NpcId): Promise<void> {
-  toast(ui!, `💥 BAGARRE avec ${CHARACTERS[npc].name} !`, 'bad');
+  toast(ui!, `💥 FIGHT with ${CHARACTERS[npc].name} !`, 'bad');
   let i = 0;
-  const words = setInterval(() => bang(ui!, BANGS[i++ % BANGS.length] ?? 'POW !'), 380);
+  const words = setInterval(() => bang(ui!, BANGS[i++ % BANGS.length] ?? 'POW!'), 380);
   await world.fight(npc);
   clearInterval(words);
   const applied = resolveFight(state, npc);
@@ -350,7 +350,7 @@ async function fight(npc: NpcId): Promise<void> {
 async function murder(npc: NpcId): Promise<void> {
   await world.murder(npc, () => {
     flash(ui!);
-    bang(ui!, 'BONK !!');
+    bang(ui!, 'BONK!!');
   });
   await showDeath(ui!, CHARACTERS[npc].name, WEAPONS[npc], LAST_WORDS[npc]);
   const coinsBefore = state.coins;
@@ -359,7 +359,7 @@ async function murder(npc: NpcId): Promise<void> {
   world.revive();
   world.teleportPlayer({ x: 12, z: 20 });
   world.setFrozen(null);
-  toast(ui!, `Réveil au matin… délesté de ${coinsBefore - state.coins} 🪙`, 'bad');
+  toast(ui!, `Woke up in the morning… ${coinsBefore - state.coins} 🪙 lighter`, 'bad');
   setTimeout(() => showChange(applied.change), 1400);
   const next = npcsWithIntent(state)[0];
   if (next) setTimeout(() => startTalk(next, true), 2600);
@@ -370,7 +370,7 @@ async function murder(npc: NpcId): Promise<void> {
 function openShop(): void {
   sheet(
     ui!,
-    'L\u2019échoppe de Gaston',
+    'Gaston\u2019s Stall',
     Object.values(CATALOG).map((d) => ({
       label: d.name,
       detail: `~${d.price} 🪙 · ★${d.prestige}`,
@@ -382,7 +382,7 @@ function openShop(): void {
 
 function beginDeal(item: DecoId): void {
   deal = startDeal(state, item);
-  void dialogue.say(`${CATALOG[item].name} ? Excellent goût. Pour toi… ${deal.ask} pièces. Une affaire !`, 'joie');
+  void dialogue.say(`${CATALOG[item].name} ? Excellent taste. For you… ${deal.ask} coins. A steal!`, 'joie');
   dealChips();
 }
 
@@ -391,16 +391,16 @@ function dealChips(): void {
   const d = deal;
   const offer = Math.round((d.floor * 0.95) / 10) * 10;
   dialogue.setChips([
-    { label: `Je t\u2019en donne ${offer}`, action: () => void onPlayerLine(`Je t\u2019en donne ${offer}`) },
-    { label: 'T\u2019as l\u2019œil pour les affaires !', action: () => void onPlayerLine('T\u2019as l\u2019œil pour les affaires !') },
-    { label: `✔ Payer ${d.ask}`, action: () => void onPlayerLine(`${d.ask}`) },
-    { label: '✕ Laisser tomber', action: () => cancelDeal() },
+    { label: `I\u2019ll give you ${offer}`, action: () => void onPlayerLine(`I\u2019ll give you ${offer}`) },
+    { label: 'You\u2019ve got an eye for business!', action: () => void onPlayerLine('You\u2019ve got an eye for business!') },
+    { label: `✔ Pay ${d.ask}`, action: () => void onPlayerLine(`${d.ask}`) },
+    { label: '✕ Never mind', action: () => cancelDeal() },
   ]);
 }
 
 function cancelDeal(): void {
   deal = null;
-  void dialogue.say('Tu reviendras. Ils reviennent tous.', 'amuse');
+  void dialogue.say('You’ll be back. They always come back.', 'amuse');
   dialogue.setChips(chipsFor('gaston', defaultSuggestions('gaston')));
 }
 
@@ -415,12 +415,12 @@ async function haggleLine(text: string): Promise<void> {
   }
   const bought = buy(state, next.item, outcome.price);
   if (!bought) {
-    await dialogue.say(`${outcome.price} ? T\u2019as même pas ça en poche, mon ami. Reviens plus riche.`, 'mefiance');
+    await dialogue.say(`${outcome.price} ? You don\u2019t even have that in your pocket, my friend. Come back richer.`, 'mefiance');
     return;
   }
   commit(bought);
   deal = null;
-  toast(ui!, `${CATALOG[next.item].name} acheté ${outcome.price} 🪙 → dans ton sac`, 'good');
+  toast(ui!, `${CATALOG[next.item].name} bought for ${outcome.price} 🪙 → in your bag`, 'good');
   dialogue.setChips(chipsFor('gaston', defaultSuggestions('gaston')));
   await dialogue.say(outcome.line, 'joie');
 }
@@ -428,9 +428,9 @@ async function haggleLine(text: string): Promise<void> {
 // ---------- Houses & shops ----------
 
 const OWNER_SAYS: Record<NpcId, string[]> = {
-  gaston: ['Excellent choix ! Enfin, tous mes choix sont excellents.', 'Vendu ! Et sans garantie, comme d’habitude.', 'Tu repasses quand tu veux, ton porte-monnaie aussi.'],
-  josette: ['Oh, ça t’ira à ravir mon chou ! Je le dirai à tout le monde.', 'Tricoté avec amour. Et un peu de ragots.', 'Tout le village va en parler, crois-moi !'],
-  marius: ['… Prends-en soin. La mer, elle, ne rend rien.', '… Bon choix. Mon père aurait approuvé.', '… Hm. Ça te va.'],
+  gaston: ['Excellent choice! Well, all my choices are excellent.', 'Sold! No warranty, as usual.', 'Come back anytime. Bring your wallet too.'],
+  josette: ['Ooh, that’ll look fabulous on you, sweetie! I’ll tell everyone.', 'Knitted with love. And a little gossip.', 'The whole village will talk about it, trust me!'],
+  marius: ['… Take care of it. The sea gives nothing back.', '… Good choice. My father would’ve approved.', '… Hm. Suits you.'],
 };
 
 function playerSpec(): SpriteSpec {
@@ -493,7 +493,7 @@ function onInteriorAction(a: Action): void {
       return openStock(a.shop, a.levels, a.title);
     case 'locked': {
       const l = ISLAND_LEVELS.find((x) => x.level === a.level);
-      return toast(ui!, `🔒 Arrive quand l’île sera « ${l?.name ?? ''} » (★${l?.min ?? 0}) · ★${state.islandValue} actuellement`, 'info');
+      return toast(ui!, `🔒 Unlocks when the island becomes "${l?.name ?? ''}" (★${l?.min ?? 0}) · currently ★${state.islandValue}`, 'info');
     }
     case 'wardrobe':
       return openWardrobe();
@@ -520,26 +520,26 @@ function openStock(shop: ShopId, levels: number[], title: string): void {
     entries.map((e) => ({
       label: e.item.name,
       icon: iconUrl(e.item.id),
-      detail: e.owned ? (e.item.slot ? 'À toi · armoire' : 'Déjà chez toi') : e.locked ? `🔒 île niv. ${e.item.level}` : `${e.price} 🪙 · ${e.item.slot ? 'se porte' : `★${e.item.prestige}`}`,
+      detail: e.owned ? (e.item.slot ? 'Yours · wardrobe' : 'Already at home') : e.locked ? `🔒 island lv. ${e.item.level}` : `${e.price} 🪙 · ${e.item.slot ? 'wearable' : `★${e.item.prestige}`}`,
       disabled: e.owned || e.locked || state.coins < e.price,
       action: () => buyShopItem(e.item.id),
     })),
-    'Rayon vide.',
+    'Empty shelf.',
   );
 }
 
 function buyShopItem(id: keyof typeof SHOP_ITEMS): void {
   const levelBefore = islandLevel(state.islandValue).level;
   const res = buyItem(state, id, islandValue);
-  if (!res.ok) return toast(ui!, res.reason === 'coins' ? 'Pas assez de pièces…' : 'Indisponible.', 'bad');
+  if (!res.ok) return toast(ui!, res.reason === 'coins' ? 'Not enough coins…' : 'Indisponible.', 'bad');
   commit(res.state);
   const it = SHOP_ITEMS[id];
   const owner = SHOP_OWNER[it.shop];
-  toast(ui!, `${it.name} −${res.price} 🪙 ${it.slot ? '· tu le portes !' : `→ chez toi · ★${state.islandValue}`}`, 'good');
+  toast(ui!, `${it.name} −${res.price} 🪙 ${it.slot ? '· you’re wearing it!' : `→ at home · ★${state.islandValue}`}`, 'good');
   const lines = OWNER_SAYS[owner];
-  setTimeout(() => toast(ui!, `${CHARACTERS[owner].name} : « ${lines[state.nextId % lines.length] ?? ''} »`, 'info'), 1300);
+  setTimeout(() => toast(ui!, `${CHARACTERS[owner].name}: "${lines[state.nextId % lines.length] ?? ''}"`, 'info'), 1300);
   const lvl = islandLevel(state.islandValue);
-  if (lvl.level > levelBefore) setTimeout(() => toast(ui!, `🎉 L’île devient « ${lvl.name} » ! Les boutiques s’agrandissent.`, 'good'), 2700);
+  if (lvl.level > levelBefore) setTimeout(() => toast(ui!, `🎉 The island is now a "${lvl.name}"! The shops are expanding.`, 'good'), 2700);
 }
 
 function openWardrobe(): void {
@@ -550,10 +550,10 @@ function openWardrobe(): void {
     clothes.map((id) => ({
       label: SHOP_ITEMS[id].name,
       icon: iconUrl(id),
-      detail: Object.values(state.outfit).includes(id) ? '✔ porté · retirer' : 'porter',
+      detail: Object.values(state.outfit).includes(id) ? '✔ worn · remove' : 'porter',
       action: () => commit(toggleWear(state, id)),
     })),
-    'Aucun vêtement. Josette et Marius en vendent.',
+    'No clothes. Josette and Marius sell some.',
   );
 }
 
@@ -562,16 +562,16 @@ function openBoard(): void {
   const next = nextLevel(state.islandValue);
   sheet(
     ui!,
-    `Île « ${lvl.name} » · ★${state.islandValue}`,
+    `Island "${lvl.name}" · ★${state.islandValue}`,
     ISLAND_LEVELS.map((l) => ({
-      label: `${l.level <= lvl.level ? '✔' : '🔒'} Niv. ${l.level} · ${l.name}`,
+      label: `${l.level <= lvl.level ? '✔' : '🔒'} Lv. ${l.level} · ${l.name}`,
       detail: `★${l.min}`,
       disabled: l.level > lvl.level,
       action: () => undefined,
     })),
     '',
   );
-  if (next) toast(ui!, `Encore ★${next.min - state.islandValue} pour « ${next.name} » : décore l’île et meuble ta maison !`, 'info');
+  if (next) toast(ui!, `★${next.min - state.islandValue} more for "${next.name}": decorate the island and furnish your home!`, 'info');
 }
 
 // ---------- Decoration ----------
@@ -581,23 +581,23 @@ function openBag(): void {
   for (const d of state.inventory) counts.set(d, (counts.get(d) ?? 0) + 1);
   sheet(
     ui!,
-    'Ton sac',
+    'Your bag',
     [
-      ...[...counts].map(([id, n]) => ({ label: `${CATALOG[id].name}${n > 1 ? ` ×${n}` : ''}`, detail: 'Touche un cercle sur l\u2019île pour le poser', action: () => undefined })),
+      ...[...counts].map(([id, n]) => ({ label: `${CATALOG[id].name}${n > 1 ? ` ×${n}` : ''}`, detail: 'Tap a circle on the island to place it', action: () => undefined })),
       ...state.owned.filter((id) => SHOP_ITEMS[id].slot).map((id) => ({
         label: SHOP_ITEMS[id].name,
         icon: iconUrl(id),
-        detail: Object.values(state.outfit).includes(id) ? '✔ porté' : 'porter',
+        detail: Object.values(state.outfit).includes(id) ? '✔ worn' : 'porter',
         action: () => commit(toggleWear(state, id)),
       })),
       ...[...fishCounts()].map(([id, n]) => ({
         label: `${FISH[id].name}${n > 1 ? ` ×${n}` : ''}`,
         icon: fishIconUrl(id),
-        detail: `${FISH[id].rarity} · à vendre ou offrir`,
+        detail: `${FISH[id].rarity} · sell or give away`,
         action: () => undefined,
       })),
     ],
-    'Vide. Gaston vend de quoi embellir l\u2019île… à son prix.',
+    'Empty. Gaston sells things to beautify the island… at his price.',
   );
 }
 
@@ -612,9 +612,9 @@ function openSlot(slot: SlotId): void {
   const unique = [...new Set(state.inventory)];
   sheet(
     ui!,
-    `Décorer : ${name}`,
+    `Decorate: ${name}`,
     unique.map((id) => ({ label: CATALOG[id].name, detail: `+★${CATALOG[id].prestige}`, action: () => place(slot, id) })),
-    'Rien à poser. Va voir Gaston pour acheter une décoration.',
+    'Nothing to place. Go see Gaston to buy a decoration.',
   );
 }
 
@@ -622,7 +622,7 @@ function place(slot: SlotId, item: DecoId): void {
   const result = placeDeco(state, slot, item);
   if (!result) return;
   commit(result.state);
-  toast(ui!, `★ Valeur de l\u2019île : ${state.islandValue}`, 'good');
+  toast(ui!, `★ Island value: ${state.islandValue}`, 'good');
   result.reactions.forEach((r, i) => setTimeout(() => toast(ui!, `${CHARACTERS[r.npc].name} : « ${r.line} »`, r.delta < 0 ? 'bad' : 'info'), 900 + i * 1400));
   result.changes.forEach((c, i) => setTimeout(() => showChange(c), 1200 + i * 1400));
 }
@@ -634,9 +634,9 @@ const BITE_WINDOW = 0.9;
 let fishing: Fishing | null = null;
 
 const MARIUS_ON_CATCH: Record<string, string> = {
-  rare: '… Pas mal. La chance du débutant. Moi, j’en ai sorti un deux fois plus gros. En 1987.',
-  légendaire: '… Un poulpe doré ?! … Non. Non non non. C’est MON coin, ça. Depuis trente ans.',
-  déchet: '… Une botte. Au moins, t’as pêché quelque chose.',
+  rare: '… Not bad. Beginner’s luck. I pulled one out twice that size. In 1987.',
+  legendary: '… A golden octopus?! … No. No no no. That’s MY spot. Thirty years.',
+  junk: '… A boot. At least you caught something.',
 };
 
 function fishHere(): FishSpot | null {
@@ -646,13 +646,13 @@ function fishHere(): FishSpot | null {
 function goFish(spot: FishSpot): void {
   if (busy || interior.isOpen()) return;
   endTalk();
-  if (state.fish.length >= BAG_FISH_MAX) return toast(ui!, `Ton sac est plein de poissons (${BAG_FISH_MAX}). Va les vendre à Gaston !`, 'info');
+  if (state.fish.length >= BAG_FISH_MAX) return toast(ui!, `Your bag is full of fish (${BAG_FISH_MAX}). Go sell them to Gaston!`, 'info');
   fishing = { phase: 'walk' };
   world.walkTo(spot.stand, () => {
     if (fishing?.phase !== 'walk') return;
     fishing = { phase: 'wait', spot, t: 1.6 + Math.random() * 3 };
     world.setFishing(spot.spot);
-    toast(ui!, '🎣 Touche l’écran quand le bouchon plonge !', 'info');
+    toast(ui!, '🎣 Tap the screen when the float dips!', 'info');
   });
 }
 
@@ -666,23 +666,23 @@ function strike(): void {
   if (!fishing || fishing.phase === 'walk') return;
   if (fishing.phase === 'wait') {
     stopFishing();
-    return toast(ui!, 'Trop tôt ! Le poisson a filé…', 'bad');
+    return toast(ui!, 'Too soon! The fish got away…', 'bad');
   }
   stopFishing();
   const id = rollFish(Math.random());
   const added = addCatch(state, id);
-  if (!added.ok) return toast(ui!, 'Sac plein !', 'bad');
+  if (!added.ok) return toast(ui!, 'Bag full!', 'bad');
   commit(added.state);
-  bang(ui!, 'PLOUF !');
-  void showCatch(ui!, fishIconUrl(id, 96), FISH[id].name, FISH[id].rarity, `Dans ton sac · ${state.fish.length}/${BAG_FISH_MAX}`);
-  const comment = MARIUS_ON_CATCH[FISH[id].rarity === 'légendaire' ? 'légendaire' : FISH[id].rarity === 'rare' ? 'rare' : FISH[id].rarity === 'déchet' ? 'déchet' : ''];
-  if (comment) setTimeout(() => toast(ui!, `Marius : « ${comment} »`, 'info'), 2400);
+  bang(ui!, 'SPLASH!');
+  void showCatch(ui!, fishIconUrl(id, 96), FISH[id].name, FISH[id].rarity, `In your bag · ${state.fish.length}/${BAG_FISH_MAX}`);
+  const comment = MARIUS_ON_CATCH[FISH[id].rarity === 'legendary' ? 'legendary' : FISH[id].rarity === 'rare' ? 'rare' : FISH[id].rarity === 'junk' ? 'junk' : ''];
+  if (comment) setTimeout(() => toast(ui!, `Marius: "${comment}"`, 'info'), 2400);
 }
 
 function updateFishing(dt: number): void {
   const spot = !busy && !interior.isOpen() && !dialogue.isOpen() && (!fishing || fishing.phase === 'walk') ? fishHere() : null;
   fishBtn.hidden = !(spot || (fishing && fishing.phase !== 'walk'));
-  fishBtn.textContent = fishing && fishing.phase !== 'walk' ? (fishing.phase === 'bite' ? '❗ Ferrer !' : '🎣 …') : '🎣 Pêcher';
+  fishBtn.textContent = fishing && fishing.phase !== 'walk' ? (fishing.phase === 'bite' ? '❗ Strike!' : '🎣 …') : '🎣 Fish';
   if (!fishing || fishing.phase === 'walk') return;
   fishing.t -= dt;
   if (fishing.phase === 'wait' && fishing.t <= 0) {
@@ -692,11 +692,11 @@ function updateFishing(dt: number): void {
     bang(ui!, '!');
   } else if (fishing.phase === 'bite' && fishing.t <= 0) {
     stopFishing();
-    toast(ui!, 'Raté… il s’est décroché.', 'bad');
+    toast(ui!, 'Missed… it slipped off the hook.', 'bad');
   }
 }
 
-const fishBtn = el('button', 'action fish-btn', '🎣 Pêcher', { type: 'button' });
+const fishBtn = el('button', 'action fish-btn', '🎣 Fish', { type: 'button' });
 fishBtn.hidden = true;
 fishBtn.addEventListener('click', (e) => {
   e.stopPropagation();
@@ -709,14 +709,14 @@ function openFishGift(npc: NpcId): void {
   const counts = fishCounts();
   sheet(
     ui!,
-    npc === 'gaston' ? 'Vendre à Gaston' : `Offrir à ${CHARACTERS[npc].name}`,
+    npc === 'gaston' ? 'Sell to Gaston' : `Give to ${CHARACTERS[npc].name}`,
     [...counts].map(([id, n]) => ({
       label: `${FISH[id].name}${n > 1 ? ` ×${n}` : ''}`,
       icon: fishIconUrl(id),
       detail: npc === 'gaston' ? `${FISH[id].value} 🪙` : FISH[id].rarity,
       action: () => void offerFish(npc, id),
     })),
-    'Aucun poisson. Va pêcher au bord de l’eau !',
+    'No fish. Go fishing by the water!',
   );
 }
 
@@ -725,7 +725,7 @@ async function offerFish(npc: NpcId, id: FishId): Promise<void> {
   const before = state.npcs[npc].relation;
   const out = giveFish(state, npc, id);
   if (!out) return;
-  dialogue.playerSaid(npc === 'gaston' ? `Tu m’achètes ce ${FISH[id].name.toLowerCase()} ?` : `Tiens, c’est pour toi : ${FISH[id].name.toLowerCase()}.`, state.playerName);
+  dialogue.playerSaid(npc === 'gaston' ? `Want to buy this ${FISH[id].name.toLowerCase()}?` : `Here, this is for you: a ${FISH[id].name.toLowerCase()}.`, state.playerName);
   commit(out.state);
   if (out.coins > 0) toast(ui!, `+${out.coins} 🪙 · ${FISH[id].name}`, 'good');
   showChange(out.change);
@@ -748,7 +748,7 @@ async function absence(): Promise<void> {
   busy = true;
   endTalk();
   document.body.classList.add('night');
-  hud.setAiStatus('Le temps passe sur l\u2019île…');
+  hud.setAiStatus('Time passes on the island…');
   const before = state;
   const result = await simulate(before, buildSimRequest(before, ABSENCE_HOURS));
   const { state: next, recap } = applySimResult(before, result, ABSENCE_HOURS);
@@ -869,7 +869,7 @@ canvas.addEventListener('pointermove', (e) => {
 });
 
 if (matchMedia('(pointer: fine)').matches) {
-  ui.append(el('div', 'keys-help', 'ZQSD / flèches : marcher · E : parler / pêcher · Entrée : écrire · I : sac · Échap : fermer · clic : aller / parler'));
+  ui.append(el('div', 'keys-help', 'WASD / arrows: walk · E: talk / fish · Enter: type · I: bag · Esc: close · click: go / talk'));
 }
 
 window.addEventListener('resize', () => stage.resize());
@@ -908,7 +908,7 @@ function applyLook(): void {
 }
 
 function talkTip(): void {
-  tips.show('talk', matchMedia('(pointer: fine)').matches ? '💬 Approche un habitant et appuie sur E pour lui parler' : '💬 Touche un habitant pour lui parler');
+  tips.show('talk', matchMedia('(pointer: fine)').matches ? '💬 Walk up to an islander and press E to talk' : '💬 Tap an islander to talk');
 }
 
 async function newGame(profile: Profile, short: boolean): Promise<void> {
@@ -921,7 +921,7 @@ async function newGame(profile: Profile, short: boolean): Promise<void> {
     spec: lookSpec(profile.look, true),
     short,
   });
-  toast(ui!, `Bienvenue sur ${profile.island}, ${profile.name} !`, 'good');
+  toast(ui!, `Welcome to ${profile.island}, ${profile.name}!`, 'good');
 }
 
 async function boot(): Promise<void> {
@@ -944,7 +944,7 @@ async function boot(): Promise<void> {
   const hasProfile = state.playerName !== '';
   const result = await runOnboarding(ui!, {
     canContinue: hasProfile,
-    continueLabel: hasProfile ? `Continuer (${state.playerName}${state.islandName ? ` · ${state.islandName}` : ''})` : 'Continuer',
+    continueLabel: hasProfile ? `Continue (${state.playerName}${state.islandName ? ` · ${state.islandName}` : ''})` : 'Continue',
     preset,
   });
   if (result.kind === 'new') await newGame(result.profile, demo);

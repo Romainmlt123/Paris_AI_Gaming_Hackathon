@@ -5,7 +5,7 @@ import { createInitialState } from './state';
 describe('fishing', () => {
   it('draws common fish most of the time and legendary ones rarely', () => {
     expect(rollFish(0)).toBe('sardine');
-    expect(FISH[rollFish(0.999)].rarity).toBe('déchet');
+    expect(FISH[rollFish(0.999)].rarity).toBe('junk');
     const counts = new Map<string, number>();
     for (let i = 0; i < 1000; i++) {
       const id = rollFish(i / 1000);
@@ -38,7 +38,7 @@ describe('fishing', () => {
     const s = { ...createInitialState(), fish: ['espadon' as const, 'botte' as const] };
     const out = giveFish(s, 'marius', 'espadon');
     expect(out?.state.npcs.marius.relation).toBeGreaterThan(s.npcs.marius.relation);
-    expect(out?.state.facts.at(-1)?.text).toContain('espadon');
+    expect(out?.state.facts.at(-1)?.text).toContain('swordfish');
     const boot = giveFish(s, 'josette', 'botte');
     expect(boot?.state.npcs.josette.relation).toBeLessThan(s.npcs.josette.relation);
     expect(giveFish(s, 'gaston', 'poulpe')).toBeNull();

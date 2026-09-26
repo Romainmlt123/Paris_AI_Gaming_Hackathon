@@ -17,7 +17,7 @@ export interface Hud {
 function clockText(state: GameState): string {
   const h = Math.floor(state.clock / 60);
   const m = state.clock % 60;
-  return `Jour ${state.day} · ${String(h).padStart(2, '0')}h${String(m).padStart(2, '0')}`;
+  return `Day ${state.day} · ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
 export function gaugeFill(relation: number): string {
@@ -36,7 +36,7 @@ export function createHud(portraits: Record<NpcId, string>, onNpc: (id: NpcId) =
     setSound(!isSoundOn());
     sound.textContent = soundLabel();
   });
-  sound.setAttribute('aria-label', 'Voix des habitants');
+  sound.setAttribute('aria-label', 'Islander voices');
   top.append(who, clock, prestige, coins, sound);
   const gauges = el('div', 'gauges');
   const cards = new Map<NpcId, { card: HTMLElement; fill: HTMLElement; tier: HTMLElement; value: HTMLElement }>();
@@ -58,7 +58,7 @@ export function createHud(portraits: Record<NpcId, string>, onNpc: (id: NpcId) =
   }
   const bottom = el('div', 'hud-bottom');
   const bag = button('action bag', '🎒 Sac', onBag);
-  const sleep = button('action sleep', '🌙 Revenir dans 8 h', onSleep);
+  const sleep = button('action sleep', '🌙 Come back in 8 h', onSleep);
   bottom.append(bag, sleep);
   const status = el('div', 'ai-status');
   const fps = el('div', 'fps');
@@ -72,9 +72,9 @@ export function createHud(portraits: Record<NpcId, string>, onNpc: (id: NpcId) =
       who.hidden = !state.playerName;
       clock.textContent = clockText(state);
       prestige.textContent = `★ ${state.islandValue}`;
-      prestige.title = 'Valeur de l\u2019île';
+      prestige.title = 'Island value';
       coins.textContent = `${state.coins} 🪙`;
-      bag.textContent = `🎒 Sac${state.inventory.length ? ` (${state.inventory.length})` : ''}`;
+      bag.textContent = `🎒 Bag${state.inventory.length ? ` (${state.inventory.length})` : ''}`;
       for (const id of NPC_IDS) {
         const c = cards.get(id);
         if (!c) continue;

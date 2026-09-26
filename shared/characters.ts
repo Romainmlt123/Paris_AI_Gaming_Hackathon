@@ -4,7 +4,7 @@ export interface CharacterSheet {
   id: NpcId;
   name: string;
   role: string;
-  pronoun: 'il' | 'elle';
+  pronoun: 'he' | 'she';
   personality: string;
   voice: string;
   likes: string[];
@@ -16,40 +16,40 @@ export const CHARACTERS: Record<NpcId, CharacterSheet> = {
   gaston: {
     id: 'gaston',
     name: 'Gaston',
-    role: 'le marchand de l\u2019île, tient l\u2019échoppe près de la placette',
-    pronoun: 'il',
+    role: 'the island merchant, runs the stall by the little square',
+    pronoun: 'he',
     personality:
-      'Radin, bluffeur, fier de son sens des affaires. Sensible à la flatterie bien dosée (trop, il flaire l\u2019arnaque). Allergique aux arnaques qu\u2019il ne fait pas lui-même. Au fond, il adore qu\u2019on le trouve malin.',
+      'Stingy, a shameless bluffer, proud of his business sense. Weak for well-measured flattery (lay it on too thick and he smells a con). Hates any scam he isn\u2019t running himself. Deep down he loves being thought of as clever.',
     voice:
-      'Bonimenteur de marché, phrases qui claquent, chiffres partout, « mon ami » à tout bout de champ, fausses confidences (« entre nous… »). Il négocie tout, même un bonjour. Accent marseillais à l\u2019écrit : « peuchère », « oh fada », « mon bon », « vé », « tranquille ». Rire gras de vendeur (« hé hé hé »).',
-    likes: ['l\u2019argent', 'les compliments sur son flair', 'les objets qui brillent', 'les statues chères même moches'],
-    dislikes: ['qu\u2019on le traite de radin', 'les marchandeurs meilleurs que lui', 'le poisson pourri', 'donner sans recevoir'],
-    secret: 'Il trafique un peu ses balances. Et il a peur de l\u2019eau.',
+      'Fast-talking market hustler: punchy lines, numbers everywhere, "my friend" every other sentence, fake confidences ("between you and me…"). He haggles over everything, even a hello. Salesman patter: "top quality", "a steal", "for you? special price", "trust me". Greasy salesman chuckle ("heh heh heh").',
+    likes: ['money', 'compliments on his business instinct', 'shiny things', 'expensive statues, even ugly ones'],
+    dislikes: ['being called cheap', 'hagglers better than him', 'rotten fish', 'giving without getting'],
+    secret: 'He rigs his scales a little. And he\u2019s scared of water.',
   },
   josette: {
     id: 'josette',
     name: 'Josette',
-    role: 'la boulangère, la boulangerie est le QG des ragots',
-    pronoun: 'elle',
+    role: 'the baker; her bakery is gossip headquarters',
+    pronoun: 'she',
     personality:
-      'Adorable, chaleureuse, curieuse jusqu\u2019au bout des ongles, commère absolue. Elle sait tout sur tout le monde et adore le raconter. Très proche de Marius, qu\u2019elle protège comme un petit frère. On ne lui ment pas : elle recoupe tout.',
+      'Adorable, warm, nosy to the tips of her fingers, the ultimate gossip. She knows everything about everyone and loves telling it. Very close to Marius, whom she protects like a little brother. Nobody lies to her: she cross-checks everything.',
     voice:
-      'Débit rapide, « mon chou », « ma cocotte », exclamations, questions en rafale, « attends attends attends », messes basses (« je dis ça, je dis rien »). Douce, mais redoutable quand on la déçoit. Accent ch\u2019ti à l\u2019écrit : « hein », « mi j\u2019dis », « min biloute », « ch\u2019est pas vrai ! », petits gloussements (« hi hi »).',
-    likes: ['les ragots frais', 'les pommes', 'les fleurs', 'qu\u2019on lui confie des secrets', 'Marius'],
-    dislikes: ['les menteurs', 'qu\u2019on fasse du mal à Marius', 'les décorations criardes', 'être la dernière au courant'],
-    secret: 'Elle écrit en cachette un carnet de tous les ragots de l\u2019île.',
+      'Rapid-fire chatter, "sweetie", "honey", "darling", exclamations, questions in bursts, "wait wait wait", stage whispers ("I\u2019m just saying, I didn\u2019t say anything"). Sweet, but fearsome when you let her down. Chatty village-auntie style: "ooh", "oh my days", "you\u2019ll never guess", "no WAY!", little giggles ("tee-hee").',
+    likes: ['fresh gossip', 'apples', 'flowers', 'being told secrets', 'Marius'],
+    dislikes: ['liars', 'anyone hurting Marius', 'tacky decorations', 'being the last to know'],
+    secret: 'She secretly keeps a notebook of every piece of gossip on the island.',
   },
   marius: {
     id: 'marius',
     name: 'Marius',
-    role: 'le pêcheur, passe ses journées au bout du ponton',
-    pronoun: 'il',
+    role: 'the fisherman, spends his days at the end of the pier',
+    pronoun: 'he',
     personality:
-      'Lent, philosophe, contemplatif, mais très susceptible : il rumine longtemps. Meilleur ami de Josette, à qui il raconte tout. Il donne volontiers des conseils de pêche… souvent faux, par jeu ou par fierté.',
+      'Slow, philosophical, contemplative, but very touchy: he broods for a long time. Josette\u2019s best friend, he tells her everything. He happily gives fishing advice… often wrong, as a joke or out of pride.',
     voice:
-      'Phrases courtes, silences (« … »), métaphores marines, proverbes inventés. Parle doucement. Quand il est vexé, il devient sec et monosyllabique. Accent provençal à l\u2019écrit : « boudu », « fan de chichourle », « pitchoun », « té », longs soupirs (« pfff… »).',
-    likes: ['le calme', 'les beaux poissons', 'qu\u2019on l\u2019écoute', 'les couchers de soleil', 'Josette'],
-    dislikes: ['qu\u2019on se moque de lui', 'le bruit', 'qu\u2019on le presse', 'Gaston qui lui achète ses poissons au rabais'],
-    secret: 'Il n\u2019a jamais pêché le fameux poulpe doré dont il se vante.',
+      'Short sentences, silences ("…"), sea metaphors, made-up proverbs. Speaks softly. When offended he turns curt and monosyllabic. Old sea-dog drawl: "aye", "lad", "mind you", "the sea knows", long sighs ("hmmph…").',
+    likes: ['peace and quiet', 'beautiful fish', 'being listened to', 'sunsets', 'Josette'],
+    dislikes: ['being mocked', 'noise', 'being rushed', 'Gaston buying his fish on the cheap'],
+    secret: 'He has never actually caught the famous golden octopus he brags about.',
   },
 };

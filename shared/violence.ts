@@ -17,9 +17,9 @@ export type Clash = 'slap' | 'fight' | 'murder';
 export type Mood = 'heart' | 'storm' | 'skull' | null;
 
 export const WEAPONS: Record<NpcId, string> = {
-  gaston: 'sa caisse enregistreuse',
-  josette: 'son rouleau à pâtisserie',
-  marius: 'un espadon congelé',
+  gaston: 'his cash register',
+  josette: 'her rolling pin',
+  marius: 'a frozen swordfish',
 };
 
 export function percentOf(relation: number): number {
@@ -47,7 +47,7 @@ export function moodOf(relation: number): Mood {
 export function resolveSlap(state: GameState, npc: NpcId): GameState {
   return recordFact(state, {
     actor: npc,
-    text: `${CHARACTERS[npc].name} a collé une baffe au joueur`,
+    text: `${CHARACTERS[npc].name} slapped the player`,
     severity: -1,
     witnesses: [npc],
   }).state;
@@ -58,13 +58,13 @@ export function resolveFight(state: GameState, npc: NpcId): { state: GameState; 
   const name = CHARACTERS[npc].name;
   const witnessed = recordFact(state, {
     actor: 'player',
-    text: `${playerLabel(state.playerName)} et ${name} se sont battus comme des chiffonniers devant tout le monde`,
+    text: `${playerLabel(state.playerName)} and ${name} brawled like alley cats in front of everyone`,
     severity: -2,
     witnesses: [npc],
   }).state;
   witnessed.npcs[npc].emotion = 'amuse';
   witnessed.npcs[npc].intent = null;
-  return applyRelationDelta(witnessed, npc, FIGHT_RELIEF, 'Vous avez évacué votre rage');
+  return applyRelationDelta(witnessed, npc, FIGHT_RELIEF, 'You both blew off steam');
 }
 
 /** The NPC kills the player. Next morning the player wakes up, robbed, and the whole island knows. */
@@ -73,7 +73,7 @@ export function resolveMurder(state: GameState, killer: NpcId): { state: GameSta
   const others = NPC_IDS.filter((id) => id !== killer);
   let next = recordFact(state, {
     actor: killer,
-    text: `${name} a assassiné ${state.playerName ? cleanName(state.playerName) : 'le joueur'} avec ${WEAPONS[killer]}`,
+    text: `${name} murdered ${state.playerName ? cleanName(state.playerName) : 'the player'} with ${WEAPONS[killer]}`,
     severity: -3,
     witnesses: [...NPC_IDS],
   }).state;
@@ -82,8 +82,8 @@ export function resolveMurder(state: GameState, killer: NpcId): { state: GameSta
   next.coins = Math.floor(next.coins / 2);
   next.npcs[killer].emotion = 'mefiance';
   next.npcs[killer].intent = null;
-  for (const id of others) next.npcs[id].intent = `Parler du meurtre commis par ${name}`;
-  const reset = applyRelationDelta(next, killer, MURDER_RESET - next.npcs[killer].relation, `${name} a eu ta peau… et ça l\u2019a calmé${CHARACTERS[killer].pronoun === 'elle' ? 'e' : ''}`);
+  for (const id of others) next.npcs[id].intent = `Talk about the murder committed by ${name}`;
+  const reset = applyRelationDelta(next, killer, MURDER_RESET - next.npcs[killer].relation, `${name} got you… and it calmed ${CHARACTERS[killer].pronoun === 'she' ? 'her' : 'him'} right down`);
   next = reset.state;
   return { state: next, change: reset.change };
 }

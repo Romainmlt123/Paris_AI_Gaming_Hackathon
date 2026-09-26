@@ -35,7 +35,7 @@ export async function playIntro(world: World, host: HTMLElement, o: IntroOptions
   const skipSignal = new Promise<void>((r) => (wake = r));
   const root = el('div', 'intro');
   const card = el('div', 'intro-card');
-  const skip = button('intro-skip', 'Passer ›', () => {
+  const skip = button('intro-skip', 'Skip ›', () => {
     skipped = true;
     wake();
   });
@@ -57,11 +57,11 @@ export async function playIntro(world: World, host: HTMLElement, o: IntroOptions
   const beach = new THREE.Vector3(dock.x + 0.9, -0.1, dock.z + 0.6);
   const sea = new THREE.Vector3(dock.x + 2.5, -0.1, dock.z + DRIFT);
   const cards: Card[] = [
-    { kicker: 'Quelque part au large…', big: 'TOUT NU. SUR UN RADEAU.', sub: 'Pas de fringues. Pas de sous. Pas de plan.', ms: 5500 },
-    { kicker: 'Droit devant', big: o.island.toUpperCase(), sub: 'Trois habitants. Des ragots à la pelle.', ms: 5000 },
-    { kicker: 'Objectif', big: 'FAIS DE TON ÎLE LA PLUS BELLE', sub: 'Gagne des clochettes, décore, grimpe en prestige.', ms: 5800 },
-    { kicker: 'Comment ?', big: 'PARLE AUX HABITANTS', sub: 'Ils se souviennent de tout. Et ils le répètent… en pire.', ms: 5800 },
-    { kicker: 'Attention', big: 'CHAQUE MOT COMPTE', sub: 'Fais-toi tes meilleurs amis… ou tes pires ennemis.', ms: 6500 },
+    { kicker: 'Somewhere out at sea…', big: 'STARK NAKED. ON A RAFT.', sub: 'No clothes. No money. No plan.', ms: 5500 },
+    { kicker: 'Dead ahead', big: o.island.toUpperCase(), sub: 'Three islanders. Gossip by the bucketload.', ms: 5000 },
+    { kicker: 'Goal', big: 'MAKE YOUR ISLAND THE MOST BEAUTIFUL', sub: 'Earn bells, decorate, climb in prestige.', ms: 5800 },
+    { kicker: 'How?', big: 'TALK TO THE ISLANDERS', sub: 'They remember everything. And they repeat it… worse.', ms: 5800 },
+    { kicker: 'Careful', big: 'EVERY WORD COUNTS', sub: 'Make your best friends… or your worst enemies.', ms: 6500 },
   ];
   const total = cards.reduce((t, c) => t + c.ms, 0) * pace;
 
@@ -96,7 +96,7 @@ export async function playIntro(world: World, host: HTMLElement, o: IntroOptions
   world.setRaft(beach, false);
   world.teleportPlayer(dock);
   world.face('player', 'up');
-  await show({ kicker: `Bienvenue sur ${o.island}`, big: o.name.toUpperCase(), sub: '(toujours tout nu)', ms: 4000 });
+  await show({ kicker: `Welcome to ${o.island}`, big: o.name.toUpperCase(), sub: '(still stark naked)', ms: 4000 });
 
   world.setScripted(false);
   root.classList.add('leaving');

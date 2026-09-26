@@ -60,9 +60,9 @@ export function createDialogue(portraits: Record<NpcId, string>, onSend: (text: 
   box.append(you, text);
   const chips = el('div', 'chips');
   const form = el('form', 'dlg-form');
-  const input = el('input', 'dlg-input', '', { type: 'text', maxlength: String(MAX_LINE), placeholder: 'Écris ta réplique…', enterkeyhint: 'send', autocomplete: 'off' });
-  const send = el('button', 'dlg-send', '➤', { type: 'submit', 'aria-label': 'Envoyer' });
-  const mic = el('button', 'dlg-mic', '🎤', { type: 'button', 'aria-label': 'Parler au micro' });
+  const input = el('input', 'dlg-input', '', { type: 'text', maxlength: String(MAX_LINE), placeholder: 'Type your line…', enterkeyhint: 'send', autocomplete: 'off' });
+  const send = el('button', 'dlg-send', '➤', { type: 'submit', 'aria-label': 'Send' });
+  const mic = el('button', 'dlg-mic', '🎤', { type: 'button', 'aria-label': 'Talk into the mic' });
   mic.hidden = !micSupported();
   form.append(input, mic, send);
   const rec = el('div', 'dlg-rec');
@@ -95,7 +95,7 @@ export function createDialogue(portraits: Record<NpcId, string>, onSend: (text: 
   let recNoteTimer = 0;
   const drawRec = (): void => {
     const secs = Math.floor((performance.now() - recStart) / 1000);
-    recText.textContent = `Je t\u2019écoute… 0:${String(secs).padStart(2, '0')}`;
+    recText.textContent = `Listening… 0:${String(secs).padStart(2, '0')}`;
     const lvl = recording?.level() ?? 0;
     meterBars.forEach((b, i) => {
       const wobble = 0.6 + 0.4 * Math.sin(performance.now() / 90 + i * 1.7);
@@ -111,7 +111,7 @@ export function createDialogue(portraits: Record<NpcId, string>, onSend: (text: 
     if (mode === 'rec') {
       recStart = performance.now();
       drawRec();
-    } else if (mode === 'wait') recText.textContent = 'Transcription de ta voix…';
+    } else if (mode === 'wait') recText.textContent = 'Transcribing your voice…';
     else if (mode === 'note') {
       recText.textContent = note;
       recNoteTimer = window.setTimeout(() => showRec('idle'), 2500);
@@ -122,7 +122,7 @@ export function createDialogue(portraits: Record<NpcId, string>, onSend: (text: 
     mic.dataset['mode'] = mode;
     mic.textContent = mode === 'rec' ? '■' : mode === 'wait' ? '…' : '🎤';
     mic.disabled = mode === 'wait';
-    input.placeholder = mode === 'rec' ? 'Je t\u2019écoute… (touche ■ pour finir)' : mode === 'wait' ? 'Transcription…' : 'Écris ta réplique…';
+    input.placeholder = mode === 'rec' ? 'Listening… (tap ■ to finish)' : mode === 'wait' ? 'Transcribing…' : 'Type your line…';
   };
   const cancelRecording = (): void => {
     micSession++;
@@ -141,11 +141,11 @@ export function createDialogue(portraits: Record<NpcId, string>, onSend: (text: 
     setMic('idle');
     const text = heard?.trim().slice(0, MAX_LINE) ?? null;
     if (!text) {
-      input.placeholder = text === null ? 'Micro indisponible, écris ta réplique…' : 'Rien entendu… réessaie ?';
-      showRec('note', text === null ? '⚠️ Transcription indisponible' : '🤷 Rien entendu… réessaie ?');
+      input.placeholder = text === null ? 'Mic unavailable, type your line…' : 'Didn’t catch that… try again?';
+      showRec('note', text === null ? '⚠️ Transcription unavailable' : '🤷 Didn’t catch that… try again?');
       return;
     }
-    showRec('note', `🎤 Compris : « ${text} »`);
+    showRec('note', `🎤 Heard: "${text}"`);
     if (busy) {
       input.value = text;
       return;
@@ -167,8 +167,8 @@ export function createDialogue(portraits: Record<NpcId, string>, onSend: (text: 
         console.warn('[voice] microphone unavailable', err);
         if (session !== micSession) return;
         setMic('idle');
-        input.placeholder = 'Micro refusé, écris ta réplique…';
-        showRec('note', '🚫 Micro refusé par le navigateur');
+        input.placeholder = 'Mic blocked, type your line…';
+        showRec('note', '🚫 Mic blocked by the browser');
       });
   };
   mic.addEventListener('click', (e) => {
@@ -223,7 +223,7 @@ export function createDialogue(portraits: Record<NpcId, string>, onSend: (text: 
       await typing.done;
     },
     playerSaid(line, playerName) {
-      you.textContent = `${playerName || 'Toi'} : ${line}`;
+      you.textContent = `${playerName || 'You'}: ${line}`;
     },
     thinking(on) {
       busy = on;

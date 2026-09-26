@@ -64,7 +64,7 @@ interface AsrMessage {
 
 /** Transcribes a French WAV recording. */
 export async function transcribe(wav: Uint8Array<ArrayBuffer>, timeoutMs: number): Promise<string> {
-  const config = encodeURIComponent(JSON.stringify({ language: 'fr' }));
+  const config = encodeURIComponent(JSON.stringify({ language: 'en' }));
   const res = await call(
     `${BASE}/asr?json_config=${config}`,
     { method: 'POST', headers: { 'x-api-key': gradiumKey(), 'content-type': 'audio/wav' }, body: wav },

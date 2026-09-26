@@ -19,7 +19,7 @@ export interface OnboardingOptions {
   preset: Partial<Profile>;
 }
 
-const HAIR_LABEL: Record<HairStyle, string> = { short: 'Court', bun: 'Chignon', cap: 'Casquette', beanie: 'Bonnet' };
+const HAIR_LABEL: Record<HairStyle, string> = { short: 'Short', bun: 'Bun', cap: 'Cap', beanie: 'Beanie' };
 const PREVIEW_SCALE = 7;
 const SQUAD: readonly [SpriteSpec, string][] = [
   [SPRITES.gaston, 'Gaston'],
@@ -122,7 +122,7 @@ export function runOnboarding(host: HTMLElement, opts: OnboardingOptions): Promi
       card.append(
         el('div', 'onb-season', '~ ALOHA ~'),
         el('h1', 'onb-logo', 'RAGOTS'),
-        el('p', 'onb-tag', 'Chaque mot compte. Chaque ragot circule.'),
+        el('p', 'onb-tag', 'Every word counts. Every rumor spreads.'),
         squad,
         actions,
         el('p', 'onb-foot', 'Paris AI Gaming Hackathon'),
@@ -157,22 +157,22 @@ export function runOnboarding(host: HTMLElement, opts: OnboardingOptions): Promi
         facing = facing === 0 ? 1 : 0;
         draw();
       });
-      turn.setAttribute('aria-label', 'Tourner le personnage');
+      turn.setAttribute('aria-label', 'Rotate character');
       turn.append(preview, el('span', 'onb-turn-hint', '↻ Tourner'));
-      stage.append(el('div', 'onb-step', 'ÉTAPE 1 / 2'), turn);
+      stage.append(el('div', 'onb-step', 'STEP 1 / 2'), turn);
 
-      const nameInput = textField('onb-name', 'Ton prénom', NAME_MAX, name);
+      const nameInput = textField('onb-name', 'Your name', NAME_MAX, name);
       let refresh: () => void = () => undefined;
       const set = (patch: Partial<PlayerLook>): void => {
         look = { ...look, ...patch };
         refresh();
       };
       const rows = [
-        swatchRow('Peau', LOOK_OPTIONS.skin, () => look.skin, (v) => set({ skin: v })),
-        swatchRow('Coiffure', LOOK_OPTIONS.hairStyle, () => look.hairStyle, (v) => set({ hairStyle: v }), (v) => HAIR_LABEL[v]),
-        swatchRow('Cheveux', LOOK_OPTIONS.hair, () => look.hair, (v) => set({ hair: v })),
+        swatchRow('Skin', LOOK_OPTIONS.skin, () => look.skin, (v) => set({ skin: v })),
+        swatchRow('Hairstyle', LOOK_OPTIONS.hairStyle, () => look.hairStyle, (v) => set({ hairStyle: v }), (v) => HAIR_LABEL[v]),
+        swatchRow('Hair', LOOK_OPTIONS.hair, () => look.hair, (v) => set({ hair: v })),
       ];
-      const next = el('button', 'onb-go', 'Suivant ›', { type: 'submit' });
+      const next = el('button', 'onb-go', 'Next ›', { type: 'submit' });
       const sync = (): void => {
         name = nameInput.value;
         next.disabled = cleanName(name) === '';
@@ -181,7 +181,7 @@ export function runOnboarding(host: HTMLElement, opts: OnboardingOptions): Promi
       };
       refresh = sync;
       nameInput.addEventListener('input', sync);
-      const dice = button('onb-dice', '🎲 Au hasard', () => {
+      const dice = button('onb-dice', '🎲 Random', () => {
         look = randomLook();
         if (!cleanName(nameInput.value)) nameInput.value = NAME_IDEAS[Math.floor(Math.random() * NAME_IDEAS.length)] ?? '';
         sync();
@@ -193,7 +193,7 @@ export function runOnboarding(host: HTMLElement, opts: OnboardingOptions): Promi
       const panel = el('div', 'onb-panel');
       const fields = el('div', 'onb-fields');
       fields.append(
-        el('label', 'onb-label', 'Ton prénom', { for: 'onb-name' }),
+        el('label', 'onb-label', 'Your name', { for: 'onb-name' }),
         nameInput,
         ideaChips(NAME_IDEAS, (idea) => {
           nameInput.value = idea;
@@ -202,7 +202,7 @@ export function runOnboarding(host: HTMLElement, opts: OnboardingOptions): Promi
       );
       const actions = el('div', 'onb-actions');
       actions.append(dice, next);
-      panel.append(el('h2', 'onb-h', 'QUI DÉBARQUE ?'), fields, ...rows.map((r) => r.row), el('p', 'onb-hint', 'Tu arrives tout nu. Et tu le resteras.'), actions);
+      panel.append(el('h2', 'onb-h', 'WHO’S WASHING UP?'), fields, ...rows.map((r) => r.row), el('p', 'onb-hint', 'You arrive stark naked. And you’ll stay that way.'), actions);
       card.append(stage, panel);
       show(card, name ? undefined : nameInput);
       sync();
@@ -210,9 +210,9 @@ export function runOnboarding(host: HTMLElement, opts: OnboardingOptions): Promi
 
     function islandStep(): void {
       const card = el('form', 'onb-panel onb-island');
-      card.append(el('div', 'onb-step', 'ÉTAPE 2 / 2'), el('h2', 'onb-h', 'TON ÎLE S\u2019APPELLE…'));
-      const input = textField('onb-island', 'Nom de l\u2019île', ISLAND_MAX, island);
-      const go = el('button', 'onb-go', 'LARGUER LES AMARRES ›', { type: 'submit' });
+      card.append(el('div', 'onb-step', 'STEP 2 / 2'), el('h2', 'onb-h', 'YOUR ISLAND IS CALLED…'));
+      const input = textField('onb-island', 'Island name', ISLAND_MAX, island);
+      const go = el('button', 'onb-go', 'CAST OFF ›', { type: 'submit' });
       const sync = (): void => {
         island = input.value;
         go.disabled = cleanIsland(island) === '';
@@ -231,7 +231,7 @@ export function runOnboarding(host: HTMLElement, opts: OnboardingOptions): Promi
           input.value = idea;
           sync();
         }),
-        el('p', 'onb-hint', 'Tout le monde en parlera. En bien ou en mal.'),
+        el('p', 'onb-hint', 'Everyone will talk about it. For better or worse.'),
         actions,
       );
       show(card, input);

@@ -27,10 +27,10 @@ function canSpread(state: GameState, from: NpcId, to: NpcId): boolean {
 }
 
 const SMALL_TALK = [
-  'ont parlé de la pluie et du beau temps (surtout du beau temps)',
-  'se sont disputé la dernière part de tarte',
-  'ont refait le monde au bout du ponton',
-  'ont compté les mouettes. Désaccord sur le total',
+  'talked about the weather (mostly the nice bits)',
+  'fought over the last slice of pie',
+  'put the world to rights at the end of the pier',
+  'counted seagulls. They disagree on the total',
 ];
 
 /**
@@ -58,7 +58,7 @@ export function simulateFallback(state: GameState, hours: number): SimResult {
           result.conversations.push({
             a: from,
             b: to,
-            summary: `${CHARACTERS[from].name} a raconté à ${CHARACTERS[to].name} : « ${known.text} »`,
+            summary: `${CHARACTERS[from].name} told ${CHARACTERS[to].name}: "${known.text}"`,
           });
         }
       }
@@ -66,7 +66,7 @@ export function simulateFallback(state: GameState, hours: number): SimResult {
   }
   if (result.conversations.length === 0) {
     const seed = hashString(`${state.day}-${state.nextId}`);
-    result.conversations.push({ a: 'josette', b: 'marius', summary: `Josette et Marius ${pick(SMALL_TALK, seed)}.` });
+    result.conversations.push({ a: 'josette', b: 'marius', summary: `Josette and Marius ${pick(SMALL_TALK, seed)}.` });
   }
   return result;
 }
@@ -77,7 +77,7 @@ export function hearsayDelta(severity: number, distortion: number): number {
 }
 
 function confrontIntent(to: NpcId, from: NpcId, text: string): string {
-  return `${CHARACTERS[to].name} a entendu ${CHARACTERS[from].name} dire : « ${text} ». Veut des explications.`;
+  return `${CHARACTERS[to].name} heard ${CHARACTERS[from].name} say: "${text}". Wants an explanation.`;
 }
 
 function applyTransfer(
@@ -92,18 +92,18 @@ function applyTransfer(
   let next = moved.state;
   const fromName = CHARACTERS[transfer.from].name;
   const toName = CHARACTERS[transfer.to].name;
-  recap.push({ kind: 'rumor', npc: transfer.to, text: `${fromName} → ${toName} : « ${moved.rumor.text} »` });
+  recap.push({ kind: 'rumor', npc: transfer.to, text: `${fromName} → ${toName}: "${moved.rumor.text}"` });
   if (fact.actor !== 'player' || fact.severity === 0) return next;
   const applied = applyRelationDelta(
     next,
     transfer.to,
     hearsayDelta(fact.severity, moved.rumor.distortion),
-    `A entendu ${fromName} parler de toi`,
+    `Heard ${fromName} talking about you`,
   );
   next = applied.state;
   if (applied.change) {
     const sign = applied.change.delta > 0 ? '+' : '';
-    recap.push({ kind: 'relation', npc: transfer.to, text: `${toName} ${sign}${applied.change.delta} : ${applied.change.reason}` });
+    recap.push({ kind: 'relation', npc: transfer.to, text: `${toName} ${sign}${applied.change.delta}: ${applied.change.reason}` });
   }
   if (fact.severity <= -2 && !intents.has(transfer.to)) {
     intents.set(transfer.to, confrontIntent(transfer.to, transfer.from, moved.rumor.text));
@@ -135,7 +135,7 @@ export function applySimResult(
   for (const intent of result.intents) if (!intents.has(intent.npc)) intents.set(intent.npc, intent.text);
   for (const [npc, text] of intents) {
     next.npcs[npc].intent = text;
-    recap.push({ kind: 'intent', npc, text: `${CHARACTERS[npc].name} veut te parler.` });
+    recap.push({ kind: 'intent', npc, text: `${CHARACTERS[npc].name} wants to talk to you.` });
   }
   const total = next.clock + Math.round(hours * 60);
   next.day += Math.floor(total / (24 * 60));

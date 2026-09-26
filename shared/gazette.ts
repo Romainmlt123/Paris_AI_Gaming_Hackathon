@@ -26,22 +26,22 @@ interface Mood {
 }
 
 const WEATHER = [
-  'Ciel clair, ragots en hausse',
-  'Brume de mauvaise foi sur le ponton',
-  'Vent de commérages, rafales à la boulangerie',
-  'Averses de sous-entendus en soirée',
+  'Clear skies, gossip on the rise',
+  'Fog of bad faith over the pier',
+  'Gossip winds, gusting at the bakery',
+  'Scattered innuendo showers this evening',
 ];
 
 const AD_TAILS = [
-  'Urgent. Se présenter sans excuses bidon.',
-  'Récompense : aucune. Explications exigées.',
-  'Sérieux s\u2019abstenir. Menteurs aussi.',
+  'Urgent. Come without lame excuses.',
+  'Reward: none. Explanations required.',
+  'No time-wasters. No liars either.',
 ];
 
 const CALM_HEADLINES = [
-  'IL NE S\u2019EST RIEN PASSÉ ; LES MOUETTES DÉMENTENT',
-  'NUIT CALME SUR L\u2019ÎLE : LA RÉDACTION S\u2019ENNUIE FERME',
-  'AUCUN SCANDALE CETTE NUIT, JOSETTE EXIGE UN REMBOURSEMENT',
+  'NOTHING HAPPENED; SEAGULLS DENY EVERYTHING',
+  'QUIET NIGHT ON THE ISLAND: NEWSROOM BORED STIFF',
+  'NO SCANDAL LAST NIGHT, JOSETTE DEMANDS A REFUND',
 ];
 
 function moods(before: GameState, after: GameState): Mood[] {
@@ -72,76 +72,76 @@ function headlineFor(
     const n = name(worst.npc).toUpperCase();
     return [
       pick([
-        `SCANDALE : ${n} NE VEUT PLUS TE VOIR EN PEINTURE`,
-        `${n} FURIEUX${CHARACTERS[worst.npc].pronoun === 'elle' ? 'E' : ''} : L\u2019ÎLE RETIENT SON SOUFFLE`,
-        `CRISE DIPLOMATIQUE : ${n} RAPPELLE SON AMBASSADEUR`,
+        `SCANDAL: ${n} NEVER WANTS TO SEE YOU AGAIN`,
+        `${n} FURIOUS: THE ISLAND HOLDS ITS BREATH`,
+        `DIPLOMATIC CRISIS: ${n} RECALLS AMBASSADOR`,
       ], seed),
-      `${name(worst.npc)} perd ${-worst.delta} points d\u2019estime en une nuit ; la rédaction a des sources.`,
+      `${name(worst.npc)} loses ${-worst.delta} points of esteem overnight; our newsroom has sources.`,
     ];
   }
   if (rumors.length > 0) {
     const r = rumors[0]!;
     return [
       pick([
-        'L\u2019ÎLE NE PARLE PLUS QUE DE TOI',
-        'LE RAGOT DU SIÈCLE FAIT LE TOUR DE L\u2019ÎLE',
-        `${name(r.holder).toUpperCase()} EST AU COURANT. TOUT LE MONDE EST AU COURANT.`,
+        'THE WHOLE ISLAND IS TALKING ABOUT YOU',
+        'GOSSIP OF THE CENTURY SWEEPS THE ISLAND',
+        `${name(r.holder).toUpperCase()} KNOWS. EVERYONE KNOWS.`,
       ], seed),
-      `${rumors.length} ragot${rumors.length > 1 ? 's ont' : ' a'} changé de bouche cette nuit. Démenti attendu, jamais reçu.`,
+      `${rumors.length} rumor${rumors.length > 1 ? 's' : ''} changed hands overnight. Denial expected, never received.`,
     ];
   }
   const caller = wanting[0];
   if (caller) {
     return [
-      `${name(caller).toUpperCase()} VEUT TE PARLER : ÇA SENT LE ROUSSI`,
-      'Personne ne sait de quoi il retourne. Tout le monde a un avis.',
+      `${name(caller).toUpperCase()} WANTS A WORD: TROUBLE BREWING`,
+      'Nobody knows what it\u2019s about. Everybody has an opinion.',
     ];
   }
   if (best && best.delta >= 5) {
     return [
-      `${name(best.npc).toUpperCase()} TE TROUVE FORMIDABLE ; L\u2019ÎLE SOUPÇONNE UN POT-DE-VIN`,
-      `+${best.delta} points pour toi. Notre enquête continue.`,
+      `${name(best.npc).toUpperCase()} THINKS YOU\u2019RE WONDERFUL; ISLAND SUSPECTS A BRIBE`,
+      `+${best.delta} points for you. Our investigation continues.`,
     ];
   }
-  return [pick(CALM_HEADLINES, seed), 'Nos reporters ont veillé toute la nuit pour rien. Heures sup non payées.'];
+  return [pick(CALM_HEADLINES, seed), 'Our reporters stayed up all night for nothing. Overtime unpaid.'];
 }
 
 function rumorArticle(rumors: Rumor[]): GazetteArticle | null {
   if (rumors.length === 0) return null;
   const lines = rumors.slice(0, 3).map((r) => {
-    const from = r.source === 'vu' ? 'un témoin' : name(r.source);
-    return `${from} a glissé à ${name(r.holder)} : « ${r.text} »`;
+    const from = r.source === 'vu' ? 'a witness' : name(r.source);
+    return `${from} whispered to ${name(r.holder)}: "${r.text}"`;
   });
-  return { rubric: 'Ragots', title: 'Ça jase au comptoir', body: `${lines.join('. ')}. Rien n\u2019est vérifié, tout est répété.` };
+  return { rubric: 'Gossip', title: 'Tongues wagging at the counter', body: `${lines.join('. ')}. Nothing verified, everything repeated.` };
 }
 
 function societyArticle(recap: RecapEntry[]): GazetteArticle {
   const talks = recap.filter((e) => e.kind === 'talk').slice(0, 3).map((e) => e.text.replace(/\.$/, ''));
-  const body = talks.length ? `${talks.join('. ')}.` : 'Personne n\u2019a parlé à personne. Un record.';
-  return { rubric: 'Carnet mondain', title: 'Ils se sont vus cette nuit', body };
+  const body = talks.length ? `${talks.join('. ')}.` : 'Nobody talked to anybody. A record.';
+  return { rubric: 'Society pages', title: 'Who met whom last night', body };
 }
 
 function popularityArticle(list: Mood[], recap: RecapEntry[]): GazetteArticle {
   const lines = list.map((m) => {
-    const trend = m.delta > 0 ? `en hausse (+${m.delta})` : m.delta < 0 ? `en chute (${m.delta})` : 'stable';
-    return `${name(m.npc)} : ${tierOf(m.after).label}, ${trend}`;
+    const trend = m.delta > 0 ? `rising (+${m.delta})` : m.delta < 0 ? `falling (${m.delta})` : 'steady';
+    return `${name(m.npc)}: ${tierOf(m.after).label}, ${trend}`;
   });
   const reasons = recap.filter((e) => e.kind === 'relation').map((e) => e.text);
-  const detail = reasons.length ? ` Dans le détail : ${reasons.join(' ; ')}.` : '';
-  return { rubric: 'Cote de popularité', title: 'Ta cote à la criée', body: `${lines.join(' · ')}.${detail}` };
+  const detail = reasons.length ? ` In detail: ${reasons.join('; ')}.` : '';
+  return { rubric: 'Popularity index', title: 'Your stock at the fish market', body: `${lines.join(' · ')}.${detail}` };
 }
 
 function adsArticle(after: GameState, wanting: NpcId[]): GazetteArticle | null {
   if (wanting.length === 0) return null;
-  const ads = wanting.map((npc, i) => `${name(npc).toUpperCase()} cherche le joueur. ${pick(AD_TAILS, after.day + i)}`);
-  return { rubric: 'Petites annonces', title: 'On te demande', body: ads.join(' ') };
+  const ads = wanting.map((npc, i) => `${name(npc).toUpperCase()} is looking for the player. ${pick(AD_TAILS, after.day + i)}`);
+  return { rubric: 'Classifieds', title: 'Wanted: you', body: ads.join(' ') };
 }
 
 function economyArticle(after: GameState): GazetteArticle {
   return {
-    rubric: 'Bourse',
-    title: 'Clochettes et prestige',
-    body: `Ta bourse clôture à ${after.coins} clochettes. Valeur de l\u2019île : ${after.islandValue} points d\u2019apparat. Gaston se dit « prudemment optimiste », c\u2019est-à-dire intéressé.`,
+    rubric: 'Markets',
+    title: 'Bells and prestige',
+    body: `Your purse closes at ${after.coins} bells. Island value: ${after.islandValue} prestige points. Gaston calls himself "cautiously optimistic", meaning interested.`,
   };
 }
 
@@ -157,7 +157,7 @@ export function buildGazette(before: GameState, after: GameState, recap: RecapEn
   const [headline, subhead] = headlineFor(sorted[0], sorted[sorted.length - 1], rumors, wanting, seed);
   const articles = [rumorArticle(rumors), societyArticle(recap), popularityArticle(list, recap), adsArticle(after, wanting), economyArticle(after)];
   return {
-    issue: `Jour ${after.day} · N° ${after.day * 7 + 3} · 2 clochettes`,
+    issue: `Day ${after.day} · No. ${after.day * 7 + 3} · 2 bells`,
     weather: pick(WEATHER, seed >>> 3),
     headline,
     subhead,

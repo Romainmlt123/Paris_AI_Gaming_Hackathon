@@ -11,11 +11,11 @@ export interface Tier {
 
 /** Ordered from lowest to highest. */
 export const TIERS: readonly Tier[] = [
-  { min: -100, label: 'Ennemi juré', perk: 'Te claque la porte au nez' },
-  { min: -50, label: 'Rancunier', perk: 'Prix gonflés, répond sèchement' },
-  { min: -15, label: 'Voisin', perk: 'Politesse de base' },
-  { min: 15, label: 'Copain', perk: 'Petites remises, confidences' },
-  { min: 50, label: 'Confident', perk: 'Secrets, objets rares, gros rabais' },
+  { min: -100, label: 'Sworn enemy', perk: 'Slams the door in your face' },
+  { min: -50, label: 'Holding a grudge', perk: 'Inflated prices, curt answers' },
+  { min: -15, label: 'Neighbor', perk: 'Basic politeness' },
+  { min: 15, label: 'Pal', perk: 'Small discounts, confidences' },
+  { min: 50, label: 'Confidant', perk: 'Secrets, rare items, big discounts' },
 ];
 
 export function clamp(value: number, min: number, max: number): number {
