@@ -54,8 +54,8 @@ Your goal: build the prettiest, most prestigious island in town — without beco
   | 🗞️ `gazette` | The *Gossip Gazette* opens | 10 s stinger |
 
   The short `death` and `gazette` stingers play once, like big sound effects. Small UI and gameplay sounds (taps, dialogue blips, coins, slaps, punches, splashes, fish bites, doors…) are synthesized live with the Web Audio API, so they stay tiny and instant on mobile. All tracks live in `public/audio/`, and the 🔊/🔇 button mutes music, sound effects and voices together.
-- **Gradium**: each islander speaks with their own voice, and you can answer them with your mic.
-- **Cognition — Devin**: our AI teammate for coding, testing and shipping features during the hackathon.
+- **Gradium**: real-world voice models. Text-to-speech gives each islander their own voice, matched to their personality, and speech-to-text lets you talk to them with your mic. Your own character stays silent.
+- **Cognition — Devin**: our AI teammate during the hackathon. It built features on its own branches (voices, NPCs coming to talk to you, daily routines), then tested and shipped them through pull requests.
 - Designed for the **Voodoo** jury: portrait, one-thumb, playable in 30 seconds on a phone.
 
 ## The rest of the stack
