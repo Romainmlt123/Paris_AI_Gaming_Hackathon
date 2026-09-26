@@ -1,8 +1,11 @@
 import * as THREE from 'three';
 import { P } from './textures';
 
-export type Facing = 'down' | 'up';
 import type { HairStyle, PlayerLook } from '../../shared/types';
+
+/** Side sprites face right; the actor mirrors them to walk left. */
+export type Facing = 'down' | 'up' | 'side';
+const ROWS: readonly Facing[] = ['down', 'up', 'side'];
 
 export type { HairStyle };
 
@@ -105,8 +108,75 @@ function drawHair(px: Px, s: SpriteSpec, facing: Facing, y0: number): void {
   }
 }
 
+function drawSideFace(px: Px, s: SpriteSpec, y0: number): void {
+  px(20, y0 + 8, P.ink, 2, 3);
+  px(21, y0 + 8, '#ffffff');
+  px(19, y0 + 6, tone(s.hair, -0.25), 4, 1);
+  px(20, y0 + 12, '#f29b9b', 2, 1);
+  px(24, y0 + 9, s.skin, 2, 3);
+  px(24, y0 + 11, tone(s.skin, -0.18), 2, 1);
+  px(22, y0 + 13, '#9c4b43', 2, 1);
+  px(13, y0 + 7, tone(s.skin, -0.15), 2, 4);
+  px(14, y0 + 8, tone(s.skin, -0.3), 1, 2);
+  if (s.mustache) {
+    px(20, y0 + 12, s.hair, 6, 2);
+    px(21, y0 + 12, tone(s.hair, 0.3), 3, 1);
+  }
+  if (s.beard) {
+    px(15, y0 + 11, s.hair, 9, 6);
+    px(17, y0 + 17, s.hair, 6, 1);
+    px(22, y0 + 13, '#9c4b43', 2, 1);
+    px(16, y0 + 12, tone(s.hair, 0.3), 3, 1);
+  }
+}
+
+function drawSideHair(px: Px, s: SpriteSpec, y0: number): void {
+  const hl = tone(s.hair, 0.3);
+  const dk = tone(s.hair, -0.3);
+  if (s.hairStyle === 'cap' || s.hairStyle === 'beanie') {
+    const hat = s.hat ?? s.hair;
+    px(8, y0 + 3, s.hair, 5, 8);
+    px(9, y0 - 2, hat, 15, 6);
+    px(8, y0, hat, 16, 4);
+    px(11, y0 - 1, tone(hat, 0.3), 8, 1);
+    px(8, y0 + 3, tone(hat, -0.3), 16, 1);
+    if (s.hairStyle === 'cap') px(22, y0 + 3, tone(hat, -0.15), 6, 2);
+    else {
+      px(12, y0 - 5, '#ffffff', 4, 3);
+      px(12, y0 - 3, '#d9d4cc', 4, 1);
+      for (let x = 9; x < 24; x += 2) px(x, y0 + 1, tone(hat, -0.15), 1, 2);
+    }
+    return;
+  }
+  px(9, y0 - 1, s.hair, 15, 5);
+  px(8, y0 + 1, s.hair, 6, 11);
+  px(18, y0 + 3, s.hair, 6, 2);
+  px(11, y0, hl, 7, 1);
+  px(8, y0 + 10, dk, 5, 2);
+  if (s.hairStyle === 'bun') {
+    px(5, y0 - 3, s.hair, 7, 6);
+    px(6, y0 - 4, s.hair, 5, 1);
+    px(7, y0 - 3, hl, 3, 1);
+    px(5, y0 + 2, dk, 7, 1);
+  }
+}
+
 function drawHead(px: Px, s: SpriteSpec, facing: Facing, bob: number): void {
   const y0 = 5 + bob;
+  if (facing === 'side') {
+    px(10, y0, s.skin, 13, 16);
+    px(9, y0 + 2, s.skin, 15, 12);
+    px(10, y0 + 15, tone(s.skin, -0.15), 11, 1);
+    px(11, y0 + 1, tone(s.skin, 0.2), 5, 1);
+    drawSideFace(px, s, y0);
+    drawSideHair(px, s, y0);
+    if (s.naked) {
+      px(11, y0 - 3, '#4f9a4a', 2, 3);
+      px(13, y0 - 2, '#6fbf5a', 3, 2);
+      px(19, y0 - 2, '#3f7f3c', 2, 3);
+    }
+    return;
+  }
   px(9, y0, s.skin, 14, 16);
   px(8, y0 + 2, s.skin, 16, 12);
   px(6, y0 + 7, s.skin, 2, 4);
@@ -221,6 +291,67 @@ function drawBody(px: Px, s: SpriteSpec, frame: number, facing: Facing): void {
   r(18, 43 + b - lift(2), 2, 1, tone(s.shoes, 0.3));
 }
 
+interface SideColors {
+  top: string;
+  topD: string;
+  topL: string;
+  hand: string;
+  legs: string;
+  legsD: string;
+  shoes: string;
+}
+
+/** Walk cycle in profile: frame 1 and 2 swap which leg and arm lead. */
+function drawSideBody(px: Px, s: SpriteSpec, frame: number, c: SideColors): void {
+  const r = (x: number, y: number, w: number, h: number, col: string): void => px(x, y, col, w, h);
+  const b = frame === 0 ? 0 : 1;
+  const stride = frame === 1 ? 1 : frame === 2 ? -1 : 0;
+  const limb = (x0: number, y0: number, x1: number, rows: number, w: number, col: string): void => {
+    for (let i = 0; i < rows; i++) r(Math.round(x0 + ((x1 - x0) * i) / Math.max(1, rows - 1)), y0 + i, w, 1, col);
+  };
+  const leg = (dir: number, front: boolean): void => {
+    const foot = 15 + dir * 4;
+    const col = front ? c.legs : c.legsD;
+    const lift = dir < 0 && frame !== 0 ? 1 : 0;
+    limb(14, 36 + b, foot, 7 - lift, 4, col);
+    r(foot - 1, 43 + b - lift, 6, 3, front ? c.shoes : tone(c.shoes, -0.2));
+    if (front) r(foot + 1, 43 + b - lift, 2, 1, tone(c.shoes, 0.3));
+  };
+  const arm = (dir: number, front: boolean): void => {
+    const hand = 15 + dir * 4;
+    limb(15, 23 + b, hand, 9, 3, front ? c.top : c.topD);
+    r(hand, 32 + b, 3, 3, front ? c.hand : tone(c.hand, -0.2));
+  };
+  arm(-stride, false);
+  leg(-stride, false);
+  r(12, 21 + b, 9, 12, c.top);
+  r(11, 22 + b, 11, 9, c.top);
+  r(11, 22 + b, 2, 9, c.topD);
+  r(19, 22 + b, 2, 8, c.topL);
+  r(12, 32 + b, 9, 5, c.legs);
+  r(12, 32 + b, 9, 1, c.legsD);
+  leg(stride, true);
+  arm(stride, true);
+  if (s.naked) {
+    const pale = tone(s.skin, 0.62);
+    r(10, 32 + b, 4, 5, pale);
+    r(10, 32 + b, 4, 1, c.topD);
+    r(11, 34 + b, 2, 2, '#f7a8a8');
+    r(20, 25 + b, 1, 1, '#d98a80');
+    return;
+  }
+  if (s.scarf) {
+    r(12, 20 + b, 9, 3, s.scarf);
+    r(13, 20 + b, 4, 1, tone(s.scarf, 0.3));
+    r(9, 22 + b + (frame === 0 ? 0 : 1), 3, 5, tone(s.scarf, -0.15));
+  }
+  if (s.apron) {
+    r(19, 25 + b, 3, 11, s.apron);
+    r(12, 25 + b, 7, 1, s.apron);
+    r(10, 25 + b, 2, 3, tone(s.apron, -0.12));
+  }
+}
+
 function outline(ctx: CanvasRenderingContext2D, ox: number, oy: number): void {
   const img = ctx.getImageData(ox, oy, FRAME_W, FRAME_H);
   const d = img.data;
@@ -234,14 +365,14 @@ function outline(ctx: CanvasRenderingContext2D, ox: number, oy: number): void {
   for (const [x, y] of edge) ctx.fillRect(ox + x, oy + y, 1, 1);
 }
 
-/** Sprite sheet: FRAMES columns (idle, step A, step B) × 2 rows (down, up). */
+/** Sprite sheet: FRAMES columns (idle, step A, step B) × ROWS (down, up, side). */
 export function drawSheet(spec: SpriteSpec): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
   canvas.width = FRAME_W * FRAMES;
-  canvas.height = FRAME_H * 2;
+  canvas.height = FRAME_H * ROWS.length;
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   if (!ctx) throw new Error('2D canvas unavailable');
-  (['down', 'up'] as const).forEach((facing, row) => {
+  ROWS.forEach((facing, row) => {
     for (let frame = 0; frame < FRAMES; frame++) {
       const ox = frame * FRAME_W;
       const oy = row * FRAME_H;
@@ -254,7 +385,8 @@ export function drawSheet(spec: SpriteSpec): HTMLCanvasElement {
         ctx.fillStyle = c;
         ctx.fillRect(ox + x0, oy + y0, x1 - x0, y1 - y0);
       };
-      if (spec.naked) drawNakedBody(px, spec, frame, facing);
+      if (facing === 'side') drawSideBody(px, spec, frame, sideColors(spec));
+      else if (spec.naked) drawNakedBody(px, spec, frame, facing);
       else drawBody(px, spec, frame, facing);
       drawHead(px, spec, facing, frame === 0 ? 0 : 1);
       outline(ctx, ox, oy);
@@ -263,18 +395,25 @@ export function drawSheet(spec: SpriteSpec): HTMLCanvasElement {
   return canvas;
 }
 
+function sideColors(s: SpriteSpec): SideColors {
+  if (s.naked) {
+    return { top: s.skin, topD: tone(s.skin, -0.15), topL: tone(s.skin, 0.2), hand: s.skin, legs: s.skin, legsD: tone(s.skin, -0.2), shoes: tone(s.skin, -0.05) };
+  }
+  return { top: s.shirt, topD: tone(s.shirt, -0.25), topL: tone(s.shirt, 0.25), hand: s.skin, legs: s.pants, legsD: tone(s.pants, -0.3), shoes: s.shoes };
+}
+
 export function sheetTexture(sheet: HTMLCanvasElement): THREE.CanvasTexture {
   const tex = new THREE.CanvasTexture(sheet);
   tex.magFilter = THREE.NearestFilter;
   tex.minFilter = THREE.NearestFilter;
   tex.generateMipmaps = false;
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.repeat.set(1 / FRAMES, 1 / 2);
+  tex.repeat.set(1 / FRAMES, 1 / ROWS.length);
   return tex;
 }
 
 export function setFrame(tex: THREE.Texture, frame: number, facing: Facing): void {
-  tex.offset.set(frame / FRAMES, facing === 'down' ? 0.5 : 0);
+  tex.offset.set(frame / FRAMES, (ROWS.length - 1 - ROWS.indexOf(facing)) / ROWS.length);
 }
 
 /** Upscaled head crop for the UI. */
