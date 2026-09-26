@@ -42,6 +42,8 @@ let busy = false;
 let seeking: NpcId | null = null;
 /** The open dialogue was started by the NPC: walking around doesn't end it, the NPC tags along. */
 let pinned = false;
+/** Waiting for an NPC's reply: the conversation is locked, but the player can still walk. */
+let replying = false;
 let skinOutfit: GameState['outfit'] | null = null;
 
 const portraits = Object.fromEntries(NPC_IDS.map((id) => [id, portraitDataUrl(drawSheet(SPRITES[id]))])) as Record<NpcId, string>;
@@ -86,7 +88,7 @@ function startTalk(npc: NpcId, initiated = false): void {
   const open = (): void => {
     world.facePlayerToward(npc);
     dialogue.open(npc, state.npcs[npc].relation);
-    if (initiated) pin(npc);
+    pin(npc);
     const confront = state.npcs[npc].intent !== null;
     const line = confront ? openerLine(state, npc) : greeting(npc);
     void dialogue.say(line, confront ? 'mefiance' : state.npcs[npc].emotion);
@@ -125,6 +127,7 @@ async function onPlayerLine(text: string): Promise<void> {
   dialogue.playerSaid(text);
   if (deal && npc === 'gaston') return haggleLine(text);
   busy = true;
+  replying = true;
   dialogue.thinking(true);
   const result = await talk(npc, text, buildTalkContext(state, npc));
   const before = state.npcs[npc].relation;
@@ -132,6 +135,7 @@ async function onPlayerLine(text: string): Promise<void> {
   commit(applied.state);
   hud.setAiStatus(result.source === 'ai' ? '' : 'IA hors ligne · répliques de secours');
   dialogue.thinking(false);
+  replying = false;
   showChange(applied.change);
   const clash = clashFor(before, state.npcs[npc].relation);
   if (!clash) {
@@ -422,12 +426,13 @@ window.addEventListener('pointerdown', () => (lastInputAt = timer.getElapsed()),
 window.addEventListener('keydown', () => (lastInputAt = timer.getElapsed()), { capture: true });
 canvas.addEventListener('pointerdown', (e) => down.set(e.clientX, e.clientY));
 canvas.addEventListener('pointerup', (e) => {
-  if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > 12 || busy) return;
+  if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > 12 || (busy && !replying)) return;
   const ndc = new THREE.Vector2((e.clientX / canvas.clientWidth) * 2 - 1, -(e.clientY / canvas.clientHeight) * 2 + 1);
   const target = world.pick(ndc);
   if (!target) return;
   if (target.kind === 'npc') startTalk(target.npc);
   else if (target.kind === 'slot') {
+    if (replying) return;
     endTalk();
     const s = SLOTS.find((x) => x.id === target.slot);
     if (s) world.walkTo({ x: Math.round(s.x), z: Math.round(s.z) + 1 }, () => openSlot(target.slot));
@@ -490,7 +495,8 @@ function keyboardMove(dt: number): void {
       dz += v[1];
     }
   }
-  world.move(busy ? 0 : dx, busy ? 0 : dz, dt);
+  const locked = busy && !replying;
+  world.move(locked ? 0 : dx, locked ? 0 : dz, dt);
 }
 
 canvas.addEventListener('pointermove', (e) => {
