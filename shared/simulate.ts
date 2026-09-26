@@ -77,11 +77,11 @@ export function hearsayDelta(severity: number, distortion: number): number {
 }
 
 const THOUGHTS: Record<string, string[]> = {
-  'Ennemi juré': ['Si je croise ce phénomène, je change de trottoir. Et d\u2019île.', 'Je prépare un discours. Il est long. Il est méchant.'],
-  Rancunier: ['Je n\u2019oublie rien. J\u2019ai même pris des notes.', 'On me doit des excuses, et des intérêts.'],
-  Voisin: ['Ni chaud ni froid. Plutôt tiède, comme le café de Josette.', 'Je ne connais pas assez le nouveau pour en dire du mal. Pas encore.'],
-  Copain: ['Sympa, le nouveau. Mais je ne le dirai pas trop fort.', 'Je garderais bien au nouveau une part de tarte. Une petite.'],
-  Confident: ['Mon chouchou de l\u2019île. Ne le répétez pas, surtout pas à Josette.', 'Je lui confierais mes secrets. Enfin, presque tous.'],
+  'Ennemi juré': ['If I see that one coming, I\u2019m crossing the street. And the island.', 'I\u2019m preparing a speech. It\u2019s long. It\u2019s mean.'],
+  Rancunier: ['I forget nothing. I even took notes.', 'I\u2019m owed an apology. With interest.'],
+  Voisin: ['Neither hot nor cold. Lukewarm, like Josette\u2019s coffee.', 'I don\u2019t know the newcomer well enough to badmouth them. Yet.'],
+  Copain: ['Nice, the newcomer. But I won\u2019t say it too loud.', 'I\u2019d save the newcomer a slice of pie. A small one.'],
+  Confident: ['My favourite on the island. Don\u2019t repeat that, especially not to Josette.', 'I\u2019d tell them my secrets. Well, almost all of them.'],
 };
 
 /** Fallback inner thought about the player, picked from the NPC's current tier. */

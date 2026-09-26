@@ -7,7 +7,7 @@ export function showGazette(host: HTMLElement, gazette: Gazette): Promise<void> 
     const back = el('div', 'modal-back gazette-back');
     const paper = el('article', 'gazette');
     const ears = el('div', 'gz-ears');
-    ears.append(el('div', 'gz-ear', '« Tous les ragots qu\u2019on ose imprimer »'), el('div', 'gz-ear', gazette.weather));
+    ears.append(el('div', 'gz-ear', '\u201cAll the Gossip That\u2019s Fit to Print\u201d'), el('div', 'gz-ear', gazette.weather));
     const columns = el('div', 'gz-columns');
     for (const a of gazette.articles) {
       const col = el('section', 'gz-article');
@@ -16,12 +16,12 @@ export function showGazette(host: HTMLElement, gazette: Gazette): Promise<void> 
     }
     paper.append(
       ears,
-      el('h1', 'gz-masthead', 'La Gazette des Ragots'),
+      el('h1', 'gz-masthead', 'The Gossip Gazette'),
       el('div', 'gz-issue', gazette.issue),
       el('h2', 'gz-headline', gazette.headline),
       el('p', 'gz-subhead', gazette.subhead),
       columns,
-      button('primary gz-close', 'Retourner sur l\u2019île', () => {
+      button('primary gz-close', 'Back to the island', () => {
         back.remove();
         resolve();
       }),
