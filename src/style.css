@@ -30,6 +30,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 
 .hud-top { position: absolute; top: calc(8px + var(--safe-top)); left: 8px; right: 8px; display: flex; gap: 6px; justify-content: space-between; }
 .chip { padding: 4px 8px; font-size: 14px; font-weight: 700; white-space: nowrap; }
+.chip.sound { font-family: inherit; color: inherit; cursor: pointer; }
 .prestige { color: #9a6a00; }
 
 .gauges { position: absolute; top: calc(46px + var(--safe-top)); left: 8px; right: 8px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
@@ -72,6 +73,10 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .dlg-form { display: flex; gap: 6px; }
 .dlg-input { flex: 1; min-width: 0; font: inherit; font-size: 16px; padding: 9px 10px; border: 2px solid var(--ink); border-radius: 4px; background: #fffdf6; color: var(--ink); }
 .dlg-input:focus { outline: 3px solid #ffd25e; }
+.dlg-mic { width: 46px; border: 2px solid var(--ink); border-radius: 4px; background: #ffe9b8; color: var(--ink); font-size: 18px; }
+.dlg-mic[hidden] { display: none; }
+.dlg-mic[data-mode='rec'] { background: #e0484a; color: var(--paper); animation: blink 0.8s steps(2) infinite; }
+.dlg-mic:disabled { opacity: 0.6; }
 .dlg-send { width: 46px; border: 2px solid var(--ink); border-radius: 4px; background: var(--accent); color: var(--paper); font-size: 18px; }
 
 /* Modal recap */

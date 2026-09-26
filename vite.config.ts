@@ -1,7 +1,7 @@
 import { defineConfig, loadEnv, type Plugin, type ViteDevServer } from 'vite';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
-const API_ROUTES = ['talk', 'simulate'] as const;
+const API_ROUTES = ['talk', 'simulate', 'tts', 'stt'] as const;
 
 type RouteHandler = (req: Request) => Promise<Response>;
 
@@ -9,11 +9,11 @@ function isRouteHandler(value: unknown): value is RouteHandler {
   return typeof value === 'function';
 }
 
-function readBody(req: IncomingMessage): Promise<string> {
+function readBody(req: IncomingMessage): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    let body = '';
-    req.on('data', (chunk: Buffer) => (body += chunk.toString('utf8')));
-    req.on('end', () => resolve(body));
+    const chunks: Buffer[] = [];
+    req.on('data', (chunk: Buffer) => chunks.push(chunk));
+    req.on('end', () => resolve(Buffer.concat(chunks)));
     req.on('error', reject);
   });
 }
@@ -30,12 +30,12 @@ async function forward(server: ViteDevServer, route: string, req: IncomingMessag
   const request = new Request(`http://localhost/api/${route}`, {
     method: 'POST',
     headers: { 'content-type': req.headers['content-type'] ?? 'application/json' },
-    body,
+    body: new Uint8Array(body),
   });
   const response = await handler(request);
   res.statusCode = response.status;
   response.headers.forEach((value, key) => res.setHeader(key, value));
-  res.end(await response.text());
+  res.end(Buffer.from(await response.arrayBuffer()));
 }
 
 /** Serves the Vercel-style `api/*.ts` handlers from the Vite dev server. */
