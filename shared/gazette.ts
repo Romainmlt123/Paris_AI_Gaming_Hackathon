@@ -93,7 +93,7 @@ function headlineFor(
   const caller = wanting[0];
   if (caller) {
     return [
-      `${name(caller).toUpperCase()} VEUT TE PARLER : L\u2019ÎLE TEND L\u2019OREILLE`,
+      `${name(caller).toUpperCase()} VEUT TE PARLER : ÇA SENT LE ROUSSI`,
       'Personne ne sait de quoi il retourne. Tout le monde a un avis.',
     ];
   }
