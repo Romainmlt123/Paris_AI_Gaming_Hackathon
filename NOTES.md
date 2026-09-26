@@ -81,3 +81,8 @@ Mémoire du projet : fait, reste, décisions, pièges.
 - `pickInitiative(state, idleSec, blocked)` : règles déterministes par PNJ et priorité (nu, rumeur/intent, colère ≤25 %, ami ≥75 %, fauché, riche, île célèbre, immobile 45 s, nuit). Une fois par jour et par couple PNJ/déclencheur (`state.initiatives`).
 - Boucle client (src/main.ts `tickLife`) : horloge 1 s réelle = 1 min de jeu, 30 s entre deux initiatives, 90 s par PNJ, jamais pendant un dialogue/cinématique/fenêtre. Le joueur reste libre : le PNJ le suit en accélérant (`npcSeekPlayer`, nouvel itinéraire toutes les 0,4 s, abandon après 60 s), le dialogue s’ouvre seulement à côté de lui et reste ouvert si le joueur marche (le PNJ l’accompagne, `setEscort`) — idem pour toute conversation, même pendant l’attente de la réponse IA (`replying`), Gemini écrit la première réplique (`/api/talk` avec `initiative`), réplique écrite en secours.
 - Emploi du temps horaire par PNJ (`routineStep`), visites aux amis (lien ≥40) ; deux PNJ proches et le joueur à ≤7 cases → bavardage affiché + voix.
+
+## Gazette des Ragots (branche gazette)
+- Le récap d'absence est une une de journal façon NYT : `buildGazette(before, after, recap)` (shared/gazette.ts, pur, testé) + `showGazette` (src/ui/overlays.ts).
+- Gros titre choisi par le code : pire chute de relation (≤ -5) > ragots transmis > habitant qui veut parler > plus grosse hausse > titre calme.
+- Rubriques : Ragots, Carnet mondain, Cote de popularité, Petites annonces, Bourse. Titre en UnifrakturMaguntia (@fontsource), corps en serif.
