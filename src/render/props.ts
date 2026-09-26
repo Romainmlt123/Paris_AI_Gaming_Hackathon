@@ -132,18 +132,11 @@ export function createBushes(map: TileMap): THREE.Group {
   const group = new THREE.Group();
   const rng = mulberry32(8);
   const kit = foliageKit();
-  const edge = (x: number, z: number): boolean =>
-    [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx = 0, dz = 0]) => {
-      const k = kindAt(map, x + dx, z + dz);
-      return k === 'sand' || k === 'water';
-    });
-  for (let z = 0; z < map.h; z++) for (let x = 0; x < map.w; x++) {
+  for (const { x, z } of map.bushes) {
     const k = kindAt(map, x, z);
-    if ((k !== 'grass' && k !== 'plateau') || map.blocked[z * map.w + x]) continue;
-    if (rng() > (edge(x, z) ? 0.3 : 0.025)) continue;
     const b = crownMesh(kit, x + z);
     b.scale.set(0.55 + rng() * 0.2, 0.42 + rng() * 0.12, 0.55 + rng() * 0.2);
-    b.position.set(x + (rng() - 0.5) * 0.5, surfaceHeight(k) + 0.2, z + (rng() - 0.5) * 0.5);
+    b.position.set(x + (rng() - 0.5) * 0.3, surfaceHeight(k) + 0.2, z + (rng() - 0.5) * 0.3);
     b.rotation.y = rng() * Math.PI;
     group.add(b);
   }

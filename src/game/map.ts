@@ -27,6 +27,7 @@ export interface TileMap {
   blocked: boolean[];
   buildings: Building[];
   trees: Tile[];
+  bushes: Tile[];
   rocks: Tile[];
   flowers: Tile[];
 }
@@ -146,12 +147,36 @@ export function generateMap(): TileMap {
   for (let z = 0; z < h; z++) if (kinds[z * w + PONTOON_X] !== 'water') lastLand = z;
   for (let z = lastLand + 1; z < Math.min(h, lastLand + 5); z++) kinds[z * w + PONTOON_X] = 'pontoon';
 
-  const map: TileMap = { w, h, kinds, blocked: kinds.map(() => false), buildings: [...BUILDINGS], trees: [], rocks: [], flowers: [] };
+  const map: TileMap = { w, h, kinds, blocked: kinds.map(() => false), buildings: [...BUILDINGS], trees: [], bushes: [], rocks: [], flowers: [] };
   for (const b of BUILDINGS) {
     for (let z = b.z; z < b.z + b.d; z++) for (let x = b.x; x < b.x + b.w; x++) map.blocked[idx(map, x, z)] = true;
   }
   scatterProps(map);
+  scatterBushes(map);
   return map;
+}
+
+function besideShore(map: TileMap, x: number, z: number): boolean {
+  return [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx = 0, dz = 0]) => {
+    const k = kindAt(map, x + dx, z + dz);
+    return k === 'sand' || k === 'water';
+  });
+}
+
+/** Bushes block their tile like trees, with the same keep-clear rules around buildings, clearings and paths. */
+function scatterBushes(map: TileMap): void {
+  const rng = mulberry32(8);
+  for (let z = 0; z < map.h; z++) {
+    for (let x = 0; x < map.w; x++) {
+      const k = kindAt(map, x, z);
+      const t = { x, z };
+      if ((k !== 'grass' && k !== 'plateau') || map.blocked[idx(map, x, z)]) continue;
+      if (map.buildings.some((b) => inRect(t, b, 1)) || CLEARINGS.some((c) => inRect(t, c)) || nearPath(map, x, z)) continue;
+      if (rng() > (besideShore(map, x, z) ? 0.3 : 0.025)) continue;
+      map.bushes.push(t);
+      map.blocked[idx(map, x, z)] = true;
+    }
+  }
 }
 
 function scatterProps(map: TileMap): void {

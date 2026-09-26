@@ -182,8 +182,13 @@ export function drawSheet(spec: SpriteSpec): HTMLCanvasElement {
       const ox = frame * FRAME_W;
       const oy = row * FRAME_H;
       const px: Px = (x, y, c, w = 1, h = 1) => {
+        const x0 = Math.max(0, x);
+        const y0 = Math.max(0, y);
+        const x1 = Math.min(FRAME_W, x + w);
+        const y1 = Math.min(FRAME_H, y + h);
+        if (x1 <= x0 || y1 <= y0) return;
         ctx.fillStyle = c;
-        ctx.fillRect(ox + x, oy + y, w, h);
+        ctx.fillRect(ox + x0, oy + y0, x1 - x0, y1 - y0);
       };
       drawBody(px, spec, frame, facing);
       drawHead(px, spec, facing, frame === 0 ? 0 : 1);
