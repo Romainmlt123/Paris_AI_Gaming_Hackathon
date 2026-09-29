@@ -33,7 +33,7 @@ controls.target.set(0, -0.6, 0);
 controls.enableDamping = true;
 controls.enablePan = false;
 controls.minDistance = 12;
-controls.maxDistance = 48;
+controls.maxDistance = 75;
 controls.maxPolarAngle = THREE.MathUtils.degToRad(110);
 controls.autoRotate = true;
 controls.autoRotateSpeed = 0.6;
@@ -91,6 +91,7 @@ function resize(): void {
   camera.updateProjectionMatrix();
   renderer.setSize(w, h, false);
   composer.setSize(w, h);
+  frameCamera();
 }
 
 function frameCamera(): void {
@@ -102,7 +103,6 @@ function frameCamera(): void {
 
 window.addEventListener('resize', resize);
 resize();
-frameCamera();
 
 let resumeAt = 0;
 let userPaused = false;

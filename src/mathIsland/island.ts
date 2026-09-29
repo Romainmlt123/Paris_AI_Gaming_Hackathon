@@ -95,13 +95,13 @@ function underside(): THREE.Mesh {
       const a = grid[k][i];
       const b = grid[k][j];
       if (k === rings - 1) {
-        pushTri(a, tip, b, depth);
+        pushTri(a, b, tip, depth);
         continue;
       }
       const c = grid[k + 1][i];
       const d = grid[k + 1][j];
-      pushTri(a, c, b, depth);
-      pushTri(b, c, d, depth);
+      pushTri(a, b, c, depth);
+      pushTri(b, d, c, depth);
     }
   }
   const geo = new THREE.BufferGeometry();
