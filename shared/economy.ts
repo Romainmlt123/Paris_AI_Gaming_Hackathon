@@ -108,8 +108,8 @@ const LINES = {
   ],
 };
 
-function line(kind: keyof typeof LINES, deal: Deal, seed: string, offer: number | null = null): string {
-  return pick(LINES[kind], hashString(seed) + deal.round)
+function line(kind: keyof typeof LINES, deal: Deal, offer: number | null = null): string {
+  return pick(LINES[kind], hashString(deal.item) + deal.round)
     .replace('{ask}', String(deal.ask))
     .replace('{offer}', String(offer ?? deal.ask));
 }
@@ -123,21 +123,21 @@ export function haggle(deal: Deal, message: string): { deal: Deal; outcome: Hagg
       next.flattered = true;
       next.floor = Math.round(deal.floor * 0.9);
       next.ask = Math.round(deal.ask * 0.93);
-      return { deal: next, outcome: { kind: 'counter', ask: next.ask, line: line('flattery', next, message) } };
+      return { deal: next, outcome: { kind: 'counter', ask: next.ask, line: line('flattery', next) } };
     }
-    return { deal: next, outcome: { kind: 'counter', ask: deal.ask, line: line('stall', next, message) } };
+    return { deal: next, outcome: { kind: 'counter', ask: deal.ask, line: line('stall', next) } };
   }
   if (offer >= deal.ask || (offer >= deal.floor && next.round >= MAX_ROUNDS)) {
-    return { deal: next, outcome: { kind: 'accept', price: Math.min(offer, deal.ask), line: line('accept', next, message, offer) } };
+    return { deal: next, outcome: { kind: 'accept', price: Math.min(offer, deal.ask), line: line('accept', next, offer) } };
   }
   if (offer < deal.floor * 0.6) {
     next.ask = Math.round(deal.ask * 1.05);
-    return { deal: next, outcome: { kind: 'offended', ask: next.ask, line: line('offended', next, message, offer) } };
+    return { deal: next, outcome: { kind: 'offended', ask: next.ask, line: line('offended', next, offer) } };
   }
   const step = offer >= deal.floor ? 0.5 : 0.25;
   next.ask = Math.max(deal.floor, Math.round(deal.ask - (deal.ask - Math.max(offer, deal.floor)) * step));
-  if (next.round >= MAX_ROUNDS) return { deal: next, outcome: { kind: 'final', ask: next.ask, line: line('final', next, message, offer) } };
-  return { deal: next, outcome: { kind: 'counter', ask: next.ask, line: line('counter', next, message, offer) } };
+  if (next.round >= MAX_ROUNDS) return { deal: next, outcome: { kind: 'final', ask: next.ask, line: line('final', next, offer) } };
+  return { deal: next, outcome: { kind: 'counter', ask: next.ask, line: line('counter', next, offer) } };
 }
 
 export function buy(state: GameState, item: DecoId, price: number): GameState | null {
