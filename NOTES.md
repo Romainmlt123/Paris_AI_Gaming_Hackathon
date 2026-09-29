@@ -102,3 +102,10 @@ Mémoire du projet : fait, reste, décisions, pièges.
 - Le récap d'absence est une une de journal façon NYT : `buildGazette(before, after, recap)` (shared/gazette.ts, pur, testé) + `showGazette` (src/ui/overlays.ts).
 - Gros titre choisi par le code : pire chute de relation (≤ -5) > ragots transmis > habitant qui veut parler > plus grosse hausse > titre calme.
 - Rubriques : Ragots, Micro-trottoir (pensée secrète de chaque habitant, proposée par l IA via `thoughts`, sinon repli par palier), Carnet mondain, Cote de popularité, Petites annonces (avec le motif), Bourse. Titre en UnifrakturMaguntia (@fontsource), corps en serif.
+
+## Île des Maths 3D (ile-maths.html)
+- Page autonome `/ile-maths.html` : île flottante « maths » procédurale en Three.js (src/mathIsland/), d'après l'image d'inspiration de Romain.
+- `island.ts` : dalle d'herbe extrudée (contour bruité), dessous rocheux low-poly en couleurs de sommets, polyèdres incrustés, rochers flottants, rivière (ruban texturé animé), cascade de chiffres lumineux (cylindre additif + sprites qui tombent, bloom).
+- `props.ts` : grue en règles + compas, Δ au crochet, grand M rose « MATHS », rapporteur, π au sol, arbres à symboles (+ − × ÷), bouliers, pyramides, dés, robot-calculatrice animé.
+- OrbitControls (rotation auto, reprise 4 s après interaction), cadrage adapté au portrait, `?q=low` sans ombres ni bloom, bouton « Exporter .glb » (GLTFExporter) pour réutiliser l'île dans Blender.
+- Aléatoire déterministe (`rng(seed)`) : même île et même GLB à chaque chargement.
