@@ -12,7 +12,7 @@ const PATTERNS: Record<Exclude<Intent, 'neutral'>, RegExp> = {
     /(that'?s not true|not true|never said|i didn'?t (say|do)|nonsense|a lie|lies|lying|wasn'?t me|not me|no way|he'?s lying|she'?s lying|made (it|that) up|i never)/,
   apology: /\b(sorry|apologi[sz]e|apologies|forgive me|my bad|regret)\b/,
   compliment:
-    /\b(thanks|thank you|great|awesome|amazing|beautiful|lovely|bravo|love|delicious|kind|nice|incredible|best|perfect|cool|talent(ed)?|clever|smart|genius|gifted|classy|brilliant|divine|eye for)\b/,
+    /\b(thanks|thank you|great|awesome|amazing|beautiful|lovely|bravo|love|delicious|kind|nice|incredible|best|finest|perfect|cool|talent(ed)?|clever|smart|genius|gifted|classy|brilliant|divine|eye for)\b/,
   greeting: /\b(hi|hello|hey|howdy|good morning|good evening|yo|hiya|greetings)\b/,
 };
 

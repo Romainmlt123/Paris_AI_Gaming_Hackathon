@@ -23,6 +23,12 @@ describe('haggling', () => {
     const twice = haggle(once.deal, 'You\u2019ve got an eye for business!');
     expect(twice.deal.ask).toBe(once.deal.ask);
   });
+  it('varies Gaston\u2019s counter lines from round to round', () => {
+    const deal = startDeal(createInitialState(), 'fontaine');
+    const first = haggle(deal, String(Math.round(deal.floor * 0.95)));
+    const second = haggle(first.deal, String(Math.round(deal.floor * 0.97)));
+    expect(second.outcome.line).not.toBe(first.outcome.line.replace(String(first.deal.ask), String(second.deal.ask)));
+  });
 });
 
 describe('decoration', () => {
