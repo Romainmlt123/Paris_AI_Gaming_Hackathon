@@ -76,15 +76,42 @@ export function parseOffer(message: string): number | null {
 }
 
 const LINES = {
-  accept: ['Shake on it, my friend! You got a bargain… well, mostly I did.', 'Sold! Don\u2019t tell a soul, I have a reputation to keep.'],
-  counter: ['Come on, come on… {ask} coins, and only because I like you.', 'You want to ruin me? {ask}, not a coin less… well, almost.'],
-  offended: ['Excuse me?! Do I look like a charity? Now it\u2019s {ask}.', 'Ha! Even Marius wouldn\u2019t dare. {ask}, and count yourself lucky.'],
-  final: ['Final price, my friend: {ask}. After that, I close up shop.'],
-  flattery: ['Ah… you know how to talk to an artist of commerce. Fine, {ask}, just for you.'],
+  accept: [
+    'Shake on it, my friend! You got a bargain\u2026 well, mostly I did.',
+    'Sold! Don\u2019t tell a soul, I have a reputation to keep.',
+    'Deal! You drive a hard bargain. I like that. A little.',
+  ],
+  counter: [
+    '{offer}? Come on, come on\u2026 {ask} coins, and only because I like you.',
+    'You want to ruin me? {ask}, not a coin less\u2026 well, almost.',
+    'Hmm\u2026 {offer}. Tempting. Not tempting enough. {ask}.',
+    'I have children to feed. Well, a cat. {ask}, final-ish offer.',
+    'Look at that craftsmanship! {ask} is practically a gift.',
+  ],
+  stall: [
+    'Words are nice, coins are nicer. Still {ask}.',
+    'Make me an offer, my friend. A real one, with numbers. {ask} for now.',
+    'Is that a yes? I hear {ask}.',
+  ],
+  offended: [
+    'Excuse me?! Do I look like a charity? Now it\u2019s {ask}.',
+    'Ha! Even Marius wouldn\u2019t dare. {ask}, and count yourself lucky.',
+    '{offer}?! I\u2019m insulted. The price just went up: {ask}.',
+  ],
+  final: [
+    'Final price, my friend: {ask}. After that, I close up shop.',
+    'Last offer, on my mother\u2019s cash register: {ask}.',
+  ],
+  flattery: [
+    'Ah\u2026 you know how to talk to an artist of commerce. Fine, {ask}, just for you.',
+    'Flattery! My weakness. Don\u2019t tell Josette. {ask}, then.',
+  ],
 };
 
-function line(kind: keyof typeof LINES, ask: number, seed: string): string {
-  return pick(LINES[kind], hashString(seed)).replace('{ask}', String(ask));
+function line(kind: keyof typeof LINES, deal: Deal, offer: number | null = null): string {
+  return pick(LINES[kind], hashString(deal.item) + deal.round)
+    .replace('{ask}', String(deal.ask))
+    .replace('{offer}', String(offer ?? deal.ask));
 }
 
 /** Pure haggling rules. Flattery lowers the floor once; lowballing offends and raises the ask. */
@@ -96,21 +123,21 @@ export function haggle(deal: Deal, message: string): { deal: Deal; outcome: Hagg
       next.flattered = true;
       next.floor = Math.round(deal.floor * 0.9);
       next.ask = Math.round(deal.ask * 0.93);
-      return { deal: next, outcome: { kind: 'counter', ask: next.ask, line: line('flattery', next.ask, message) } };
+      return { deal: next, outcome: { kind: 'counter', ask: next.ask, line: line('flattery', next) } };
     }
-    return { deal: next, outcome: { kind: 'counter', ask: deal.ask, line: line('counter', deal.ask, message) } };
+    return { deal: next, outcome: { kind: 'counter', ask: deal.ask, line: line('stall', next) } };
   }
   if (offer >= deal.ask || (offer >= deal.floor && next.round >= MAX_ROUNDS)) {
-    return { deal: next, outcome: { kind: 'accept', price: Math.min(offer, deal.ask), line: line('accept', offer, message) } };
+    return { deal: next, outcome: { kind: 'accept', price: Math.min(offer, deal.ask), line: line('accept', next, offer) } };
   }
   if (offer < deal.floor * 0.6) {
     next.ask = Math.round(deal.ask * 1.05);
-    return { deal: next, outcome: { kind: 'offended', ask: next.ask, line: line('offended', next.ask, message) } };
+    return { deal: next, outcome: { kind: 'offended', ask: next.ask, line: line('offended', next, offer) } };
   }
   const step = offer >= deal.floor ? 0.5 : 0.25;
   next.ask = Math.max(deal.floor, Math.round(deal.ask - (deal.ask - Math.max(offer, deal.floor)) * step));
-  if (next.round >= MAX_ROUNDS) return { deal: next, outcome: { kind: 'final', ask: next.ask, line: line('final', next.ask, message) } };
-  return { deal: next, outcome: { kind: 'counter', ask: next.ask, line: line('counter', next.ask, message) } };
+  if (next.round >= MAX_ROUNDS) return { deal: next, outcome: { kind: 'final', ask: next.ask, line: line('final', next, offer) } };
+  return { deal: next, outcome: { kind: 'counter', ask: next.ask, line: line('counter', next, offer) } };
 }
 
 export function buy(state: GameState, item: DecoId, price: number): GameState | null {
