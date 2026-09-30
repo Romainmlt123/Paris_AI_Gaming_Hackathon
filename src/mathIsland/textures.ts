@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { tileNoise } from './noise';
 
 /** Deterministic PRNG so the island (and its GLB export) is identical on every load. */
 export function rng(seed: number): () => number {
@@ -23,17 +24,6 @@ function canvasTexture(w: number, h: number, draw: (g: CanvasRenderingContext2D)
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 4;
   return tex;
-}
-
-export function skyTexture(): THREE.CanvasTexture {
-  return canvasTexture(4, 256, (g) => {
-    const grad = g.createLinearGradient(0, 0, 0, 256);
-    grad.addColorStop(0, '#d7e8f5');
-    grad.addColorStop(0.55, '#eef4f9');
-    grad.addColorStop(1, '#f7f4ee');
-    g.fillStyle = grad;
-    g.fillRect(0, 0, 4, 256);
-  });
 }
 
 /** Wooden ruler face: graduations every mm-ish, numbers every "cm". */
@@ -133,28 +123,6 @@ export function fadeTexture(): THREE.CanvasTexture {
   return tex;
 }
 
-export function waterTexture(): THREE.CanvasTexture {
-  const tex = canvasTexture(128, 256, (g) => {
-    const rand = rng(11);
-    g.fillStyle = '#3f9ee8';
-    g.fillRect(0, 0, 128, 256);
-    for (let i = 0; i < 70; i++) {
-      g.fillStyle = rand() > 0.35 ? 'rgba(140, 210, 255, 0.55)' : 'rgba(255, 255, 255, 0.7)';
-      const x = rand() * 128;
-      const y = rand() * 256;
-      g.beginPath();
-      g.ellipse(x, y, 2 + rand() * 6, 8 + rand() * 18, 0, 0, Math.PI * 2);
-      g.fill();
-      g.beginPath();
-      g.ellipse(x, y - 256, 2 + rand() * 6, 8 + rand() * 18, 0, 0, Math.PI * 2);
-      g.fill();
-    }
-  });
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.RepeatWrapping;
-  return tex;
-}
-
 export function glyphTexture(text: string, color = '#ffffff', size = 64): THREE.CanvasTexture {
   return canvasTexture(size, size, (g) => {
     g.textAlign = 'center';
@@ -216,13 +184,120 @@ export function labelTexture(text: string, bg: string, fg: string): THREE.Canvas
   });
 }
 
-export function shadowTexture(): THREE.CanvasTexture {
-  return canvasTexture(256, 256, (g) => {
-    const grad = g.createRadialGradient(128, 128, 0, 128, 128, 128);
-    grad.addColorStop(0, 'rgba(60, 55, 70, 0.55)');
-    grad.addColorStop(0.6, 'rgba(60, 55, 70, 0.25)');
-    grad.addColorStop(1, 'rgba(60, 55, 70, 0)');
+
+function dataTexture(size: number, fill: (data: Uint8ClampedArray) => void, color: boolean): THREE.CanvasTexture {
+  const tex = canvasTexture(size, size, (g) => {
+    const img = g.createImageData(size, size);
+    fill(img.data);
+    g.putImageData(img, 0, 0);
+  });
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  if (!color) tex.colorSpace = THREE.NoColorSpace;
+  return tex;
+}
+
+/** Tileable grayscale fBm, used as a bump map for soil, rock and grass. */
+export function bumpTexture(seed: number, period = 8, octaves = 5): THREE.CanvasTexture {
+  const size = 256;
+  const h = tileNoise(size, period, octaves, seed);
+  return dataTexture(
+    size,
+    (d) => {
+      for (let i = 0; i < h.length; i++) {
+        const v = Math.round(h[i] * 255);
+        d[i * 4] = v;
+        d[i * 4 + 1] = v;
+        d[i * 4 + 2] = v;
+        d[i * 4 + 3] = 255;
+      }
+    },
+    false,
+  );
+}
+
+/** Tileable tangent-space normal map of gentle ripples, for the river. */
+export function waterNormalTexture(): THREE.CanvasTexture {
+  const size = 256;
+  const h = tileNoise(size, 4, 4, 41);
+  const at = (x: number, y: number): number => h[((y + size) % size) * size + ((x + size) % size)];
+  return dataTexture(
+    size,
+    (d) => {
+      for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+          const dx = (at(x + 1, y) - at(x - 1, y)) * 6;
+          const dy = (at(x, y + 1) - at(x, y - 1)) * 6;
+          const len = Math.hypot(dx, dy, 1);
+          const i = (y * size + x) * 4;
+          d[i] = Math.round((-dx / len * 0.5 + 0.5) * 255);
+          d[i + 1] = Math.round((-dy / len * 0.5 + 0.5) * 255);
+          d[i + 2] = Math.round((1 / len * 0.5 + 0.5) * 255);
+          d[i + 3] = 255;
+        }
+      }
+    },
+    false,
+  );
+}
+
+/** Soft cumulus puff with a shaded underside. */
+export function cloudTexture(seed: number): THREE.CanvasTexture {
+  const size = 256;
+  const n = tileNoise(size, 4, 5, seed);
+  return canvasTexture(size, size, (g) => {
+    const img = g.createImageData(size, size);
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const dx = (x - size / 2) / (size / 2);
+        const dy = (y - size / 2) / (size / 2);
+        const r = Math.hypot(dx, dy * 1.25);
+        const edge = Math.max(0, 1 - r);
+        const a = Math.max(0, Math.min(1, edge * 1.9 * (0.55 + n[y * size + x] * 0.9) - 0.12));
+        const shade = 1 - Math.max(0, dy) * 0.22;
+        const i = (y * size + x) * 4;
+        img.data[i] = 255 * shade;
+        img.data[i + 1] = 252 * shade;
+        img.data[i + 2] = 250 * (shade * 0.97 + 0.03);
+        img.data[i + 3] = a * 255;
+      }
+    }
+    g.putImageData(img, 0, 0);
+  });
+}
+
+/** Vertical streaks of falling water, tileable in both directions. */
+export function waterStreakTexture(): THREE.CanvasTexture {
+  const tex = canvasTexture(256, 512, (g) => {
+    const rand = rng(53);
+    g.fillStyle = 'rgba(120, 190, 240, 0.55)';
+    g.fillRect(0, 0, 256, 512);
+    for (let i = 0; i < 260; i++) {
+      const x = rand() * 256;
+      const y = rand() * 512;
+      const len = 40 + rand() * 160;
+      const w = 1 + rand() * 4;
+      g.fillStyle = `rgba(255, 255, 255, ${0.15 + rand() * 0.5})`;
+      for (const oy of [0, -512]) {
+        g.beginPath();
+        g.ellipse(x, y + oy, w, len / 2, 0, 0, Math.PI * 2);
+        g.fill();
+      }
+    }
+  });
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+}
+
+/** Radial soft dot for mist, spray and floating motes. */
+export function softDotTexture(): THREE.CanvasTexture {
+  return canvasTexture(64, 64, (g) => {
+    const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
+    grad.addColorStop(0.4, 'rgba(255, 255, 255, 0.45)');
+    grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
     g.fillStyle = grad;
-    g.fillRect(0, 0, 256, 256);
+    g.fillRect(0, 0, 64, 64);
   });
 }

@@ -105,7 +105,10 @@ Mémoire du projet : fait, reste, décisions, pièges.
 
 ## Île des Maths 3D (ile-maths.html)
 - Page autonome `/ile-maths.html` : île flottante « maths » procédurale en Three.js (src/mathIsland/), d'après l'image d'inspiration de Romain.
-- `island.ts` : dalle d'herbe extrudée (contour bruité), dessous rocheux low-poly en couleurs de sommets, polyèdres incrustés, rochers flottants, rivière (ruban texturé animé), cascade de chiffres lumineux (cylindre additif + sprites qui tombent, bloom).
+- `noise.ts` : bruit simplex seedé (fbm 2D/3D) + bruit tuilable pour les textures.
+- `island.ts` : terrain en relief (fbm, lit de rivière creusé, `groundHeight(x, z)`), falaise fermée jusqu'à une pointe (strates, bruit 3D, bump), rochers/cristaux/racines/stalactites, rivière PBR (normal map animée), cascade en nappe + chiffres + embruns, herbe/fleurs instanciées au vent (shader `onBeforeCompile`, normales non inversées en DoubleSide), `settleOnTerrain` pose les props sur le relief.
+- `atmosphere.ts` : dôme de ciel maison (dégradé fin de journée + halo solaire, aussi utilisé en PMREM pour l'éclairage), brume FogExp2 bleutée, mer de nuages en sprites, îlots lointains, poussières.
+- Piège : le shader `Sky` de Three + bloom délavait toute l'image (HDR) ; d'où le dôme LDR et un bloom à seuil > 1.
 - `props.ts` : grue en règles + compas, Δ au crochet, grand M rose « MATHS », rapporteur, π au sol, arbres à symboles (+ − × ÷), bouliers, pyramides, dés, robot-calculatrice animé.
-- OrbitControls (rotation auto, reprise 4 s après interaction), cadrage adapté au portrait, `?q=low` sans ombres ni bloom, bouton « Exporter .glb » (GLTFExporter) pour réutiliser l'île dans Blender.
-- Aléatoire déterministe (`rng(seed)`) : même île et même GLB à chaque chargement.
+- OrbitControls (rotation auto, reprise 4 s après interaction), cadrage adapté au portrait, `?q=low` : pas d'ombres/bloom/SMAA/poussières, moins d'herbe et de nuages ; bouton « Exporter .glb » (snapshot de la pose courante).
+- Aléatoire déterministe (`rng(seed)`) : même géométrie à chaque chargement.
