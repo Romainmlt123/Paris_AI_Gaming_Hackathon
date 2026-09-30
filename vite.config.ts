@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv, type Plugin, type ViteDevServer } from 'vite';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { fileURLToPath } from 'node:url';
 
 const API_ROUTES = ['talk', 'simulate', 'tts', 'stt'] as const;
 
@@ -61,6 +62,14 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [apiRoutes()],
     server: { host: true },
+    build: {
+      rolldownOptions: {
+        input: {
+          main: fileURLToPath(new URL('./index.html', import.meta.url)),
+          ileMaths: fileURLToPath(new URL('./ile-maths.html', import.meta.url)),
+        },
+      },
+    },
     test: { include: ['shared/**/*.test.ts', 'src/**/*.test.ts'] },
   };
 });
